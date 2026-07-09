@@ -1,0 +1,92 @@
+{
+  "name": "riverleaf-sql-formatter",
+  "displayName": "Riverleaf SQL Formatter",
+  "description": "Formats SQL in the river alignment style (keywords right-aligned to a common river).",
+  "version": "0.0.1",
+  "publisher": "nbluis",
+  "author": {
+    "name": "Eduardo Bohrer"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Formatters"
+  ],
+  "keywords": [
+    "sql",
+    "formatter",
+    "format",
+    "sql formatter",
+    "align",
+    "river",
+    "riverleaf"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:sql"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "sql",
+        "aliases": [
+          "SQL",
+          "sql"
+        ],
+        "extensions": [
+          ".sql"
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "Riverleaf SQL Formatter",
+      "properties": {
+        "riverleaf.maxLineLength": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "default": null,
+          "description": "Maximum line width. When null, uses the first value of editor.rulers (fallback 80)."
+        },
+        "riverleaf.keywordCase": {
+          "type": "string",
+          "enum": [
+            "lower",
+            "upper",
+            "preserve"
+          ],
+          "default": "lower",
+          "description": "Case for SQL keywords."
+        },
+        "riverleaf.indentSize": {
+          "type": "number",
+          "default": 2,
+          "description": "Number of spaces per nesting level (parentheses/subqueries)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src test",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.75.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.20.0",
+    "eslint": "^8.57.0",
+    "js-yaml": "^4.3.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}
