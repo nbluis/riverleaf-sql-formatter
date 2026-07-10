@@ -9,30 +9,49 @@ bank while a river of whitespace flows down the middle.
 Before:
 
 ```sql
-select year_month as last_visit_month from customer_user_visit_months last_visit
-join join1 on join1.column = last_visit.column
-left join join2 on join2.column = join1.column and join2.new_criteria1 = join1.new_criteria1 and join2.new_criteria2 between 1 and 2 and (join2.new_criteria4 = join1.new_criteria1 or join2.new_criteria5 = join1.new_criteria5)
-where last_visit.organization_id = current_visit.organization_id and last_visit.organization_id = 220
-order by year_month desc limit 1
+select order_month as previous_order_month from monthly_order_summaries previous_order
+join customers on customers.customer_id = previous_order.customer_id
+left join shipping_addresses on shipping_addresses.customer_id = customers.customer_id and shipping_addresses.address_type = customers.default_address_type and shipping_addresses.priority between 1 and 2 and (shipping_addresses.region_id = customers.region_id or shipping_addresses.country_code = customers.country_code)
+where previous_order.organization_id = current_order.organization_id and previous_order.organization_id = 220 and previous_order.customer_id = current_order.customer_id and previous_order.order_month < current_order.order_month and previous_order.order_count > 0
+order by order_month desc limit 1
 ```
 
 After (width = 100):
 
 ```sql
-    select year_month as last_visit_month
-      from customer_user_visit_months last_visit
-      join join1 on join1.column = last_visit.column
-      left join join2 on join2.column = join1.column
-                     and join2.new_criteria1 = join1.new_criteria1
-                     and join2.new_criteria2 between 1 and 2
-                     and (
-                       join2.new_criteria4 = join1.new_criteria1
-                       or join2.new_criteria5 = join1.new_criteria5
-                     )
-     where last_visit.organization_id = current_visit.organization_id
-       and last_visit.organization_id = 220
-     order by year_month desc
+    select order_month as previous_order_month
+      from monthly_order_summaries previous_order
+      join customers on customers.customer_id = previous_order.customer_id
+      left join shipping_addresses on shipping_addresses.customer_id = customers.customer_id
+                                  and shipping_addresses.address_type = customers.default_address_type
+                                  and shipping_addresses.priority between 1 and 2
+                                  and (
+                                    shipping_addresses.region_id = customers.region_id
+                                    or shipping_addresses.country_code = customers.country_code
+                                  )
+     where previous_order.organization_id = current_order.organization_id
+       and previous_order.organization_id = 220
+       and previous_order.customer_id = current_order.customer_id
+       and previous_order.order_month < current_order.order_month
+       and previous_order.order_count > 0
+     order by order_month desc
      limit 1
+```
+
+A smaller one — `group by` / `having` / `order by`, from a single compact line:
+
+```sql
+select department_id, count(*) from employees group by department_id having count(*) > 5 order by department_id
+```
+
+becomes:
+
+```sql
+select department_id, count(*)
+  from employees
+ group by department_id
+having count(*) > 5
+ order by department_id
 ```
 
 ## Rules
