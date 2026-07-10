@@ -7,6 +7,7 @@
   "author": {
     "name": "Eduardo Bohrer"
   },
+  "license": "MIT",
   "engines": {
     "vscode": "^1.75.0"
   },

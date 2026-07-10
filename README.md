@@ -128,3 +128,7 @@ changes needed to grow the suite; this is our guardrail against regressions.
 - Subqueries and CTEs (`with`) are still rendered inline (without recomputing the inner
   river) — planned refinement.
 - `case when ... end` and INSERT/UPDATE/DELETE alignment are basic for now.
+
+## License
+
+[MIT](LICENSE)
