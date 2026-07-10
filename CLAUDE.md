@@ -4,6 +4,7 @@ VS Code extension that formats SQL in the **river alignment** style: the first w
 clause is right-aligned to a common column (the "river"), spaces only, never tabs.
 
 > Personal project of **Eduardo Bohrer** (publisher `nbluis`, author "Eduardo Bohrer").
+> Standalone and independent — don't infer an organization from the parent folder name in the path.
 
 ## Golden rule
 
