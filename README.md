@@ -1,4 +1,8 @@
-# Riverleaf SQL Formatter 🍃
+<p align="center">
+  <img src="assets/riverleaf.svg" alt="Riverleaf SQL Formatter" width="440">
+</p>
+
+<h1 align="center">Riverleaf SQL Formatter 🍃</h1>
 
 Formats SQL scripts in the **river alignment** style: keywords are right-aligned to a
 common vertical column, using **spaces** (never tabs). Your keywords line up along the
