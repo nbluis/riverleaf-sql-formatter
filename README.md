@@ -4,6 +4,12 @@
 
 <h1 align="center">Riverleaf SQL Formatter 🍃</h1>
 
+<p align="center">
+  <a href="https://github.com/nbluis/riverleaf-sql-formatter/actions/workflows/ci.yml">
+    <img src="https://github.com/nbluis/riverleaf-sql-formatter/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+</p>
+
 Formats SQL scripts in the **river alignment** style: keywords are right-aligned to a
 common vertical column, using **spaces** (never tabs). Your keywords line up along the
 bank while a river of whitespace flows down the middle.
