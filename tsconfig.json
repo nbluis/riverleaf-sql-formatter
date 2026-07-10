@@ -7,6 +7,9 @@
     ],
     "outDir": "out",
     "rootDir": ".",
+    "types": [
+      "node"
+    ],
     "sourceMap": true,
     "strict": true,
     "noUnusedLocals": true,

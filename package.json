@@ -89,6 +89,7 @@
     "package": "vsce package"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.0.1",
     "@types/vscode": "^1.75.0",

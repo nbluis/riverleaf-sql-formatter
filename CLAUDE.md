@@ -73,8 +73,14 @@ extension id first if the publisher/name changed).
 ## Conventions & gotchas
 
 - Throwaway scripts (formatter probes, case generators) go to the **scratchpad**, never committed.
-- `js-yaml` is pinned to **4.3.0** on purpose — the registry's `latest` is an unverified 5.x major;
-  4.x matches `@types/js-yaml@4` and dedups with ESLint's copy. Do not bump without vetting.
+- `js-yaml` is on **5.x** (bumped from 4.x by Dependabot and vetted here — the test suite is the
+  only consumer and uses just `load()`, which is unchanged). `@types/js-yaml` stays on **4.x** (no
+  5.x typings published; still type-checks clean against our usage).
+- ESLint uses **flat config** (`eslint.config.js`, CommonJS), required by ESLint 9+. It composes
+  `@eslint/js` recommended + `@typescript-eslint`'s `flat/recommended`, plus the lenient
+  `no-unused-vars` (`argsIgnorePattern: ^_`). There is no `.eslintrc.json` anymore.
+- `tsconfig.json` sets `"types": ["node"]` — with `@types/node` 26 + TypeScript 6 the Node globals
+  are no longer auto-included, so this is required for the test files to type-check.
 - After changing runtime code (`src/formatter/*`, `src/extension.ts`), re-package + re-install to
   test in the real editor. Test-only/README changes don't need re-packaging.
 - Config prefix is `riverleaf.*` (not the old `alignedSqlFormatter.*`).
