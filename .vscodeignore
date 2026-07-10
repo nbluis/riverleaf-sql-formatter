@@ -12,3 +12,5 @@ tsconfig.json
 vitest.config.ts
 CLAUDE.md
 .claude/**
+assets/riverleaf.png
+assets/riverleaf.svg
