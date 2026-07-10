@@ -6,8 +6,8 @@ bank while a river of whitespace flows down the middle.
 
 > 🚧 **Work in progress** — behavior, rules, and options may change between versions.
 
-**Opinionated by design.** Riverleaf formats SQL the way its author (Eduardo Bohrer) likes to read
-it, and it will always prioritize those preferences over being configurable to every style. The
+**Opinionated by design.** Riverleaf formats SQL the way its author likes to read it, and it will
+always prioritize those preferences over being configurable to every style. The
 goal is to be an excellent fit for that particular taste — not a general-purpose formatter you tune
 to your own conventions. If you want a different look, this probably isn't the tool for you.
 
