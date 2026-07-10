@@ -8,6 +8,14 @@
     "name": "Eduardo Bohrer"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nbluis/riverleaf-sql-formatter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nbluis/riverleaf-sql-formatter/issues"
+  },
+  "homepage": "https://github.com/nbluis/riverleaf-sql-formatter#readme",
   "engines": {
     "vscode": "^1.75.0"
   },
