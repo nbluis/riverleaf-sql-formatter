@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/riverleaf.svg" alt="Riverleaf SQL Formatter" width="440">
+  <img src="assets/riverleaf.png" alt="Riverleaf SQL Formatter" width="440">
 </p>
 
 <h1 align="center">Riverleaf SQL Formatter 🍃</h1>
@@ -71,14 +71,24 @@ having count(*) > 5
  order by department_id
 ```
 
+A join with more than one ON condition always breaks, aligning `and`/`or` under `on`:
+
+```sql
+select table1.column1, table2.column2
+  from table1
+  join table2 on table2.id = table1.ref_id
+             and table2.ref_id is null
+```
+
 ## Rules
 
 - **Spaces, never tabs.**
 - The **first word** of each clause (`select`, `from`, `join`, `left`, `where`, `and`,
   `order`, `limit`, ...) is right-aligned to a common river; arguments start right after.
 - **Keywords lowercased** by default; identifiers preserved.
-- **JOINs do not break** by default. They only break when the line exceeds the maximum
-  width; then the `and`/`or` conditions align under the `on`.
+- **JOINs with more than one ON condition always break**, aligning the `and`/`or`
+  conditions under the `on` — regardless of line width. A join with a single ON condition
+  stays inline (there is nothing to align).
 - In `where`/`having`, the `and`/`or` connectors align to the main river.
 - A **SELECT with many columns** stays on one line if it fits; otherwise it breaks with
   trailing commas, aligning the columns.

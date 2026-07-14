@@ -57,7 +57,9 @@ split point (`pendingBetween` counter in `splitTerms`).
   the clause/keyword line.
   - `where`: `connEnd = riverEnd`.
   - `join`: `connEnd = onRiverEnd = leading + len("<head> <tableref> on")` — a **secondary river**
-    at the column right after `on`. First ON term stays on the join line.
+    at the column right after `on`. First ON term stays on the join line. A join with two or more
+    ON conditions **always breaks** (regardless of width); a single-condition ON stays inline
+    (nothing to align).
 - **BLOCK mode** (`renderBoolBlock`, used inside an expanded parenthesized group): connectors are
   **left-aligned** at `blockIndent`; each term is `blockIndent + [connector + " "] + operand`;
   first term has no connector.

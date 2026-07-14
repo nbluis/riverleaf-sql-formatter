@@ -49,12 +49,19 @@
   expected: |
     select CustomerName
       from Clients
-- description: short join does not break
+- description: a single-condition join stays inline (nothing to align)
   input: select order_id from orders join customers on customers.id = orders.customer_id
   expected: |
     select order_id
       from orders
       join customers on customers.id = orders.customer_id
+- description: a multi-condition join always breaks, aligning and/or under on (even when it fits)
+  input: select table1.column1, table2.column2 from table1 join table2 on table2.id = table1.ref_id and table2.ref_id is null
+  expected: |
+    select table1.column1, table2.column2
+      from table1
+      join table2 on table2.id = table1.ref_id
+                 and table2.ref_id is null
 - description: no space before ( in function calls
   input: select coalesce(nickname, full_name), count(*) from users where status_id in (1, 2, 3)
   expected: |

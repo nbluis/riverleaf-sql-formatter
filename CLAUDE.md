@@ -37,7 +37,8 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   the statement's first non-empty line (**preserved**, so a query at column 0 → river at 6).
 - Clause first word right-aligned to the river; arguments start 1 space after. Multi-word keywords
   (`left join`, `order by`) align only their **first** word; the rest flows.
-- Joins do **not** break unless the line exceeds max width; then ON conditions align under `on`.
+- Joins with **more than one ON condition always break** (regardless of width); the `and`/`or`
+  conditions align under `on`. A single-condition ON stays inline.
 - `where`/`on`: connectors (`and`/`or`) right-aligned to the river (RIVER mode).
 - Parenthesized boolean groups expand in BLOCK mode (connectors left-aligned, indented). This
   reproduces the user's golden example, which is intentionally inconsistent between the two levels

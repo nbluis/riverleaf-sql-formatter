@@ -163,8 +163,12 @@ export class Layout {
     const headPart = headStr + (tableStr ? ' ' + tableStr : '') + ' ' + onKw;
 
     const terms = parseBoolExpr(onTokens);
-    const inline = pad(leading) + headPart + ' ' + this.renderInlineBool(terms);
-    if (terms.length === 1 || this.fits(inline)) return [inline];
+    // A single ON condition has nothing to align, so it stays inline. Any join
+    // with two or more ON conditions always breaks (regardless of width) so the
+    // and/or connectors align under the "on".
+    if (terms.length === 1) {
+      return [pad(leading) + headPart + ' ' + this.renderInlineBool(terms)];
+    }
 
     const onRiverEnd = leading + headPart.length; // column right after "on"
     const firstLinePrefix = pad(leading) + headPart + ' ';
