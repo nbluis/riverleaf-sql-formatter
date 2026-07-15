@@ -100,6 +100,13 @@ select table1.column1, table2.column2
   statement sit at the content column (aligned with the clause arguments). A comment before the
   first `where`/`having` condition puts the keyword on its own line, with the first condition
   below the comment.
+- **INSERT / UPDATE / DELETE** format like a select: the anchors join the river, `set` and
+  `values` break one item per line (when there is more than one), `delete from` stays together,
+  and `where` reuses the river.
+- **Subqueries and CTEs** expand recursively for the common shapes — `from (select ...) alias`,
+  a single `with name as (...)`, and a single-condition `where ... in (select ...)`. The inner
+  query is re-aligned one level in and the closing `)` aligns under the clause keyword.
+- **`case ... end`** in the select list expands with `when` / `else` / `end` aligned under `case`.
 - **Maximum width** = the first value of `editor.rulers` (fallback 80), or the override in
   `riverleaf.maxLineLength`.
 
@@ -148,24 +155,17 @@ Each case is asserted two ways: `format(input, options) === expected`, and that 
 `expected` again is stable (idempotent — add `idempotent: false` to opt out). No code
 changes needed to grow the suite; this is our guardrail against regressions.
 
-## Known limitations (roadmap)
+## Known limitations
 
-- Line comments (`--`) are reflowed in select/from/group-by/order-by lists, around clauses
-  (leading, between clauses, trailing), on `where`/`having` conditions (inline and standalone
-  between conditions), inside expanded parenthesized boolean groups, before the first
-  `where`/`having` condition (the keyword sits alone and the first condition drops below the
-  comment), and inside a `join` ON. A comment is still only kept **as-is** (whole statement) when
-  it sits mid-token or inside an inline subquery where it cannot be placed without risk.
-- INSERT / UPDATE / DELETE are formatted like a select: the anchors join the river, `set` and
-  `values` break one item per line (when there's more than one), and `where` reuses the river.
-- Subqueries and CTEs expand recursively for common shapes: `from (select ...) alias`, a single
-  `with name as (...)`, and a single-condition `where ... in (select ...)`. The inner query is
-  re-aligned one level in and the closing `)` aligns under the clause keyword. Still inline:
-  multiple comma-separated CTEs, subqueries inside a multi-condition `where`/`join` ON, and scalar
-  subqueries in the select list.
-- A `case ... end` in the select list expands with `when` / `else` / `end` aligned under `case`.
-  A nested `case` stays inline on its branch, a long `when ... then` is not wrapped, and a `case`
-  inside a function call or in a `where` stays inline for now.
+The comment, DML, subquery/CTE and `case` handling above covers the common shapes. These narrower
+cases are not reflowed yet — they are rendered inline or kept exactly as written (never corrupted):
+
+- **Comments** are kept as-is (the whole statement is passed through unchanged) when a line comment
+  sits mid-token or inside a subquery, where it cannot be moved without risk of commenting out code.
+- **Subqueries / CTEs** stay inline when they are: multiple comma-separated CTEs, a subquery inside
+  a multi-condition `where` or a `join` ON, or a scalar subquery in the select list.
+- **`case`** stays inline when it is nested inside another `case` branch, wrapped in a function
+  call, or used outside the select list (e.g. in a `where`); a long `when ... then` is not wrapped.
 
 ## License
 

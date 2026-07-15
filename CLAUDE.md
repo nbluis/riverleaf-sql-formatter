@@ -128,6 +128,9 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 
 ## Open items / roadmap
 
-See **`.claude/rules/roadmap.md`** for known limitations and decisions awaiting the user
-(nested-paren BLOCK-mode inconsistency, subqueries/CTEs, `case when`, DML, comments inside boolean
-expressions).
+The four original Known Limitations (comments in boolean expressions, DML, subqueries/CTEs,
+`case when`) are **resolved for the common shapes** (see the rules above). See
+**`.claude/rules/roadmap.md`** for the remaining narrower sub-cases (multiple CTEs, subqueries in a
+multi-condition where / join ON, scalar subqueries, long `case` branch wrapping, comments mid-token
+or inside a subquery) and the aesthetic **decisions still awaiting the user**: nested-paren BLOCK vs
+RIVER inconsistency, base-indent preservation, and the default `maxLineLength`.
