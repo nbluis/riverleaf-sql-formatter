@@ -102,21 +102,26 @@ call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KE
       column**. The `;`, if any, goes on the last code line, before them.
   - **Inline comments** stay attached to the last token of their line: `splitListItems` keeps a
     comment after `X,` or at the end of an item as that item's trailing `comment`; in `where`/
-    `having` (RIVER mode), `parseBoolExpr` extracts an inline comment trailing a top-level term
-    into `BoolTerm.comment`, rendered at end of that term's line. A comment on an intermediate
-    term forces the expression to break; a comment on the last term (or a single term) can stay
-    inline when it fits.
+    `having` (RIVER mode), `processRawTerms` (via `parseBoolExpr`) extracts an inline comment
+    trailing a top-level term into `BoolTerm.comment`, rendered at end of that term's line. A
+    comment on an intermediate term forces the expression to break; a comment on the last term
+    (or a single term) can stay inline when it fits.
+  - **Standalone comments between `where`/`having` conditions**: `processRawTerms` lifts a
+    standalone comment (trailing a term, or leading the next after its connector) into the
+    following `BoolTerm.commentsBefore`, rendered on its own line at the operand column
+    (`connEnd + 1`) above that condition. Any such comment forces the expression to break.
   - *Comment after the final `;`*: a trailing comment-only unit (no clauses) glues under the
     previous block with a single `\n` instead of becoming its own blank-line-separated block
     (see `format()`).
   - `isCommentSafe(statement)`: for list clauses, false if any item is `unsafe` (a line comment
     strictly *inside* an item — not at a boundary); for `where`/`having`, false unless
-    `boolCommentsReflowable` (every comment inline-trails a top-level term); for `join`/generic/
-    set ops, false if a line comment is not the last body token. If unsafe → the whole statement
-    is emitted unchanged (passthrough) so SQL is never commented-out by line joins.
-- Not yet handled: **standalone** comments in the middle of a `where`/`having` expression, and any
-  comment inside a `join` ON or a nested parenthesized group, still trigger passthrough. Extending
-  `commentsBefore` handling into `BoolTerm`s is the natural next step.
+    `boolCommentsReflowable` (every comment sits at a top-level term boundary — inline-trailing or
+    standalone-between-terms); for `join`/generic/set ops, false if a line comment is not the last
+    body token. If unsafe → the whole statement is emitted unchanged (passthrough) so SQL is never
+    commented-out by line joins.
+- Not yet handled: a comment inside a nested parenthesized group, a standalone comment before the
+  first `where`/`having` condition, and comments inside a `join` ON still trigger passthrough.
+  Extending `commentsBefore` handling into groups and join ON is the natural next step.
 
 ## Invariants to keep
 

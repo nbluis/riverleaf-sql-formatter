@@ -62,6 +62,8 @@ export class Layout {
     this.emitTerm(lines, terms[0], firstLinePrefix, firstLinePrefix.length, connEnd);
     // remaining terms: connector right-aligned at connEnd
     for (let i = 1; i < terms.length; i++) {
+      // standalone comments sit on their own line at the operand column
+      for (const c of terms[i].commentsBefore ?? []) lines.push(pad(connEnd + 1) + c);
       const conn = caseConnector(terms[i].connector as 'and' | 'or', this.options);
       const lineStart = connEnd - conn.length;
       const prefix = pad(lineStart) + conn + ' ';
@@ -153,12 +155,14 @@ export class Layout {
     const headStr = renderTokens(clause.head, this.options);
     const terms = parseBoolExpr(clause.body);
     const inlineBody = this.renderInlineBool(terms);
-    // a comment on the last term can stay inline; one on an earlier term forces a break
+    // a comment on the last term can stay inline; one on an earlier term, or any
+    // standalone comment, forces a break
     const lastComment = terms[terms.length - 1].comment;
     const midComment = terms.slice(0, -1).some((t) => t.comment);
+    const hasStandalone = terms.some((t) => t.commentsBefore?.length);
     const full = pad(leading) + headStr + ' ' + inlineBody + (lastComment ? ' ' + lastComment : '');
     if (terms.length === 1) return [full];
-    if (!midComment && this.fits(full)) return [full];
+    if (!midComment && !hasStandalone && this.fits(full)) return [full];
 
     const firstLinePrefix = pad(leading) + headStr + ' ';
     return this.renderBoolRiver(terms, riverEnd, firstLinePrefix);

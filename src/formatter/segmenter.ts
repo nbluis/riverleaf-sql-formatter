@@ -211,6 +211,8 @@ export interface BoolTerm {
   node: BoolNode;
   /** Inline trailing line comment for this term's line, if any. */
   comment?: string;
+  /** Standalone comments rendered on their own lines above this term. */
+  commentsBefore?: string[];
 }
 
 export type BoolNode =
@@ -286,27 +288,76 @@ function asWrappedGroup(tokens: Token[]): { pre: Token[]; inner: Token[]; post: 
   return { pre, inner: tokens.slice(start + 1, close), post };
 }
 
-/** Removes trailing inline line comments from `tokens`, returning their text (or undefined). */
-function takeTrailingInlineComment(tokens: Token[]): string | undefined {
-  const parts: string[] = [];
-  while (
-    tokens.length > 0 &&
-    tokens[tokens.length - 1].type === 'lineComment' &&
-    !tokens[tokens.length - 1].newlineBefore
-  ) {
-    parts.unshift(tokens.pop()!.value);
+interface ProcessedTerm {
+  connector: 'and' | 'or' | null;
+  /** Term tokens with boundary comments removed. */
+  tokens: Token[];
+  /** Inline comment trailing this term's line. */
+  comment?: string;
+  /** Standalone comments to render on their own lines above this term. */
+  commentsBefore?: string[];
+}
+
+/**
+ * Splits a boolean body into top-level terms and lifts out their line comments.
+ * An inline comment trailing a term stays as that term's `comment`; a standalone
+ * comment (alone on its line) between two terms becomes the following term's
+ * `commentsBefore`. `safe` is false for any comment we cannot place cleanly —
+ * mid-term, inside a group, a standalone before the first (inline) term, or an
+ * inline comment right after a connector — in which case the caller passes the
+ * statement through unchanged.
+ */
+function processRawTerms(tokens: Token[]): { terms: ProcessedTerm[]; safe: boolean } {
+  const terms: ProcessedTerm[] = splitTerms(tokens).map((r) => ({
+    connector: r.connector,
+    tokens: r.tokens.slice(),
+  }));
+  let safe = true;
+
+  for (let k = 0; k < terms.length; k++) {
+    const term = terms[k];
+    const tk = term.tokens;
+
+    // leading comments (a comment that followed the connector)
+    while (tk.length > 0 && tk[0].type === 'lineComment') {
+      const c = tk.shift()!;
+      if (c.newlineBefore && k > 0) {
+        (term.commentsBefore ??= []).push(c.value);
+      } else {
+        safe = false; // standalone before the first term, or inline after a connector
+      }
+    }
+
+    // trailing comments: inline stays on this line, standalone floats above the next term
+    const inline: string[] = [];
+    const standalone: string[] = [];
+    while (tk.length > 0 && tk[tk.length - 1].type === 'lineComment') {
+      const c = tk.pop()!;
+      if (c.newlineBefore) standalone.unshift(c.value);
+      else inline.unshift(c.value);
+    }
+    if (inline.length > 0) term.comment = [term.comment, ...inline].filter(Boolean).join(' ');
+    if (standalone.length > 0) {
+      if (k + 1 < terms.length) {
+        const next = terms[k + 1];
+        next.commentsBefore = [...standalone, ...(next.commentsBefore ?? [])];
+      } else {
+        safe = false; // trailing standalone on the last term (should have been lifted out)
+      }
+    }
+
+    // any comment left in the middle of the term cannot be reflowed
+    if (tk.some((x) => x.type === 'lineComment')) safe = false;
   }
-  return parts.length ? parts.join(' ') : undefined;
+
+  return { terms, safe };
 }
 
 /** Parses a boolean expression into a list of terms (with nested groups). */
 export function parseBoolExpr(tokens: Token[]): BoolTerm[] {
-  const rawTerms = splitTerms(tokens);
-  return rawTerms.map(({ connector, tokens: t }) => {
-    const tt = t.slice();
-    // an inline comment trailing this term stays on its line (see renderer)
-    const comment = takeTrailingInlineComment(tt);
-    const wrapped = asWrappedGroup(tt);
+  const { terms } = processRawTerms(tokens);
+  return terms.map(({ connector, tokens: t, comment, commentsBefore }) => {
+    const wrapped = asWrappedGroup(t);
     if (wrapped) {
       const innerTerms = parseBoolExpr(wrapped.inner);
       // only treat as a breakable group if the interior has >1 term (has AND/OR)
@@ -315,25 +366,21 @@ export function parseBoolExpr(tokens: Token[]): BoolTerm[] {
           connector,
           node: { kind: 'group', pre: wrapped.pre, inner: innerTerms, post: wrapped.post },
           comment,
+          commentsBefore,
         } as BoolTerm;
       }
     }
-    return { connector, node: { kind: 'atom', tokens: tt }, comment } as BoolTerm;
+    return { connector, node: { kind: 'atom', tokens: t }, comment, commentsBefore } as BoolTerm;
   });
 }
 
 /**
- * Whether every line comment in a boolean body (WHERE / HAVING) is an inline
- * comment trailing a top-level term — the only shape we can reflow. Standalone,
- * mid-term, or in-group comments return false (the statement is passed through).
+ * Whether every line comment in a boolean body (WHERE / HAVING) sits at a
+ * top-level term boundary (inline-trailing or standalone-between-terms). Mid-term
+ * or in-group comments return false (the statement is passed through).
  */
 export function boolCommentsReflowable(tokens: Token[]): boolean {
-  for (const { tokens: t } of splitTerms(tokens)) {
-    const tt = t.slice();
-    takeTrailingInlineComment(tt);
-    if (tt.some((x) => x.type === 'lineComment')) return false;
-  }
-  return true;
+  return processRawTerms(tokens).safe;
 }
 
 export interface ListItem {

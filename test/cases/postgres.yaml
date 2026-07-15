@@ -103,16 +103,30 @@
     select order_id
       from orders
      where status_id = 1 and total_amount > 0 -- note
-- description: a standalone comment in the middle of a where is preserved as-is (not yet reflowed)
+- description: a standalone comment between where conditions sits at the content column
   input: |
     select order_id from orders
     where status_id = 1
     -- standalone note
     and total_amount > 0
   expected: |
+    select order_id
+      from orders
+     where status_id = 1
+           -- standalone note
+       and total_amount > 0
+- description: a comment inside a parenthesized group is preserved as-is (passthrough)
+  input: |
     select order_id from orders
-    where status_id = 1
-    -- standalone note
+    where (status_id = 1
+    -- inside the group
+    or status_id = 2)
+    and total_amount > 0
+  expected: |
+    select order_id from orders
+    where (status_id = 1
+    -- inside the group
+    or status_id = 2)
     and total_amount > 0
 - description: multiple statements separated by a blank line
   input: select current_date; select order_id from orders
