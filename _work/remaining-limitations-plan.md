@@ -10,7 +10,9 @@
 > **D3 fica como está** (falar depois), **D2 ainda a decidir** com preview.
 >
 > Antes/depois revisado e aprovado pelo usuário no artifact
-> `62c942b4-6fb4-4805-b055-e899dd84f7cd` (A1 e D1 ajustados conforme feedback; resto confirmado).
+> `62c942b4-6fb4-4805-b055-e899dd84f7cd`. **Todos os layouts-alvo estão travados abaixo** (embutidos
+> como sketches). **Única decisão ainda aberta: D2** (preservar vs. normalizar a indentação base) —
+> decidir com preview no início da fase 9.
 
 ## Regras do processo (repetir em cada fase — igual às fases 1–4)
 
@@ -41,11 +43,21 @@
 
 Reusa `renderSubqueryBlock`. Fazer da mais simples para a mais complexa.
 
-### 5a. A3 — subquery como tabela de um `join` 🟡
+### 5a. A3 — subquery como tabela de um `join` 🟡 (layout travado)
 `renderJoinClause`: se a parte antes do `on` (tableRef) começa com uma subquery
-(`findSubquery(tableRef)`), expandir `join (` … `) alias` com `ownerLeading = leading` do join; em
-seguida renderizar o `on …` (inline se 1 condição; secondary river se várias) **na linha do `) alias`**.
-- **Decisão**: `on` na mesma linha do `) alias` (provável) vs. `on` em nova linha. Gerar preview.
+(`findSubquery(tableRef)`), expandir `join (` … `) alias` com `ownerLeading = leading` do join; o
+`on …` fica **na linha do `) alias`** (inline se 1 condição; secondary river se várias).
+- **Atenção**: hoje `join` seguido de `(` não é reconhecido como join (o guard do `LEFT(` em
+  `isClauseBoundary` retorna 0). Precisa distinguir `join (subquery)` de função — só tratar como
+  função quando o interior **não** começa com `select`/`with`.
+```
+select o.id
+  from orders o
+  join (
+    select customer_id
+      from vip_customers
+  ) v on v.customer_id = o.customer_id
+```
 
 ### 5b. A4 — subquery escalar na lista do `select` 🟡
 Em `renderItemLines`: se o item contém uma subquery top-level (`findSubquery(item.tokens)`),
@@ -63,20 +75,41 @@ select id,
 - **Cuidado**: item que é `func(select …)` (subquery aninhada em função) — manter inline (só
   expandir quando o item **é** a subquery, possivelmente com alias depois).
 
-### 5c. A2 — subquery dentro de `where`/`having` multi-condição 🟡🔴
-A mais difícil: integrar expansão de subquery no `emitTerm` (RIVER). Quando um atom contém uma
-subquery, emitir o bloco expandido com `ownerLeading = lineStart` (coluna onde a linha do termo
-começa — o conector fica acima). Hoje só expande quando é **condição única** (via `renderBoolClause`).
-- **Decisão**: `)` alinhado sob o conector/`lineStart` (consistente com a regra "sob a keyword").
-  Gerar preview com `and`/`or` em volta.
+### 5c. A2 — subquery dentro de `where`/`having` multi-condição 🟡 (layout travado)
+Hoje `renderBoolClause` só expande a subquery quando `terms.length === 1`. Estender para: quando o
+**1º termo** é (ou contém) uma subquery, expandi-la reusando **exatamente** o caminho do caso de
+condição única (`ownerLeading = leading` da cláusula → `)` sob o `w` do `where`, inner em
+`leading + indentSize`), e então renderizar os termos restantes (`and`/`or`) normalmente abaixo.
+- Subquery num termo **não-primeiro** (depois de `and`/`or`) → manter inline por ora (documentar).
+- **Não** usar `lineStart` do `emitTerm` (daria `)` na coluna do operando, col 7 — errado). É o
+  `leading` da cláusula (col 1) que o usuário confirmou.
+```
+select id
+  from orders
+ where customer_id in (
+   select customer_id
+     from vip_customers
+    where active = true
+ )
+   and status_id = 1
+```
 
-### 5d. B1 — comentário dentro de subquery (cai junto) 🟡
+### 5d. B1 — comentário dentro de subquery (cai junto) 🟡 (layout travado)
 Hoje qualquer comentário dentro da subquery → `isCommentSafe` reprova → passthrough do statement
 inteiro. Relaxar `isCommentSafe` para **não** reprovar por comentário que esteja **dentro** de uma
-subquery expansível; a recursão (`renderInner` → `formatStatement`) posiciona o comentário.
+subquery expansível; a recursão (`renderInner` → `formatStatement`) posiciona o comentário (no
+exemplo, comentário entre cláusulas do inner → coluna de conteúdo do inner).
 - **Cuidado (idempotência + segurança)**: garantir que a segurança dos comentários do **interior**
   seja checada na recursão (hoje `renderInner` não passa por `isCommentSafe`). Opção: `renderInner`
   checar `isCommentSafe` do inner e cair para passthrough do bloco interno se inseguro.
+```
+select x.id
+  from (
+    select id
+           -- note inside
+      from orders
+  ) x
+```
 
 ### Arquivos Fase 5
 `layout.ts` (`renderJoinClause`, `renderItemLines`, `emitTerm`), `format.ts` (`isCommentSafe`),
@@ -111,30 +144,53 @@ select …
 
 ## Fase 7 — `case` aninhado e `case` fora do select (C1, C3)
 
-### 7a. C1 — `case` aninhado (recursivo) 🟡
+### 7a. C1 — `case` aninhado (recursivo) 🟡 (layout travado)
 `renderCase`: quando um segmento (`when … then <case…end>` ou `else <case…end>`) contém um case,
-expandi-lo recursivamente em vez de inline. **Decisão**: coluna do case interno (depois do `then`?
-uma indentação a mais?). Preview.
+expandi-lo recursivamente. Coluna do case interno = **onde ele começa na linha** (depois do
+`then `), com `when`/`else`/`end` internos alinhados aí. (Se na prática ficar fundo demais, ok
+propor indentar mais raso — mas o alvo aprovado é este.)
+```
+select case
+       when priority = 1 then case
+                              when is_paid then 'a'
+                              else 'b'
+                              end
+       else 'c'
+       end as label
+  from orders
+```
 
-### 7b. C3 — `case` fora da lista do select (where/having/order by) 🟡
-Integrar `parseCase`/`renderCase` no `emitTerm`/render booleano (para `where`/`having`) e no
-render de `order by`/`group by` (já usam `renderItemLines`, então C3 em order/group **já pode
-funcionar** — confirmar). Foco: `case` como termo booleano no where.
-- **Decisão**: coluna do case dentro do where (sob o operando? sob a keyword?). Preview.
+### 7b. C3 — `case` fora da lista do select (where/having) 🟡 (layout travado)
+Integrar `parseCase`/`renderCase` no render booleano (`renderBoolClause`/`emitTerm`) para
+`where`/`having`. Coluna do case = onde o `case` aparece na linha do termo (`where case` → `case`
+na coluna do operando; `when`/`else`/`end` alinhados aí); o que vem depois do `end` (ex.: `> 100`)
+segue na linha do `end`. (`order by`/`group by` já passam por `renderItemLines`, então C3 lá já
+deve funcionar — confirmar com um caso.)
+```
+select id
+  from orders
+ where case
+       when status_id = 1 then total
+       else 0
+       end > 100
+```
 
 ### Arquivos Fase 7
 `layout.ts` (`renderCase` recursivo; `emitTerm`/`renderBoolClause` reconhecendo case).
 
 ---
 
-## Fase 8 — Quebrar `when … then …` longo (C2) 🟡
+## Fase 8 — Quebrar `when … then …` longo (C2) 🟡 (layout travado)
 
-Quando `when <cond> then <result>` passa da largura, quebrar.
-- **Decisão de layout (preview)**: quebrar antes do `then` (then numa linha alinhada) e/ou quebrar
-  o `result`. Esboço a validar:
+Quando `when <cond> then <result>` passa da largura, **quebrar antes do `then`**: `when <cond>` numa
+linha e `then <result>` na linha seguinte, ambos alinhados na coluna do case:
 ```
+select case
        when customer_lifetime_value > 100000 and region_code = 'LATAM'
        then 'platinum-latam-priority-segment'
+       else 'std'
+       end as seg
+  from customers
 ```
 
 ### Arquivos Fase 8
@@ -142,16 +198,22 @@ Quando `when <cond> then <result>` passa da largura, quebrar.
 
 ---
 
-## Fase 9 — Decisões estéticas (D1, D2, D3) — **decidir com preview**
-
-A seleção veio contraditória; **cada item começa com um preview antes/depois** e confirmação.
+## Fase 9 — Decisões estéticas (D1 travado, D2 a decidir, D3 fora)
 
 - **D1 — unificar BLOCK vs RIVER dentro de parênteses.** Decisão (usuário, 2026-07-15): **única
   mudança** = conectores dentro do grupo `( )` passam a ser **right-aligned (RIVER)**, iguais ao
   topo. O `)` de fechamento **continua alinhado com o `(` de abertura** (os dois parênteses na
   mesma coluna, como já é hoje). Muda o **golden** existente — atualizar o golden e os testes
   afetados junto. Impl só em `renderBoolBlock` (conectores); **não** mexer no ponto onde o `)` do
-  grupo é emitido em `emitTerm`.
+  grupo é emitido em `emitTerm`. Alvo:
+  ```
+   where (
+           status_id = 1
+        or status_id = 2
+        or status_id = 3
+         )
+     and total_amount > 0
+  ```
 - **D2 — normalizar indentação base.** Hoje preserva (coluna mínima). Alternativa: sempre coluna 0.
   Afeta **todos** os outputs e a idempotência — testar com cuidado. (Ainda a decidir com preview.)
 - **D3 — fixar `maxLineLength` default.** **Decidido: fica como está** (`null → editor.rulers[0] →
