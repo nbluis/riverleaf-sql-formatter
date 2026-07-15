@@ -35,8 +35,10 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
 
 ## Formatting rules (summary)
 
-- River column = `baseIndent + max(firstWord length over clauses)`. `baseIndent` = indentation of
-  the statement's first non-empty line (**preserved**, so a query at column 0 → river at 6).
+- River column = `baseIndent + max(firstWord length over clauses)`. `baseIndent` = the **minimum**
+  indentation across the query's non-empty lines (the left margin where the widest clause head
+  sits; **preserved**, so a query at column 0 → river at 6). Minimum (not first-line) so it round
+  trips even when the first clause is not the widest (e.g. `update ... returning`).
 - Clause first word right-aligned to the river; arguments start 1 space after. Multi-word keywords
   (`left join`, `order by`) align only their **first** word; the rest flows.
 - Joins with **more than one ON condition always break** (regardless of width); the `and`/`or`
@@ -47,6 +49,11 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   — **do not "fix" it without asking** (see roadmap).
 - Keywords lowercased (config); identifiers preserved. `between ... and ...` — that `and` is not a
   connector.
+- **DML** (`insert`/`update`/`delete`) formats like a select: the anchors join the river. `set`
+  and `values` are list clauses that break **one item per line whenever there's more than one**
+  (unlike select/from lists, which break only on width); a single assignment/tuple stays inline.
+  `delete from` is kept together as one head. `insert into t (cols)` keeps a space before the
+  column-list `(` (via `renderInsertClause`, since `renderTokens` would glue it as a call).
 - Line comments: **inline** comments (trailing code on a line) stay attached to that line's last
   token — in lists (`ListItem.comment`) and on `where`/`having` conditions (`BoolTerm.comment`).
   **Standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on their own

@@ -133,7 +133,7 @@ export class Layout {
 
   // --- clauses -----------------------------------------------------------
 
-  private renderListClause(clause: Clause, leading: number): string[] {
+  private renderListClause(clause: Clause, leading: number, alwaysBreak = false): string[] {
     const headStr = renderTokens(clause.head, this.options);
     const items = splitListItems(clause.body);
     if (items.length === 0) {
@@ -144,8 +144,17 @@ export class Layout {
     const hasStandalone = items.some((it) => it.commentsBefore?.length);
     const inlineBody = rendered.join(', ');
     const full = pad(leading) + headStr + ' ' + inlineBody;
-    // any line comment (trailing or standalone) forces a break so it can own its line
-    if (!hasComment && !hasStandalone && (items.length === 1 || this.fits(full))) return [full];
+    // Stay on one line when there is no line comment (trailing or standalone) to
+    // own its own line, and either it's a single item or it fits. `alwaysBreak`
+    // clauses (SET / VALUES) break whenever there is more than one item; the rest
+    // break only when they exceed the width.
+    if (
+      !hasComment &&
+      !hasStandalone &&
+      (items.length === 1 || (!alwaysBreak && this.fits(full)))
+    ) {
+      return [full];
+    }
 
     // break: first item on the keyword line, rest aligned, trailing comma,
     // each item's trailing comment after its comma, standalone comments on their
@@ -222,6 +231,20 @@ export class Layout {
     return [pad(leading) + renderTokens(all, this.options)];
   }
 
+  /**
+   * INSERT INTO ... (col, ...) on one line. Unlike a generic clause, the column
+   * list keeps a space before its '(' (renderTokens would glue it to the table
+   * name as if it were a function call).
+   */
+  private renderInsertClause(clause: Clause, leading: number): string[] {
+    const all = clause.body.length ? [...clause.head, ...clause.body] : clause.head;
+    const parenIdx = all.findIndex((t) => t.type === 'punct' && t.value === '(');
+    if (parenIdx === -1) return [pad(leading) + renderTokens(all, this.options)];
+    const before = renderTokens(all.slice(0, parenIdx), this.options);
+    const list = renderTokens(all.slice(parenIdx), this.options);
+    return [pad(leading) + before + ' ' + list];
+  }
+
   // --- statement ---------------------------------------------------------
 
   formatStatement(stmt: Statement, base: number): string[] {
@@ -253,6 +276,14 @@ export class Layout {
         case 'from':
         case 'list':
           clauseLines = this.renderListClause(clause, leading);
+          break;
+        case 'set':
+        case 'values':
+          // DML lists: one item per line whenever there is more than one
+          clauseLines = this.renderListClause(clause, leading, true);
+          break;
+        case 'insert':
+          clauseLines = this.renderInsertClause(clause, leading);
           break;
         case 'where':
         case 'having':

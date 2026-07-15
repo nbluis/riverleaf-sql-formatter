@@ -156,9 +156,11 @@ changes needed to grow the suite; this is our guardrail against regressions.
   `where`/`having` condition (the keyword sits alone and the first condition drops below the
   comment), and inside a `join` ON. A comment is still only kept **as-is** (whole statement) when
   it sits mid-token or inside an inline subquery where it cannot be placed without risk.
+- INSERT / UPDATE / DELETE are formatted like a select: the anchors join the river, `set` and
+  `values` break one item per line (when there's more than one), and `where` reuses the river.
 - Subqueries and CTEs (`with`) are still rendered inline (without recomputing the inner
   river) — planned refinement.
-- `case when ... end` and INSERT/UPDATE/DELETE alignment are basic for now.
+- `case when ... end` alignment is basic for now.
 
 ## License
 

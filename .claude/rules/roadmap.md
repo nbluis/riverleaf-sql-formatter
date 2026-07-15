@@ -9,8 +9,10 @@ State as of the current session. Update this file as items are resolved.
   (BLOCK). This matches the user's golden example exactly, but the example is internally
   inconsistent. Confirm this is the desired aesthetic before "fixing" it. (See
   `formatting-spec.md` → "Why RIVER top-level but BLOCK inside parens".)
-- **Base-indent preservation.** `base` = the first non-empty line's indentation, preserved on
-  output (a query at column 0 → river at 6; the golden at 4 spaces stays at 4). Confirm this is
+- **Base-indent preservation.** `base` = the **minimum** indentation across the query's non-empty
+  lines (the widest clause head's column), preserved on output (a query at column 0 → river at 6;
+  the golden at 4 spaces stays at 4). Changed from first-line indent to minimum so it round trips
+  when the first clause is not the widest (DML `update ... returning`). Confirm preservation is
   preferred over always normalizing to a fixed indent.
 - **Default `maxLineLength`.** Setting default is `null` → resolves to `editor.rulers[0]`, else 80.
   User has considered pinning an explicit default; not decided.
@@ -27,7 +29,11 @@ State as of the current session. Update this file as items are resolved.
 - **Subqueries / CTEs (`with`).** Rendered inline; the inner river is not recomputed. A parenthesized
   `select` inside `from (...)` or a CTE body stays on effectively one logical line.
 - **`case when ... then ... else ... end`.** No dedicated wrapping/alignment.
-- **DML** — `insert` / `update` / `delete`. Only basic/generic handling; no reviewed golden cases.
+- **DML** — `insert` / `update` / `delete`. ✅ Done. Formats like a select: anchors join the river;
+  `set`/`values` break one item per line (>1 item); `delete from` kept together; `insert into
+  t (cols)` on one line. `insert ... select` recomputes the river for the select. Reviewed golden
+  cases in `test/cases/dml.yaml`. Open: multi-row `values` and INSERT column lists never break onto
+  multiple lines even when very wide (kept single-line for now).
 
 ## When you pick one up
 

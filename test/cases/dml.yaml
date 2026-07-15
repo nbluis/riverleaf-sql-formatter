@@ -1,0 +1,47 @@
+# DML (INSERT / UPDATE / DELETE) formatting cases. Formatted like a select:
+# the DML anchors (insert / update / delete / set / values) join the river; SET
+# and VALUES are lists that break one item per line; WHERE reuses the river.
+- description: update sets one assignment per line, where reuses the river
+  input: update orders set status_id = 2, updated_at = now() where id = 42 and status_id = 1
+  expected: |
+    update orders
+       set status_id = 2,
+           updated_at = now()
+     where id = 42 and status_id = 1
+- description: update with a single assignment stays on the set line
+  input: update orders set status_id = 2 where id = 42
+  expected: |
+    update orders
+       set status_id = 2
+     where id = 42
+- description: insert with multiple value tuples breaks one tuple per line
+  input: insert into orders (customer_id, total_amount) values (42, 100), (43, 250), (44, 90)
+  expected: |
+    insert into orders (customer_id, total_amount)
+    values (42, 100),
+           (43, 250),
+           (44, 90)
+- description: insert with a single value tuple stays on the values line
+  input: insert into orders (customer_id, total_amount) values (42, 100)
+  expected: |
+    insert into orders (customer_id, total_amount)
+    values (42, 100)
+- description: delete keeps "delete from" together and aligns where under the river
+  input: delete from orders where status_id = 0
+  expected: |
+    delete from orders
+     where status_id = 0
+- description: insert ... select recomputes the river across the select body
+  input: insert into orders (customer_id, total_amount) select customer_id, total_amount from staging_orders where valid = true
+  expected: |
+    insert into orders (customer_id, total_amount)
+    select customer_id, total_amount
+      from staging_orders
+     where valid = true
+- description: returning joins the river (widest clause), so the shorter heads align under it
+  input: update orders set status_id = 2 where id = 42 returning id, status_id
+  expected: |2
+       update orders
+          set status_id = 2
+        where id = 42
+    returning id, status_id

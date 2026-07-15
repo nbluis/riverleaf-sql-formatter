@@ -9,6 +9,9 @@ export type ClauseKind =
   | 'list' // group by / order by
   | 'join'
   | 'setop'
+  | 'insert' // INSERT INTO ... (col list)
+  | 'set' // UPDATE ... SET (assignment list, one per line)
+  | 'values' // VALUES (tuple list, one per line)
   | 'generic';
 
 export interface Clause {
@@ -98,6 +101,8 @@ function isClauseBoundary(tokens: Token[], i: number): number {
   if (CLAUSE_STARTERS.has(up)) {
     // UNION ALL
     if (up === 'UNION' && tokens[i + 1]?.upper === 'ALL') return 2;
+    // DELETE FROM — keep the FROM in the head so it reads "delete from t"
+    if (up === 'DELETE' && tokens[i + 1]?.upper === 'FROM') return 2;
     return 1;
   }
 
@@ -113,6 +118,9 @@ function clauseKind(head: Token[]): ClauseKind {
   if (up === 'GROUP' || up === 'ORDER') return 'list';
   if (JOIN_STARTERS.has(up)) return 'join';
   if (up === 'UNION' || up === 'INTERSECT' || up === 'EXCEPT') return 'setop';
+  if (up === 'INSERT') return 'insert';
+  if (up === 'SET') return 'set';
+  if (up === 'VALUES') return 'values';
   return 'generic';
 }
 

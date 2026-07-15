@@ -7,9 +7,12 @@ character columns.
 ## Pipeline
 
 `format(sql, options)`:
-1. `detectBaseIndent` — `base` = leading spaces of the first non-empty line (tabs expand to
-   `indentSize`). This is preserved on output → the formatter is idempotent and respects where the
-   query sits.
+1. `detectBaseIndent` — `base` = the **minimum** leading indentation across the query's non-empty
+   lines (tabs expand to `indentSize`). That is the column of the widest clause head (the river's
+   leftmost word), so it is preserved on output and round trips: reformatting a formatted query
+   re-detects the same base. Using the first line's indent would compound the indent whenever the
+   first clause is not the widest (e.g. `update ... returning`, `returning` being wider than
+   `update`). Respects where the query sits.
 2. `tokenize` → tokens with offsets.
 3. `splitStatements` — split on top-level `;`. Each `Statement` keeps its raw `tokens` (for the
    comment-safety gate and passthrough slicing) and `semicolon`.
@@ -35,14 +38,26 @@ character columns.
 ## Clause kinds → renderers (`Layout`)
 
 - `select` / `from` / `list` (group by, order by) → `renderListClause`.
+- `set` / `values` (DML) → `renderListClause` with `alwaysBreak = true`.
+- `insert` (DML) → `renderInsertClause`.
 - `where` / `having` → `renderBoolClause`.
 - `join` → `renderJoinClause`.
-- everything else (`limit`, set ops, preamble) → `renderGenericClause` (single line).
+- everything else (`limit`, set ops, `update`/`delete` heads, preamble) → `renderGenericClause`
+  (single line).
+
+### DML
+
+`insert` / `update` / `delete` / `set` are `CLAUSE_STARTERS`, so DML anchors join the river and
+format like a select. `delete` consumes a following `from` into its head (`delete from t` on one
+line). `renderInsertClause` renders `insert into t (cols)` on one line but keeps a space before the
+column-list `(` (`renderTokens` would glue it as a function call). `set` and `values` are list
+clauses with `alwaysBreak`: one assignment / tuple per line whenever there is more than one item (a
+single item stays inline). `where` reuses the normal RIVER bool rendering.
 
 ### List clauses
 
 `splitListItems` splits on top-level commas and extracts line comments (see Comments). Render:
-- If no comment and (single item or fits width) → one line.
+- Stay on one line when there is no comment and (single item, or — unless `alwaysBreak` — it fits).
 - Else break: first item on the head line, rest at `operandCol`, **trailing commas**, each item's
   comment appended after its comma.
 

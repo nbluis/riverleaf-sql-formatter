@@ -18,6 +18,11 @@ export const CLAUSE_STARTERS: ReadonlySet<string> = new Set([
   'WITH',
   'VALUES',
   'RETURNING',
+  // DML anchors
+  'INSERT',
+  'UPDATE',
+  'DELETE',
+  'SET',
 ]);
 
 /** Words that start a JOIN clause. */

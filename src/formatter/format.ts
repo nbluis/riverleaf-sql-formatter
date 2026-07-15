@@ -5,10 +5,18 @@ import { Layout } from './layout';
 
 export { FormatOptions, DEFAULT_OPTIONS } from './types';
 
-/** Indentation (in spaces) of the first non-empty line, expanding tabs. */
+/**
+ * The base column = the left margin the query sits at, taken as the *minimum*
+ * indentation across all non-empty lines (tabs expand to `indentSize`). This is
+ * the column of the widest clause head (the river's leftmost word), so it round
+ * trips: reformatting a formatted query re-detects the same base. Using the
+ * first line's indent instead would compound the indent whenever the first
+ * clause is not the widest one (e.g. UPDATE ... RETURNING, where RETURNING is
+ * wider than UPDATE).
+ */
 function detectBaseIndent(sql: string, indentSize: number): number {
-  const lines = sql.split('\n');
-  for (const line of lines) {
+  let min = -1;
+  for (const line of sql.split('\n')) {
     if (line.trim() === '') continue;
     let width = 0;
     for (const ch of line) {
@@ -16,9 +24,9 @@ function detectBaseIndent(sql: string, indentSize: number): number {
       else if (ch === '\t') width += indentSize;
       else break;
     }
-    return width;
+    if (min === -1 || width < min) min = width;
   }
-  return 0;
+  return min === -1 ? 0 : min;
 }
 
 /**
