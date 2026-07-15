@@ -1,0 +1,60 @@
+- description: from ( subquery ) alias expands, closing ) aligned under from
+  input: select x.id, x.total from (select id, sum(amount) as total from orders group by id) x where x.total > 100
+  expected: |
+    select x.id, x.total
+      from (
+        select id, sum(amount) as total
+          from orders
+         group by id
+      ) x
+     where x.total > 100
+- description: a single CTE body expands, closing ) aligned under with
+  input: with recent as (select id from orders where created_at > now() - interval '7 days') select id from recent
+  expected: |2
+      with recent as (
+        select id
+          from orders
+         where created_at > now() - interval '7 days'
+      )
+    select id
+      from recent
+- description: where ... in ( subquery ) expands under the where keyword
+  input: select id from orders where customer_id in (select customer_id from vip_customers where active = true)
+  expected: |
+    select id
+      from orders
+     where customer_id in (
+       select customer_id
+         from vip_customers
+        where active = true
+     )
+- description: nested subqueries expand recursively
+  input: select t.id from (select id from (select id from orders where status_id = 1) inner_q where id > 0) t
+  expected: |
+    select t.id
+      from (
+        select id
+          from (
+            select id
+              from orders
+             where status_id = 1
+          ) inner_q
+         where id > 0
+      ) t
+- description: a subquery containing a multi-condition join keeps the ON river
+  input: select x.id from (select o.id from orders o join customers c on c.id = o.customer_id and c.active = true) x
+  expected: |
+    select x.id
+      from (
+        select o.id
+          from orders o
+          join customers c on c.id = o.customer_id
+                          and c.active = true
+      ) x
+- description: multiple comma-separated CTEs stay on the with line (fallback)
+  input: with a as (select id from orders), b as (select id from customers) select a.id from a join b on a.id = b.id
+  expected: |2
+      with a as (select id from orders), b as (select id from customers)
+    select a.id
+      from a
+      join b on a.id = b.id

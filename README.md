@@ -158,8 +158,11 @@ changes needed to grow the suite; this is our guardrail against regressions.
   it sits mid-token or inside an inline subquery where it cannot be placed without risk.
 - INSERT / UPDATE / DELETE are formatted like a select: the anchors join the river, `set` and
   `values` break one item per line (when there's more than one), and `where` reuses the river.
-- Subqueries and CTEs (`with`) are still rendered inline (without recomputing the inner
-  river) — planned refinement.
+- Subqueries and CTEs expand recursively for common shapes: `from (select ...) alias`, a single
+  `with name as (...)`, and a single-condition `where ... in (select ...)`. The inner query is
+  re-aligned one level in and the closing `)` aligns under the clause keyword. Still inline:
+  multiple comma-separated CTEs, subqueries inside a multi-condition `where`/`join` ON, and scalar
+  subqueries in the select list.
 - `case when ... end` alignment is basic for now.
 
 ## License

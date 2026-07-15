@@ -9,6 +9,7 @@ export type ClauseKind =
   | 'list' // group by / order by
   | 'join'
   | 'setop'
+  | 'cte' // WITH name AS ( ... )
   | 'insert' // INSERT INTO ... (col list)
   | 'set' // UPDATE ... SET (assignment list, one per line)
   | 'values' // VALUES (tuple list, one per line)
@@ -118,6 +119,7 @@ function clauseKind(head: Token[]): ClauseKind {
   if (up === 'GROUP' || up === 'ORDER') return 'list';
   if (JOIN_STARTERS.has(up)) return 'join';
   if (up === 'UNION' || up === 'INTERSECT' || up === 'EXCEPT') return 'setop';
+  if (up === 'WITH') return 'cte';
   if (up === 'INSERT') return 'insert';
   if (up === 'SET') return 'set';
   if (up === 'VALUES') return 'values';

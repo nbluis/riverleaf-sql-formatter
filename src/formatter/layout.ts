@@ -7,6 +7,7 @@ import {
   BoolNode,
   parseBoolExpr,
   splitListItems,
+  segmentClauses,
 } from './segmenter';
 
 function pad(n: number): string {
@@ -25,6 +26,20 @@ function findOn(tokens: Token[]): number {
     if (t.type === 'punct' && t.value === '(') depth++;
     else if (t.type === 'punct' && t.value === ')') depth = Math.max(0, depth - 1);
     else if (depth === 0 && t.type === 'keyword' && t.upper === 'ON') return i;
+  }
+  return -1;
+}
+
+/** Index of the ')' matching the '(' at `open` (or -1). */
+function matchParen(tokens: Token[], open: number): number {
+  let depth = 0;
+  for (let j = open; j < tokens.length; j++) {
+    const t = tokens[j];
+    if (t.type === 'punct' && t.value === '(') depth++;
+    else if (t.type === 'punct' && t.value === ')') {
+      depth--;
+      if (depth === 0) return j;
+    }
   }
   return -1;
 }
@@ -182,6 +197,22 @@ export class Layout {
   private renderBoolClause(clause: Clause, leading: number, riverEnd: number): string[] {
     const headStr = renderTokens(clause.head, this.options);
     const terms = parseBoolExpr(clause.body);
+
+    // A single condition whose atom contains a subquery (`where x in ( select
+    // ... )`) expands it, with the ')' aligned under the clause keyword.
+    if (terms.length === 1 && terms[0].node.kind === 'atom' && !terms[0].comment) {
+      const toks = terms[0].node.tokens;
+      const sub = this.findSubquery(toks);
+      if (sub) {
+        const before = renderTokens(toks.slice(0, sub.open), this.options);
+        const inner = toks.slice(sub.open + 1, sub.close);
+        const after = toks.slice(sub.close + 1);
+        const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
+        const prefix = pad(leading) + headStr + ' ' + (before ? before + ' ' : '');
+        return this.renderSubqueryBlock(prefix, inner, leading, afterStr);
+      }
+    }
+
     const inlineBody = this.renderInlineBool(terms);
     // a comment on the last term can stay inline; one on an earlier term, or any
     // standalone comment, forces a break
@@ -245,6 +276,91 @@ export class Layout {
     return [pad(leading) + before + ' ' + list];
   }
 
+  // --- subqueries / CTEs (recursive) -------------------------------------
+
+  /** First top-level '(' whose interior begins a subquery (SELECT / WITH). */
+  private findSubquery(tokens: Token[]): { open: number; close: number } | null {
+    let depth = 0;
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      if (t.type === 'punct' && t.value === '(') {
+        if (depth === 0) {
+          const next = tokens[i + 1];
+          if (next?.type === 'keyword' && (next.upper === 'SELECT' || next.upper === 'WITH')) {
+            const close = matchParen(tokens, i);
+            if (close !== -1) return { open: i, close };
+          }
+        }
+        depth++;
+      } else if (t.type === 'punct' && t.value === ')') {
+        depth = Math.max(0, depth - 1);
+      }
+    }
+    return null;
+  }
+
+  /** Recursively formats subquery tokens as a statement at `innerBase`. */
+  private renderInner(innerTokens: Token[], innerBase: number): string[] {
+    const { clauses, trailingComments } = segmentClauses(innerTokens);
+    const stmt: Statement = {
+      clauses,
+      tokens: innerTokens,
+      semicolon: false,
+      trailingComments: trailingComments.length ? trailingComments : undefined,
+    };
+    return this.formatStatement(stmt, innerBase);
+  }
+
+  /**
+   * Emits an expanded subquery block:
+   *   <prefix>(
+   *     <inner formatted at ownerLeading + indentSize>
+   *   )<afterStr>
+   * The closing ')' aligns under the owner clause keyword (`ownerLeading`).
+   */
+  private renderSubqueryBlock(
+    prefix: string,
+    innerTokens: Token[],
+    ownerLeading: number,
+    afterStr: string,
+  ): string[] {
+    const innerBase = ownerLeading + this.options.indentSize;
+    return [
+      prefix + '(',
+      ...this.renderInner(innerTokens, innerBase),
+      pad(ownerLeading) + ')' + afterStr,
+    ];
+  }
+
+  private renderFromClause(clause: Clause, leading: number): string[] {
+    const sub = this.findSubquery(clause.body);
+    // only expand when the whole from body is a single parenthesized subquery
+    // (`from ( select ... ) alias`); anything else stays a list.
+    if (sub && sub.open === 0) {
+      const headStr = renderTokens(clause.head, this.options);
+      const inner = clause.body.slice(sub.open + 1, sub.close);
+      const after = clause.body.slice(sub.close + 1);
+      const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
+      return this.renderSubqueryBlock(pad(leading) + headStr + ' ', inner, leading, afterStr);
+    }
+    return this.renderListClause(clause, leading);
+  }
+
+  private renderCteClause(clause: Clause, leading: number): string[] {
+    const sub = this.findSubquery(clause.body);
+    const after = sub ? clause.body.slice(sub.close + 1) : [];
+    // handle a single CTE (`with name as ( ... )`); multiple comma-separated
+    // CTEs (tokens after the close) fall back to the generic one-liner for now.
+    if (sub && after.length === 0) {
+      const headStr = renderTokens(clause.head, this.options);
+      const before = renderTokens(clause.body.slice(0, sub.open), this.options);
+      const inner = clause.body.slice(sub.open + 1, sub.close);
+      const prefix = pad(leading) + headStr + (before ? ' ' + before : '') + ' ';
+      return this.renderSubqueryBlock(prefix, inner, leading, '');
+    }
+    return this.renderGenericClause(clause, leading);
+  }
+
   // --- statement ---------------------------------------------------------
 
   formatStatement(stmt: Statement, base: number): string[] {
@@ -273,9 +389,14 @@ export class Layout {
       let clauseLines: string[];
       switch (clause.kind) {
         case 'select':
-        case 'from':
         case 'list':
           clauseLines = this.renderListClause(clause, leading);
+          break;
+        case 'from':
+          clauseLines = this.renderFromClause(clause, leading);
+          break;
+        case 'cte':
+          clauseLines = this.renderCteClause(clause, leading);
           break;
         case 'set':
         case 'values':

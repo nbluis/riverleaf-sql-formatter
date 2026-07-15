@@ -54,6 +54,12 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   (unlike select/from lists, which break only on width); a single assignment/tuple stays inline.
   `delete from` is kept together as one head. `insert into t (cols)` keeps a space before the
   column-list `(` (via `renderInsertClause`, since `renderTokens` would glue it as a call).
+- **Subqueries / CTEs** expand recursively (always, for common shapes): `from (select ...) alias`,
+  a single `with name as (...)`, a single-condition `where ... in (select ...)`. Inner query
+  re-aligned at `ownerLeading + indentSize`; closing `)` aligns **under the owner clause keyword**,
+  alias on the `)` line (`renderSubqueryBlock`/`findSubquery`/`renderInner`). Nested subqueries
+  recurse. Multiple CTEs, subqueries in multi-condition where/join ON, and scalar subqueries in the
+  select list stay inline for now.
 - Line comments: **inline** comments (trailing code on a line) stay attached to that line's last
   token — in lists (`ListItem.comment`) and on `where`/`having` conditions (`BoolTerm.comment`).
   **Standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on their own

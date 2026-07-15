@@ -37,10 +37,12 @@ character columns.
 
 ## Clause kinds → renderers (`Layout`)
 
-- `select` / `from` / `list` (group by, order by) → `renderListClause`.
+- `select` / `list` (group by, order by) → `renderListClause`.
+- `from` → `renderFromClause` (subquery-aware; else a list clause).
+- `cte` (`WITH`) → `renderCteClause` (subquery-aware; else generic).
 - `set` / `values` (DML) → `renderListClause` with `alwaysBreak = true`.
 - `insert` (DML) → `renderInsertClause`.
-- `where` / `having` → `renderBoolClause`.
+- `where` / `having` → `renderBoolClause` (subquery-aware for a single condition).
 - `join` → `renderJoinClause`.
 - everything else (`limit`, set ops, `update`/`delete` heads, preamble) → `renderGenericClause`
   (single line).
@@ -53,6 +55,25 @@ line). `renderInsertClause` renders `insert into t (cols)` on one line but keeps
 column-list `(` (`renderTokens` would glue it as a function call). `set` and `values` are list
 clauses with `alwaysBreak`: one assignment / tuple per line whenever there is more than one item (a
 single item stays inline). `where` reuses the normal RIVER bool rendering.
+
+### Subqueries / CTEs (recursive)
+
+`findSubquery(tokens)` returns the first top-level `( ... )` whose first interior token is `SELECT`
+or `WITH`. `renderSubqueryBlock(prefix, inner, ownerLeading, afterStr)` emits `prefix(`, then the
+inner tokens formatted recursively via `renderInner` (`segmentClauses` → a `Statement` →
+`formatStatement`) at `innerBase = ownerLeading + indentSize`, then `pad(ownerLeading) + ') ' +
+afterStr`. So the inner block is one level past the owner clause keyword and the closing `)` aligns
+**under that keyword** (not the base margin). Hooks:
+- `renderFromClause` — `from ( select ... ) alias` when the whole from body is one subquery
+  (`sub.open === 0`); `ownerLeading` = `from`'s leading; `afterStr` = the alias.
+- `renderCteClause` (`cte` kind, `WITH`) — a single `with name as ( ... )` (nothing after the
+  close); `ownerLeading` = `with`'s leading; the `name as` part is the prefix. Multiple
+  comma-separated CTEs fall back to `renderGenericClause`.
+- `renderBoolClause` — a single-condition `where`/`having` whose atom contains a subquery
+  (`where x in ( select ... )`); `ownerLeading` = the clause's leading.
+Recursion recomputes the inner river and handles nesting. `formatStatement` builds the inner
+statement with `semicolon: false`. Subqueries with line comments hit `isCommentSafe` → passthrough.
+Idempotent because the base is the minimum indent (the inner block never becomes the leftmost).
 
 ### List clauses
 

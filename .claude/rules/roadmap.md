@@ -26,8 +26,14 @@ State as of the current session. Update this file as items are resolved.
   **inside a `join` ON** (reflowed under the ON river). See `formatting-spec.md` → Comments.
   Remaining passthrough: a comment mid-token or inside an inline subquery/scalar-parenthesized
   expression — folded into the subqueries/CTEs work below.
-- **Subqueries / CTEs (`with`).** Rendered inline; the inner river is not recomputed. A parenthesized
-  `select` inside `from (...)` or a CTE body stays on effectively one logical line.
+- **Subqueries / CTEs (`with`).** ✅ Done (common shapes). A parenthesized `select`/`with` in a
+  `from (...) alias`, a single CTE body (`with name as (...)`), or a single-condition
+  `where ... in (...)` expands recursively: the inner query is formatted at `ownerLeading +
+  indentSize` and the closing `)` aligns under the owner clause keyword (alias on the `)` line).
+  Nested subqueries recurse; a subquery's inner river is recomputed. Still inline: multiple
+  comma-separated CTEs, subqueries inside a multi-condition `where`/`join` ON, scalar subqueries in
+  the select list, and any subquery containing a line comment (→ passthrough). Decision made with
+  the user (2026-07-15): "shallow indent, `)` aligned under the clause keyword".
 - **`case when ... then ... else ... end`.** No dedicated wrapping/alignment.
 - **DML** — `insert` / `update` / `delete`. ✅ Done. Formats like a select: anchors join the river;
   `set`/`values` break one item per line (>1 item); `delete from` kept together; `insert into
