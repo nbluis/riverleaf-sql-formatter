@@ -6,8 +6,11 @@
 >
 > Seleção do usuário (2026-07-15): resolver **A1, A2, A3, A4** (subqueries/CTEs), **C1, C2, C3**
 > (case), e **B1** vem de graça junto com as subqueries. **B2 fica como está** (passthrough é o
-> comportamento correto). Grupo estético **D1/D2/D3**: seleção veio contraditória ("mudar os três"
-> + "manter tudo") → **decidir cada um com preview no início da fase D**.
+> comportamento correto). Estético: **D1 sim** (RIVER + `)` sob a keyword — muda o golden),
+> **D3 fica como está** (falar depois), **D2 ainda a decidir** com preview.
+>
+> Antes/depois revisado e aprovado pelo usuário no artifact
+> `62c942b4-6fb4-4805-b055-e899dd84f7cd` (A1 e D1 ajustados conforme feedback; resto confirmado).
 
 ## Regras do processo (repetir em cada fase — igual às fases 1–4)
 
@@ -85,14 +88,15 @@ possível `renderInner` (checagem de segurança).
 
 `renderCteClause` hoje só trata **uma** CTE (nada após o `)`). Estender para lista separada por
 vírgula no nível do `with`.
-- **Decisão de layout (preview obrigatório no início)**: onde fica o 2º nome de CTE (alinhado sob o
-  1º? sob `with`?), e onde vai a vírgula (depois do `)`?). Esboço a validar:
+- **Layout decidido (usuário, 2026-07-15)**: a partir da 2ª CTE, o nome recua para a **coluna do
+  `with`** (não sob o 1º nome); a vírgula fica **depois do `)`** da CTE anterior. `)` de cada CTE
+  alinha sob o `with`:
 ```
   with a as (
     select id
       from orders
   ),
-       b as (
+  b as (
     select id
       from customers
   )
@@ -142,13 +146,15 @@ Quando `when <cond> then <result>` passa da largura, quebrar.
 
 A seleção veio contraditória; **cada item começa com um preview antes/depois** e confirmação.
 
-- **D1 — unificar BLOCK vs RIVER dentro de parênteses.** Hoje conectores dentro de grupo `( )`
-  expandido são left-aligned (BLOCK); no topo são right-aligned (RIVER). Muda o **golden**
-  existente — reconfirmar explicitamente antes.
+- **D1 — unificar BLOCK vs RIVER dentro de parênteses.** Decisão (usuário, 2026-07-15): conectores
+  dentro do grupo `( )` passam a ser **right-aligned (RIVER)**, iguais ao topo, **e o `)` de
+  fechamento alinha sob a keyword da cláusula** (o `w` de `where`). Muda o **golden** existente —
+  atualizar o golden e os testes afetados junto. Impl em `renderBoolBlock` (conectores) + o ponto
+  onde o `)` do grupo é emitido em `emitTerm` (`pad(lineStart)` → alinhar sob o leading da cláusula).
 - **D2 — normalizar indentação base.** Hoje preserva (coluna mínima). Alternativa: sempre coluna 0.
-  Afeta **todos** os outputs e a idempotência — testar com cuidado.
-- **D3 — fixar `maxLineLength` default.** Trivial: mudar `DEFAULT_OPTIONS.maxLineLength` de `null`
-  para um número (ex.: 80), ou manter `null → editor.rulers[0] → 80`. Decisão: qual valor.
+  Afeta **todos** os outputs e a idempotência — testar com cuidado. (Ainda a decidir com preview.)
+- **D3 — fixar `maxLineLength` default.** **Decidido: fica como está** (`null → editor.rulers[0] →
+  80`). Conversar sobre um default explícito depois — fora de escopo agora.
 
 ### Arquivos Fase 9
 D1: `layout.ts` (`renderBoolBlock`). D2: `format.ts` (`detectBaseIndent`/uso do base).
