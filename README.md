@@ -157,8 +157,8 @@ changes needed to grow the suite; this is our guardrail against regressions.
 
 ## Known limitations
 
-The comment, DML, subquery/CTE and `case` handling above covers the common shapes. These narrower
-cases are not reflowed yet — they are rendered inline or kept exactly as written (never corrupted):
+These narrower cases are not reflowed — they are rendered inline or kept exactly as written
+(never corrupted):
 
 - **Comments** are kept as-is (the whole statement is passed through unchanged) when a line comment
   sits mid-token or inside a subquery, where it cannot be moved without risk of commenting out code.

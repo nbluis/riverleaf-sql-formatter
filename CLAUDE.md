@@ -59,7 +59,7 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   re-aligned at `ownerLeading + indentSize`; closing `)` aligns **under the owner clause keyword**,
   alias on the `)` line (`renderSubqueryBlock`/`findSubquery`/`renderInner`). Nested subqueries
   recurse. Multiple CTEs, subqueries in multi-condition where/join ON, and scalar subqueries in the
-  select list stay inline for now.
+  select list stay inline.
 - **`case ... end`** in a select/group-by/order-by list item expands: `case` on the item line,
   each `when`/`else` and the `end` aligned at the item column (`parseCase`/`renderCase`, routed by
   `renderItemLines`). Nested `case` stays inline on its branch; long `when ... then` not wrapped; a
@@ -71,8 +71,8 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   between `where` conditions via `BoolTerm.commentsBefore`, trailing) at the content column
   `riverEnd + 1`. A comment after the final `;` glues under the statement. Standalone/inline
   comments inside expanded paren groups (BLOCK mode), before the first `where` condition (keyword
-  alone, condition drops below), and inside a `join` ON all reflow now. Passthrough (unchanged SQL)
-  only remains for a comment mid-token or inside an inline subquery/scalar-paren expression.
+  alone, condition drops below), and inside a `join` ON also reflow. Passthrough (unchanged SQL)
+  applies only to a comment mid-token or inside an inline subquery/scalar-paren expression.
 
 Full algorithm (river math, ON secondary river, BLOCK mode, comment handling, passthrough):
 read **`.claude/rules/formatting-spec.md`** before touching `layout.ts`/`segmenter.ts`.
@@ -128,9 +128,8 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 
 ## Open items / roadmap
 
-The four original Known Limitations (comments in boolean expressions, DML, subqueries/CTEs,
-`case when`) are **resolved for the common shapes** (see the rules above). See
-**`.claude/rules/roadmap.md`** for the remaining narrower sub-cases (multiple CTEs, subqueries in a
-multi-condition where / join ON, scalar subqueries, long `case` branch wrapping, comments mid-token
-or inside a subquery) and the aesthetic **decisions still awaiting the user**: nested-paren BLOCK vs
-RIVER inconsistency, base-indent preservation, and the default `maxLineLength`.
+See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (multiple CTEs,
+subqueries in a multi-condition where / join ON, scalar subqueries, long `case` branch wrapping,
+comments mid-token or inside a subquery) and the aesthetic **decisions awaiting the user**:
+nested-paren BLOCK vs RIVER inconsistency, base-indent preservation, and the default
+`maxLineLength`.
