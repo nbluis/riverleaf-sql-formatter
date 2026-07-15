@@ -318,13 +318,14 @@ function processRawTerms(tokens: Token[]): { terms: ProcessedTerm[]; safe: boole
     const term = terms[k];
     const tk = term.tokens;
 
-    // leading comments (a comment that followed the connector)
+    // leading comments (a comment that followed the connector, or a standalone
+    // comment before the very first term — placed above the term on its own line)
     while (tk.length > 0 && tk[0].type === 'lineComment') {
       const c = tk.shift()!;
-      if (c.newlineBefore && k > 0) {
+      if (c.newlineBefore) {
         (term.commentsBefore ??= []).push(c.value);
       } else {
-        safe = false; // standalone before the first term, or inline after a connector
+        safe = false; // inline after a connector (or after the where/having keyword)
       }
     }
 
@@ -346,8 +347,18 @@ function processRawTerms(tokens: Token[]): { terms: ProcessedTerm[]; safe: boole
       }
     }
 
-    // any comment left in the middle of the term cannot be reflowed
-    if (tk.some((x) => x.type === 'lineComment')) safe = false;
+    // A comment left in the middle of the term cannot be reflowed — unless the
+    // term is a wrapped parenthesized group whose interior comments are
+    // themselves reflowable. In that case parseBoolExpr recurses into the group
+    // and renderBoolBlock places the comments, so it is safe.
+    if (tk.some((x) => x.type === 'lineComment')) {
+      const wrapped = asWrappedGroup(tk);
+      const innerReflowable =
+        wrapped !== null &&
+        splitTerms(wrapped.inner).length > 1 &&
+        processRawTerms(wrapped.inner).safe;
+      if (!innerReflowable) safe = false;
+    }
   }
 
   return { terms, safe };

@@ -94,9 +94,12 @@ select table1.column1, table2.column2
   trailing commas, aligning the columns.
 - **Line comments (`--`)** stay associated with the code around them. A comment that trails
   code on a line stays attached to that line (its last token) — including a comment on a `where`
-  condition. A comment alone on its line stays alone: a leading comment sits at the left margin
-  above the statement; comments between list items, between clauses, between `where` conditions,
-  or trailing the statement sit at the content column (aligned with the clause arguments).
+  condition or inside a parenthesized group. A comment alone on its line stays alone: a leading
+  comment sits at the left margin above the statement; comments between list items, between
+  clauses, between `where`/`join` ON conditions, inside an expanded group, or trailing the
+  statement sit at the content column (aligned with the clause arguments). A comment before the
+  first `where`/`having` condition puts the keyword on its own line, with the first condition
+  below the comment.
 - **Maximum width** = the first value of `editor.rulers` (fallback 80), or the override in
   `riverleaf.maxLineLength`.
 
@@ -148,10 +151,11 @@ changes needed to grow the suite; this is our guardrail against regressions.
 ## Known limitations (roadmap)
 
 - Line comments (`--`) are reflowed in select/from/group-by/order-by lists, around clauses
-  (leading, between clauses, trailing), and on `where`/`having` conditions (both inline and
-  standalone between conditions). Still kept **as-is** (whole statement) so code is never
-  commented out: a comment inside a nested parenthesized group, a comment before the first
-  `where`/`having` condition, or a comment inside a `join` ON.
+  (leading, between clauses, trailing), on `where`/`having` conditions (inline and standalone
+  between conditions), inside expanded parenthesized boolean groups, before the first
+  `where`/`having` condition (the keyword sits alone and the first condition drops below the
+  comment), and inside a `join` ON. A comment is still only kept **as-is** (whole statement) when
+  it sits mid-token or inside an inline subquery where it cannot be placed without risk.
 - Subqueries and CTEs (`with`) are still rendered inline (without recomputing the inner
   river) — planned refinement.
 - `case when ... end` and INSERT/UPDATE/DELETE alignment are basic for now.

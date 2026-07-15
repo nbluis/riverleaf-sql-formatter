@@ -110,18 +110,34 @@ call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KE
     standalone comment (trailing a term, or leading the next after its connector) into the
     following `BoolTerm.commentsBefore`, rendered on its own line at the operand column
     (`connEnd + 1`) above that condition. Any such comment forces the expression to break.
+  - **Standalone comment before the first `where`/`having` condition**: lifted into
+    `terms[0].commentsBefore`. `renderBoolRiver` then puts the keyword on its own line
+    (`firstLinePrefix` trimmed) and drops the comment(s) and the first operand to the operand
+    column (`connEnd + 1`).
+  - **Comments inside an expanded parenthesized group (BLOCK mode)**: `processRawTerms` treats a
+    mid-term comment as safe when the term is a wrapped group whose interior is itself reflowable
+    (`asWrappedGroup` + recursive `processRawTerms`), so `parseBoolExpr` recurses and the inner
+    `BoolTerm`s carry the comments. `renderBoolBlock` emits each term's `commentsBefore` at
+    `blockIndent` and appends inline `comment`. A group carrying any comment always expands
+    (`nodeHasComments`), since inline rendering (`renderInlineBool`) drops comments.
+  - **Comments inside a `join` ON**: `renderJoinClause` reuses `parseBoolExpr` + `renderBoolRiver`,
+    so between-condition standalone comments and inline comments already reflow under the ON river.
+    The safety gate (`isCommentSafe`) requires the table-ref part before `on` to be comment-free and
+    the ON expression to be `boolCommentsReflowable`.
   - *Comment after the final `;`*: a trailing comment-only unit (no clauses) glues under the
     previous block with a single `\n` instead of becoming its own blank-line-separated block
     (see `format()`).
   - `isCommentSafe(statement)`: for list clauses, false if any item is `unsafe` (a line comment
     strictly *inside* an item — not at a boundary); for `where`/`having`, false unless
-    `boolCommentsReflowable` (every comment sits at a top-level term boundary — inline-trailing or
-    standalone-between-terms); for `join`/generic/set ops, false if a line comment is not the last
-    body token. If unsafe → the whole statement is emitted unchanged (passthrough) so SQL is never
+    `boolCommentsReflowable` (every comment sits at a top-level term boundary — inline-trailing,
+    standalone-between-terms, standalone-before-first — or inside a reflowable wrapped group);
+    for `join`, false unless the table-ref before `on` is comment-free and the ON expression is
+    `boolCommentsReflowable`; for generic/set ops, false if a line comment is not the last body
+    token. If unsafe → the whole statement is emitted unchanged (passthrough) so SQL is never
     commented-out by line joins.
-- Not yet handled: a comment inside a nested parenthesized group, a standalone comment before the
-  first `where`/`having` condition, and comments inside a `join` ON still trigger passthrough.
-  Extending `commentsBefore` handling into groups and join ON is the natural next step.
+- Still passthrough: a comment mid-token (inside a single condition/item) or inside an inline
+  subquery/scalar-parenthesized expression that is not a boolean group. Recomputing an inner river
+  for subqueries/CTEs (and placing comments there) is the next step.
 
 ## Invariants to keep
 

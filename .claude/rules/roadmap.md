@@ -17,13 +17,13 @@ State as of the current session. Update this file as items are resolved.
 
 ## Not yet implemented (known limitations, documented in README)
 
-- **Line comments inside boolean expressions.** Handled now: comments in list clauses, around
-  clauses (leading / between / trailing), and both **inline and standalone comments on
-  `where`/`having` conditions** (`BoolTerm.comment` / `BoolTerm.commentsBefore`, via
-  `processRawTerms`). See `formatting-spec.md` → Comments (driven by `token.newlineBefore`). Still
-  open: a comment inside a nested parenthesized group, a standalone comment before the first
-  condition, and comments inside a `join` ON still trigger whole-statement passthrough. Next step:
-  extend `commentsBefore` handling into groups and join ON.
+- **Line comments inside boolean expressions.** ✅ Done. Handled: comments in list clauses, around
+  clauses (leading / between / trailing), **inline and standalone comments on `where`/`having`
+  conditions**, **inside expanded parenthesized groups** (BLOCK mode), **before the first
+  `where`/`having` condition** (keyword sits alone, first condition drops below the comment), and
+  **inside a `join` ON** (reflowed under the ON river). See `formatting-spec.md` → Comments.
+  Remaining passthrough: a comment mid-token or inside an inline subquery/scalar-parenthesized
+  expression — folded into the subqueries/CTEs work below.
 - **Subqueries / CTEs (`with`).** Rendered inline; the inner river is not recomputed. A parenthesized
   `select` inside `from (...)` or a CTE body stays on effectively one logical line.
 - **`case when ... then ... else ... end`.** No dedicated wrapping/alignment.

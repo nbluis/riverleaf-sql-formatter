@@ -52,9 +52,10 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   **Standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on their own
   line: leading comments at the base margin, everything else (between clauses, between list items,
   between `where` conditions via `BoolTerm.commentsBefore`, trailing) at the content column
-  `riverEnd + 1`. A comment after the final `;` glues under the statement. Passthrough (unchanged
-  SQL) only remains for a comment inside a nested paren group, before the first `where` condition,
-  or inside a `join` ON.
+  `riverEnd + 1`. A comment after the final `;` glues under the statement. Standalone/inline
+  comments inside expanded paren groups (BLOCK mode), before the first `where` condition (keyword
+  alone, condition drops below), and inside a `join` ON all reflow now. Passthrough (unchanged SQL)
+  only remains for a comment mid-token or inside an inline subquery/scalar-paren expression.
 
 Full algorithm (river math, ON secondary river, BLOCK mode, comment handling, passthrough):
 read **`.claude/rules/formatting-spec.md`** before touching `layout.ts`/`segmenter.ts`.

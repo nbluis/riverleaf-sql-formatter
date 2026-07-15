@@ -58,8 +58,17 @@ export class Layout {
 
   private renderBoolRiver(terms: BoolTerm[], connEnd: number, firstLinePrefix: string): string[] {
     const lines: string[] = [];
-    // first term (inline within the prefix)
-    this.emitTerm(lines, terms[0], firstLinePrefix, firstLinePrefix.length, connEnd);
+    // first term: normally inline within the prefix. But a standalone comment
+    // before it forces the keyword onto its own line, dropping the comment and
+    // the first operand to the operand column (connEnd + 1).
+    if (terms[0].commentsBefore?.length) {
+      lines.push(firstLinePrefix.replace(/ +$/, ''));
+      const operandCol = connEnd + 1;
+      for (const c of terms[0].commentsBefore) lines.push(pad(operandCol) + c);
+      this.emitTerm(lines, terms[0], pad(operandCol), operandCol, operandCol);
+    } else {
+      this.emitTerm(lines, terms[0], firstLinePrefix, firstLinePrefix.length, connEnd);
+    }
     // remaining terms: connector right-aligned at connEnd
     for (let i = 1; i < terms.length; i++) {
       // standalone comments sit on their own line at the operand column
@@ -78,11 +87,21 @@ export class Layout {
   private renderBoolBlock(terms: BoolTerm[], blockIndent: number): string[] {
     const lines: string[] = [];
     for (const term of terms) {
+      // standalone comments sit on their own line, left-aligned at the block indent
+      for (const c of term.commentsBefore ?? []) lines.push(pad(blockIndent) + c);
       const conn = term.connector ? caseConnector(term.connector, this.options) + ' ' : '';
       const prefix = pad(blockIndent) + conn;
       this.emitTerm(lines, term, prefix, blockIndent, blockIndent);
     }
     return lines;
+  }
+
+  /** Whether a node (only groups can) carries any line comment in its interior. */
+  private nodeHasComments(node: BoolNode): boolean {
+    if (node.kind === 'atom') return false;
+    return node.inner.some(
+      (t) => t.comment || t.commentsBefore?.length || this.nodeHasComments(t.node),
+    );
   }
 
   /**
@@ -98,9 +117,9 @@ export class Layout {
       lines.push(prefix + renderTokens(node.tokens, this.options) + suffix);
       return;
     }
-    // group
+    // group — a group carrying comments must expand (inline rendering drops them)
     const inline = prefix + this.renderNodeInline(node);
-    if (this.fits(inline + suffix)) {
+    if (!this.nodeHasComments(node) && this.fits(inline + suffix)) {
       lines.push(inline + suffix);
       return;
     }
@@ -160,9 +179,12 @@ export class Layout {
     const lastComment = terms[terms.length - 1].comment;
     const midComment = terms.slice(0, -1).some((t) => t.comment);
     const hasStandalone = terms.some((t) => t.commentsBefore?.length);
+    // a comment nested inside a group forces the whole expression to break so the
+    // group can expand (inline rendering would drop it)
+    const nestedComments = terms.some((t) => this.nodeHasComments(t.node));
     const full = pad(leading) + headStr + ' ' + inlineBody + (lastComment ? ' ' + lastComment : '');
-    if (terms.length === 1) return [full];
-    if (!midComment && !hasStandalone && this.fits(full)) return [full];
+    if (terms.length === 1 && !nestedComments) return [full];
+    if (!midComment && !hasStandalone && !nestedComments && this.fits(full)) return [full];
 
     const firstLinePrefix = pad(leading) + headStr + ' ';
     return this.renderBoolRiver(terms, riverEnd, firstLinePrefix);
@@ -185,7 +207,7 @@ export class Layout {
     // A single ON condition has nothing to align, so it stays inline. Any join
     // with two or more ON conditions always breaks (regardless of width) so the
     // and/or connectors align under the "on".
-    if (terms.length === 1) {
+    if (terms.length === 1 && !this.nodeHasComments(terms[0].node)) {
       const comment = terms[0].comment ? ' ' + terms[0].comment : '';
       return [pad(leading) + headPart + ' ' + this.renderInlineBool(terms) + comment];
     }

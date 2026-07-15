@@ -1,4 +1,4 @@
-import { FormatOptions, DEFAULT_OPTIONS } from './types';
+import { FormatOptions, DEFAULT_OPTIONS, Token } from './types';
 import { tokenize } from './tokenizer';
 import { splitStatements, splitListItems, boolCommentsReflowable, Statement } from './segmenter';
 import { Layout } from './layout';
@@ -69,8 +69,18 @@ function isCommentSafe(stmt: Statement): boolean {
     } else if (clause.kind === 'where' || clause.kind === 'having') {
       // reflowable when every comment inline-trails a top-level boolean term
       if (!boolCommentsReflowable(clause.body)) return false;
+    } else if (clause.kind === 'join') {
+      // reflowable when the ON expression's comments sit at term boundaries and
+      // the table-ref part (before ON) carries no comment.
+      const onIdx = findTopLevelOn(clause.body);
+      if (onIdx === -1) {
+        if (clause.body.slice(0, -1).some((t) => t.type === 'lineComment')) return false;
+      } else {
+        if (clause.body.slice(0, onIdx).some((t) => t.type === 'lineComment')) return false;
+        if (!boolCommentsReflowable(clause.body.slice(onIdx + 1))) return false;
+      }
     } else {
-      // join / generic / set ops: only a comment as the last body token is safe
+      // generic / set ops: only a comment as the last body token is safe
       const b = clause.body;
       for (let i = 0; i < b.length - 1; i++) {
         if (b[i].type === 'lineComment') return false;
@@ -78,6 +88,18 @@ function isCommentSafe(stmt: Statement): boolean {
     }
   }
   return true;
+}
+
+/** Index of the first top-level ON in a JOIN body (or -1). */
+function findTopLevelOn(tokens: Token[]): number {
+  let depth = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.type === 'punct' && t.value === '(') depth++;
+    else if (t.type === 'punct' && t.value === ')') depth = Math.max(0, depth - 1);
+    else if (depth === 0 && t.type === 'keyword' && t.upper === 'ON') return i;
+  }
+  return -1;
 }
 
 /** Original statement slice (for passthrough), unchanged. */
