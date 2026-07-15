@@ -91,14 +91,15 @@ export class Layout {
    */
   private emitTerm(lines: string[], term: BoolTerm, prefix: string, lineStart: number, _childCol: number): void {
     const node = term.node;
+    const suffix = term.comment ? ' ' + term.comment : '';
     if (node.kind === 'atom') {
-      lines.push(prefix + renderTokens(node.tokens, this.options));
+      lines.push(prefix + renderTokens(node.tokens, this.options) + suffix);
       return;
     }
     // group
     const inline = prefix + this.renderNodeInline(node);
-    if (this.fits(inline)) {
-      lines.push(inline);
+    if (this.fits(inline + suffix)) {
+      lines.push(inline + suffix);
       return;
     }
     // expand group
@@ -106,7 +107,7 @@ export class Layout {
     lines.push(prefix + (preStr ? preStr + ' ' : '') + '(');
     const blockIndent = lineStart + this.options.indentSize;
     lines.push(...this.renderBoolBlock(node.inner, blockIndent));
-    lines.push(pad(lineStart) + ')');
+    lines.push(pad(lineStart) + ')' + suffix);
   }
 
   // --- clauses -----------------------------------------------------------
@@ -152,8 +153,12 @@ export class Layout {
     const headStr = renderTokens(clause.head, this.options);
     const terms = parseBoolExpr(clause.body);
     const inlineBody = this.renderInlineBool(terms);
-    const full = pad(leading) + headStr + ' ' + inlineBody;
-    if (terms.length === 1 || this.fits(full)) return [full];
+    // a comment on the last term can stay inline; one on an earlier term forces a break
+    const lastComment = terms[terms.length - 1].comment;
+    const midComment = terms.slice(0, -1).some((t) => t.comment);
+    const full = pad(leading) + headStr + ' ' + inlineBody + (lastComment ? ' ' + lastComment : '');
+    if (terms.length === 1) return [full];
+    if (!midComment && this.fits(full)) return [full];
 
     const firstLinePrefix = pad(leading) + headStr + ' ';
     return this.renderBoolRiver(terms, riverEnd, firstLinePrefix);
@@ -177,7 +182,8 @@ export class Layout {
     // with two or more ON conditions always breaks (regardless of width) so the
     // and/or connectors align under the "on".
     if (terms.length === 1) {
-      return [pad(leading) + headPart + ' ' + this.renderInlineBool(terms)];
+      const comment = terms[0].comment ? ' ' + terms[0].comment : '';
+      return [pad(leading) + headPart + ' ' + this.renderInlineBool(terms) + comment];
     }
 
     const onRiverEnd = leading + headPart.length; // column right after "on"
@@ -204,13 +210,17 @@ export class Layout {
 
     const K = clauses.reduce((m, c) => Math.max(m, c.firstWord.length), 0);
     const riverEnd = base + K;
+    // clause-level standalone comments sit at the content column (just past the
+    // river, where clause arguments and list items start); leading comments
+    // (before the first clause) sit at the base margin.
+    const commentCol = riverEnd + 1;
 
-    let lastLeading = base;
-    for (const clause of clauses) {
+    for (let idx = 0; idx < clauses.length; idx++) {
+      const clause = clauses[idx];
       const leading = riverEnd - clause.firstWord.length;
-      lastLeading = leading;
-      // standalone comments preceding this clause, aligned to the clause column
-      for (const c of clause.commentsBefore ?? []) lines.push(pad(leading) + c);
+      const col = idx === 0 ? base : commentCol;
+      // standalone comments preceding this clause
+      for (const c of clause.commentsBefore ?? []) lines.push(pad(col) + c);
       let clauseLines: string[];
       switch (clause.kind) {
         case 'select':
@@ -236,8 +246,8 @@ export class Layout {
     if (stmt.semicolon && lines.length > 0) {
       lines[lines.length - 1] += ';';
     }
-    // statement-trailing standalone comments align under the last clause
-    for (const c of stmt.trailingComments ?? []) lines.push(pad(lastLeading) + c);
+    // statement-trailing standalone comments sit at the content column
+    for (const c of stmt.trailingComments ?? []) lines.push(pad(commentCol) + c);
     return lines;
   }
 }

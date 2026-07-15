@@ -88,12 +88,31 @@
     select order_id
       from orders
      where status_id = 1 -- only paid orders
-- description: a line comment in the middle of a where is preserved as-is (cannot reflow safely)
-  input: |-
+- description: an inline comment in the middle of a where breaks and stays on its condition line
+  input: |
     select order_id from orders where status_id = 1 -- filter
     and total_amount > 0
   expected: |
-    select order_id from orders where status_id = 1 -- filter
+    select order_id
+      from orders
+     where status_id = 1 -- filter
+       and total_amount > 0
+- description: an inline comment on the last where condition stays inline when it fits
+  input: select order_id from orders where status_id = 1 and total_amount > 0 -- note
+  expected: |
+    select order_id
+      from orders
+     where status_id = 1 and total_amount > 0 -- note
+- description: a standalone comment in the middle of a where is preserved as-is (not yet reflowed)
+  input: |
+    select order_id from orders
+    where status_id = 1
+    -- standalone note
+    and total_amount > 0
+  expected: |
+    select order_id from orders
+    where status_id = 1
+    -- standalone note
     and total_amount > 0
 - description: multiple statements separated by a blank line
   input: select current_date; select order_id from orders
@@ -141,7 +160,7 @@
            orders.closed_at as date,
            orders.salon_id -- last token comment
       from orders
-- description: a standalone comment between list items and a trailing statement comment stay on their own lines
+- description: a standalone comment between list items and a trailing statement comment sit at the content column
   input: |
     select orders.closed_at as order_date, orders.closed_at as date,
            -- line with comment
@@ -154,4 +173,36 @@
            -- line with comment
            orders.salon_id
       from orders
-      -- line with comment
+           -- line with comment
+- description: a standalone comment between clauses sits at the content column
+  input: |
+    select customer_id from orders
+    -- only paid orders
+    where status_id = 1
+  expected: |
+    select customer_id
+      from orders
+           -- only paid orders
+     where status_id = 1
+- description: a line comment after the final semicolon glues under the statement
+  input: |
+    select customer_id from orders;
+    -- done
+  expected: |
+    select customer_id
+      from orders;
+    -- done
+- description: each statement keeps its own leading comment, separated by a blank line
+  input: |
+    -- first query
+    select order_id from orders;
+    -- second query
+    select customer_id from customers
+  expected: |
+    -- first query
+    select order_id
+      from orders;
+
+    -- second query
+    select customer_id
+      from customers

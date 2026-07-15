@@ -209,6 +209,8 @@ export interface BoolTerm {
   /** Connector preceding the term ('and' | 'or'), or null for the first one. */
   connector: 'and' | 'or' | null;
   node: BoolNode;
+  /** Inline trailing line comment for this term's line, if any. */
+  comment?: string;
 }
 
 export type BoolNode =
@@ -284,11 +286,27 @@ function asWrappedGroup(tokens: Token[]): { pre: Token[]; inner: Token[]; post: 
   return { pre, inner: tokens.slice(start + 1, close), post };
 }
 
+/** Removes trailing inline line comments from `tokens`, returning their text (or undefined). */
+function takeTrailingInlineComment(tokens: Token[]): string | undefined {
+  const parts: string[] = [];
+  while (
+    tokens.length > 0 &&
+    tokens[tokens.length - 1].type === 'lineComment' &&
+    !tokens[tokens.length - 1].newlineBefore
+  ) {
+    parts.unshift(tokens.pop()!.value);
+  }
+  return parts.length ? parts.join(' ') : undefined;
+}
+
 /** Parses a boolean expression into a list of terms (with nested groups). */
 export function parseBoolExpr(tokens: Token[]): BoolTerm[] {
   const rawTerms = splitTerms(tokens);
   return rawTerms.map(({ connector, tokens: t }) => {
-    const wrapped = asWrappedGroup(t);
+    const tt = t.slice();
+    // an inline comment trailing this term stays on its line (see renderer)
+    const comment = takeTrailingInlineComment(tt);
+    const wrapped = asWrappedGroup(tt);
     if (wrapped) {
       const innerTerms = parseBoolExpr(wrapped.inner);
       // only treat as a breakable group if the interior has >1 term (has AND/OR)
@@ -296,11 +314,26 @@ export function parseBoolExpr(tokens: Token[]): BoolTerm[] {
         return {
           connector,
           node: { kind: 'group', pre: wrapped.pre, inner: innerTerms, post: wrapped.post },
+          comment,
         } as BoolTerm;
       }
     }
-    return { connector, node: { kind: 'atom', tokens: t } } as BoolTerm;
+    return { connector, node: { kind: 'atom', tokens: tt }, comment } as BoolTerm;
   });
+}
+
+/**
+ * Whether every line comment in a boolean body (WHERE / HAVING) is an inline
+ * comment trailing a top-level term — the only shape we can reflow. Standalone,
+ * mid-term, or in-group comments return false (the statement is passed through).
+ */
+export function boolCommentsReflowable(tokens: Token[]): boolean {
+  for (const { tokens: t } of splitTerms(tokens)) {
+    const tt = t.slice();
+    takeTrailingInlineComment(tt);
+    if (tt.some((x) => x.type === 'lineComment')) return false;
+  }
+  return true;
 }
 
 export interface ListItem {

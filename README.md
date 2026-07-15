@@ -93,10 +93,10 @@ select table1.column1, table2.column2
 - A **SELECT with many columns** stays on one line if it fits; otherwise it breaks with
   trailing commas, aligning the columns.
 - **Line comments (`--`)** stay associated with the code around them. A comment that trails
-  code on a line stays attached to that line (its last token). A comment alone on its line
-  stays alone, aligned to the river/column of the adjacent code line — a leading comment sits
-  above the statement, a comment between list items sits above the next item, and a trailing
-  comment sits under the last clause.
+  code on a line stays attached to that line (its last token) — including a comment on a single
+  `where` condition. A comment alone on its line stays alone: a leading comment sits at the left
+  margin above the statement; comments between list items, between clauses, or trailing the
+  statement sit at the content column (aligned with the clause arguments).
 - **Maximum width** = the first value of `editor.rulers` (fallback 80), or the override in
   `riverleaf.maxLineLength`.
 
@@ -147,10 +147,11 @@ changes needed to grow the suite; this is our guardrail against regressions.
 
 ## Known limitations (roadmap)
 
-- Line comments (`--`) are reflowed in select/from/group-by/order-by lists and around clauses
-  (leading, between clauses, trailing). A comment in the **middle of a `where`/`on` boolean
-  expression** (between conditions) is not yet reflowed — that statement is **kept as-is** so
-  code is never commented out when lines are joined.
+- Line comments (`--`) are reflowed in select/from/group-by/order-by lists, around clauses
+  (leading, between clauses, trailing), and **inline on `where`/`having` conditions**. Still
+  kept **as-is** (whole statement) so code is never commented out: a **standalone** comment in
+  the middle of a `where`/`having` expression, and any comment inside a `join` ON or a nested
+  parenthesized group.
 - Subqueries and CTEs (`with`) are still rendered inline (without recomputing the inner
   river) — planned refinement.
 - `case when ... end` and INSERT/UPDATE/DELETE alignment are basic for now.

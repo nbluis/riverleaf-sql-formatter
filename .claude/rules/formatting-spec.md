@@ -88,27 +88,35 @@ call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KE
   `token.newlineBefore` (a newline separates the token from the previous one, or it is first),
   which distinguishes a **standalone** comment (alone on its line) from an **inline** one
   (trailing code on the same physical line). This drives placement:
-  - **Standalone comments stay on their own line, aligned to the adjacent rendered line's
-    column** (the following line if there is one, else the preceding line):
-    - *Leading / between clauses*: `segmentClauses` lifts standalone line comments out of the
-      token stream into the following clause's `commentsBefore` (rendered at that clause's
-      leading column). This also stops a leading comment from inflating the river width `K`.
+  - **Standalone comments stay on their own line.** The *content column* — `riverEnd + 1`, just
+    past the river, where clause arguments and list items start — is the anchor:
+    - *Leading (before the first clause)*: `segmentClauses` lifts them into the first clause's
+      `commentsBefore`, rendered at the **base** margin. This also stops a leading comment from
+      inflating the river width `K`.
+    - *Between clauses*: lifted into the following clause's `commentsBefore`, rendered at the
+      **content column** (`riverEnd + 1`).
     - *Between list items*: `splitListItems` puts a standalone comment into the following item's
-      `commentsBefore` (rendered on its own line at the item operand column). A standalone
-      comment forces the list to break.
-    - *After the last clause*: returned as `Statement.trailingComments`, rendered under the last
-      clause's leading column (the `;`, if any, goes on the last code line, before them).
+      `commentsBefore`, rendered at the item operand column (which is the content column for a
+      single-word head). A standalone comment forces the list to break.
+    - *After the last clause*: returned as `Statement.trailingComments`, rendered at the **content
+      column**. The `;`, if any, goes on the last code line, before them.
   - **Inline comments** stay attached to the last token of their line: `splitListItems` keeps a
-    comment after `X,` or at the end of an item as that item's trailing `comment`; an inline
-    comment as the last token of a `where`/`having`/`join` body renders at end of line.
+    comment after `X,` or at the end of an item as that item's trailing `comment`; in `where`/
+    `having` (RIVER mode), `parseBoolExpr` extracts an inline comment trailing a top-level term
+    into `BoolTerm.comment`, rendered at end of that term's line. A comment on an intermediate
+    term forces the expression to break; a comment on the last term (or a single term) can stay
+    inline when it fits.
+  - *Comment after the final `;`*: a trailing comment-only unit (no clauses) glues under the
+    previous block with a single `\n` instead of becoming its own blank-line-separated block
+    (see `format()`).
   - `isCommentSafe(statement)`: for list clauses, false if any item is `unsafe` (a line comment
-    strictly *inside* an item — not at a boundary); for other clauses, false if a line comment is
-    not the last body token (a **mid-expression** comment in `where`/`having`/`on`). If unsafe →
-    the whole statement is emitted unchanged (passthrough) so SQL is never commented-out by line
-    joins.
-- Not yet handled: line comments in the **middle** of a `where`/`on` boolean expression (between
-  terms) still trigger passthrough. Extending `commentsBefore`/trailing-comment handling into
-  `BoolTerm`s is the natural next step.
+    strictly *inside* an item — not at a boundary); for `where`/`having`, false unless
+    `boolCommentsReflowable` (every comment inline-trails a top-level term); for `join`/generic/
+    set ops, false if a line comment is not the last body token. If unsafe → the whole statement
+    is emitted unchanged (passthrough) so SQL is never commented-out by line joins.
+- Not yet handled: **standalone** comments in the middle of a `where`/`having` expression, and any
+  comment inside a `join` ON or a nested parenthesized group, still trigger passthrough. Extending
+  `commentsBefore` handling into `BoolTerm`s is the natural next step.
 
 ## Invariants to keep
 

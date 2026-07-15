@@ -48,11 +48,12 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
 - Keywords lowercased (config); identifiers preserved. `between ... and ...` — that `and` is not a
   connector.
 - Line comments: **inline** comments (trailing code on a line) stay attached to that line's last
-  token; **standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on
-  their own line, aligned to the adjacent code line — as a clause's `commentsBefore`, a list
-  item's `commentsBefore`, or the statement's `trailingComments`. Only a line comment in the
-  middle of a `where`/`on` boolean expression still triggers whole-statement passthrough (never
-  corrupt SQL).
+  token — in lists (`ListItem.comment`) and on `where`/`having` conditions (`BoolTerm.comment`).
+  **Standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on their own
+  line: leading comments at the base margin, everything else (between clauses, between list items,
+  trailing) at the content column `riverEnd + 1`. A comment after the final `;` glues under the
+  statement. Passthrough (unchanged SQL) only remains for a **standalone** comment mid-`where`, or
+  any comment inside a `join` ON / nested paren group.
 
 Full algorithm (river math, ON secondary river, BLOCK mode, comment handling, passthrough):
 read **`.claude/rules/formatting-spec.md`** before touching `layout.ts`/`segmenter.ts`.

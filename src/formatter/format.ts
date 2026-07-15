@@ -1,6 +1,6 @@
 import { FormatOptions, DEFAULT_OPTIONS } from './types';
 import { tokenize } from './tokenizer';
-import { splitStatements, splitListItems, Statement } from './segmenter';
+import { splitStatements, splitListItems, boolCommentsReflowable, Statement } from './segmenter';
 import { Layout } from './layout';
 
 export { FormatOptions, DEFAULT_OPTIONS } from './types';
@@ -43,7 +43,15 @@ export function format(sql: string, options: Partial<FormatOptions> = {}): strin
       continue;
     }
     const lines = layout.formatStatement(stmt, base);
-    if (lines.length > 0) blocks.push(lines.join('\n'));
+    if (lines.length === 0) continue;
+    const text = lines.join('\n');
+    // A trailing comment-only unit (comments after the final ';') glues under the
+    // previous statement instead of becoming its own blank-line-separated block.
+    if (stmt.clauses.length === 0 && blocks.length > 0) {
+      blocks[blocks.length - 1] += '\n' + text;
+    } else {
+      blocks.push(text);
+    }
   }
 
   return blocks.join('\n\n') + '\n';
@@ -58,7 +66,11 @@ function isCommentSafe(stmt: Statement): boolean {
   for (const clause of stmt.clauses) {
     if (clause.kind === 'select' || clause.kind === 'from' || clause.kind === 'list') {
       if (splitListItems(clause.body).some((it) => it.unsafe)) return false;
+    } else if (clause.kind === 'where' || clause.kind === 'having') {
+      // reflowable when every comment inline-trails a top-level boolean term
+      if (!boolCommentsReflowable(clause.body)) return false;
     } else {
+      // join / generic / set ops: only a comment as the last body token is safe
       const b = clause.body;
       for (let i = 0; i < b.length - 1; i++) {
         if (b[i].type === 'lineComment') return false;
