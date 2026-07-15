@@ -1,6 +1,16 @@
 # Plano — atacar as Known Limitations
 
-> Documento de trabalho para retomar o desenvolvimento. Escrito ao fim da sessão de
+> **STATUS (2026-07-15): CONCLUÍDO.** As quatro fases foram implementadas, testadas e enviadas
+> para `main` (fase 1 `e70b12f`, fase 2 `19d656a`, fase 3 `dde44b5`, fase 4 `15eadc2`), 90 testes
+> passando. Duas decisões mudaram na execução vs. o rascunho abaixo:
+> 1. **DML `set`/`values`** quebram **um item por linha** sempre (>1 item) — o usuário preferiu
+>    isso ao "quebra só por largura" do rascunho.
+> 2. **Subqueries/CTEs** — o `)` NÃO fica na coluna base; o usuário escolheu (2026-07-15)
+>    "indentação rasa, `)` alinhado sob a keyword da cláusula" (inner = ownerLeading + indentSize).
+> `detectBaseIndent` passou a usar o **mínimo** de indentação (não a 1ª linha) p/ idempotência.
+> Sub-casos remanescentes (menores) estão em `.claude/rules/roadmap.md`.
+>
+> Documento de trabalho original (contexto), escrito ao fim da sessão de
 > **2026-07-14**. Baseline: `main` em `336e69c`, `npm test` = **46 passando**, lint + tsc limpos.
 > Idioma do código/doc/testes: **inglês** (regra de ouro do projeto). Este arquivo de trabalho
 > pode ficar em PT — é rascunho interno em `_work/`.
