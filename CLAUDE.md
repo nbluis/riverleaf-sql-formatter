@@ -60,6 +60,10 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   alias on the `)` line (`renderSubqueryBlock`/`findSubquery`/`renderInner`). Nested subqueries
   recurse. Multiple CTEs, subqueries in multi-condition where/join ON, and scalar subqueries in the
   select list stay inline for now.
+- **`case ... end`** in a select/group-by/order-by list item expands: `case` on the item line,
+  each `when`/`else` and the `end` aligned at the item column (`parseCase`/`renderCase`, routed by
+  `renderItemLines`). Nested `case` stays inline on its branch; long `when ... then` not wrapped; a
+  `case` inside a function or in where/join stays inline.
 - Line comments: **inline** comments (trailing code on a line) stay attached to that line's last
   token — in lists (`ListItem.comment`) and on `where`/`having` conditions (`BoolTerm.comment`).
   **Standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on their own
@@ -108,18 +112,19 @@ extension id first if the publisher/name changed).
   test in the real editor. Test-only/README changes don't need re-packaging.
 - Config prefix is `riverleaf.*` (not the old `alignedSqlFormatter.*`).
 
-## Suggested skills to create (not yet created)
+## Skills
 
-Future sessions would move faster with these — create under `.claude/skills/<name>/SKILL.md`:
+These live under `.claude/skills/<name>/SKILL.md` — invoke them, don't reinvent the workflow:
 
-1. **`regen-format-cases`** — given SQL inputs (+ optional options), run `format()` and emit/append
-   exact YAML entries to a `test/cases/*.yaml`. Automates the generator pattern in
-   `.claude/rules/testing.md` so `expected` is always correct.
-2. **`build-install-vsix`** — build → `vsce package` (with the flags above) → uninstall previous
-   extension id → `code --install-extension --force`. Wraps the repeated local-deploy dance.
-3. **`add-formatter-behavior`** — TDD workflow for extending formatting: add a failing YAML case
-   first, implement in `layout.ts`/`segmenter.ts`, then green + idempotency. Enforces YAML-first
-   regression discipline.
+1. **`regen-format-cases`** — run `format()` on SQL inputs and emit exact YAML entries for
+   `test/cases/*.yaml` so `expected` is always correct.
+2. **`build-install-vsix`** — build → `vsce package` → uninstall previous id →
+   `code --install-extension --force`. The local-deploy dance.
+3. **`add-formatter-behavior`** — TDD workflow: failing YAML case first, implement in
+   `layout.ts`/`segmenter.ts`, then green + idempotency.
+
+Note: generator scripts that import `js-yaml` must live in the **project dir** (the scratchpad
+can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } from 'js-yaml'`).
 
 ## Open items / roadmap
 

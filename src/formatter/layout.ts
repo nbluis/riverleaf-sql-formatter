@@ -157,15 +157,18 @@ export class Layout {
     const rendered = items.map((it) => renderTokens(it.tokens, this.options));
     const hasComment = items.some((it) => it.comment);
     const hasStandalone = items.some((it) => it.commentsBefore?.length);
+    // a `case ... end` item always expands, so it forces the list to break
+    const hasCase = items.some((it) => this.parseCase(it.tokens) !== null);
     const inlineBody = rendered.join(', ');
     const full = pad(leading) + headStr + ' ' + inlineBody;
     // Stay on one line when there is no line comment (trailing or standalone) to
-    // own its own line, and either it's a single item or it fits. `alwaysBreak`
-    // clauses (SET / VALUES) break whenever there is more than one item; the rest
-    // break only when they exceed the width.
+    // own its own line, no `case` to expand, and either it's a single item or it
+    // fits. `alwaysBreak` clauses (SET / VALUES) break whenever there is more than
+    // one item; the rest break only when they exceed the width.
     if (
       !hasComment &&
       !hasStandalone &&
+      !hasCase &&
       (items.length === 1 || (!alwaysBreak && this.fits(full)))
     ) {
       return [full];
@@ -173,24 +176,110 @@ export class Layout {
 
     // break: first item on the keyword line, rest aligned, trailing comma,
     // each item's trailing comment after its comma, standalone comments on their
-    // own line before the item they precede
+    // own line before the item they precede. An item may span several lines (a
+    // `case`): its comma and trailing comment attach to its last line.
     const operandCol = leading + headStr.length + 1;
     const n = items.length;
-    const commentOf = (i: number): string => (items[i].comment ? ' ' + items[i].comment : '');
+    const suffixOf = (i: number): string =>
+      (i < n - 1 ? ',' : '') + (items[i].comment ? ' ' + items[i].comment : '');
     const lines: string[] = [];
+    const pushItem = (idx: number, firstLinePrefix: string): void => {
+      const itemLines = this.renderItemLines(items[idx].tokens, operandCol);
+      lines.push(firstLinePrefix + itemLines[0]);
+      for (let j = 1; j < itemLines.length; j++) lines.push(itemLines[j]);
+      lines[lines.length - 1] += suffixOf(idx);
+    };
     // first item: a standalone comment before it forces the head onto its own line
     if (items[0].commentsBefore?.length) {
       lines.push(pad(leading) + headStr);
       for (const c of items[0].commentsBefore) lines.push(pad(operandCol) + c);
-      lines.push(pad(operandCol) + rendered[0] + (n > 1 ? ',' : '') + commentOf(0));
+      pushItem(0, pad(operandCol));
     } else {
-      lines.push(pad(leading) + headStr + ' ' + rendered[0] + (n > 1 ? ',' : '') + commentOf(0));
+      pushItem(0, pad(leading) + headStr + ' ');
     }
     for (let k = 1; k < n; k++) {
       for (const c of items[k].commentsBefore ?? []) lines.push(pad(operandCol) + c);
-      const suffix = k < n - 1 ? ',' : '';
-      lines.push(pad(operandCol) + rendered[k] + suffix + commentOf(k));
+      pushItem(k, pad(operandCol));
     }
+    return lines;
+  }
+
+  // --- case expressions --------------------------------------------------
+
+  /** Renders one list item as lines: a `case ... end` expands, else one line. */
+  private renderItemLines(tokens: Token[], caseCol: number): string[] {
+    const c = this.parseCase(tokens);
+    if (c) return this.renderCase(c, caseCol);
+    return [renderTokens(tokens, this.options)];
+  }
+
+  /**
+   * Parses an item that is exactly `case [selector] when ... [else ...] end
+   * [alias]`. Returns null if the item does not start with CASE or has no
+   * matching END / no branches (then it renders inline).
+   */
+  private parseCase(
+    tokens: Token[],
+  ): { selector: Token[]; segments: Token[][]; after: Token[] } | null {
+    if (tokens[0]?.type !== 'keyword' || tokens[0].upper !== 'CASE') return null;
+    // matching END (case/end nest)
+    let depth = 0;
+    let endIdx = -1;
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      if (t.type === 'keyword' && t.upper === 'CASE') depth++;
+      else if (t.type === 'keyword' && t.upper === 'END') {
+        depth--;
+        if (depth === 0) {
+          endIdx = i;
+          break;
+        }
+      }
+    }
+    if (endIdx === -1) return null;
+    const body = tokens.slice(1, endIdx);
+    const after = tokens.slice(endIdx + 1);
+    // split body into a leading selector + WHEN/ELSE segments, skipping nested
+    // case/paren depth so only this case's branches split.
+    const selector: Token[] = [];
+    const segments: Token[][] = [];
+    let cur: Token[] | null = null;
+    let cDepth = 0;
+    let pDepth = 0;
+    for (const t of body) {
+      if (t.type === 'punct' && t.value === '(') pDepth++;
+      else if (t.type === 'punct' && t.value === ')') pDepth = Math.max(0, pDepth - 1);
+      else if (t.type === 'keyword' && t.upper === 'CASE') cDepth++;
+      else if (t.type === 'keyword' && t.upper === 'END') cDepth = Math.max(0, cDepth - 1);
+      const top = cDepth === 0 && pDepth === 0;
+      if (top && t.type === 'keyword' && (t.upper === 'WHEN' || t.upper === 'ELSE')) {
+        cur = [t];
+        segments.push(cur);
+        continue;
+      }
+      if (cur === null) selector.push(t);
+      else cur.push(t);
+    }
+    if (segments.length === 0) return null;
+    return { selector, segments, after };
+  }
+
+  /**
+   * Renders a parsed case with `case` / each `when`/`else` segment / `end` all
+   * aligned at `caseCol`. The first line (`case [selector]`) has no leading pad —
+   * the caller positions it.
+   */
+  private renderCase(
+    c: { selector: Token[]; segments: Token[][]; after: Token[] },
+    caseCol: number,
+  ): string[] {
+    const head =
+      caseKeyword('case', this.options) +
+      (c.selector.length ? ' ' + renderTokens(c.selector, this.options) : '');
+    const lines = [head];
+    for (const seg of c.segments) lines.push(pad(caseCol) + renderTokens(seg, this.options));
+    const afterStr = c.after.length ? ' ' + renderTokens(c.after, this.options) : '';
+    lines.push(pad(caseCol) + caseKeyword('end', this.options) + afterStr);
     return lines;
   }
 

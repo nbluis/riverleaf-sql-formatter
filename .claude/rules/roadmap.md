@@ -34,7 +34,12 @@ State as of the current session. Update this file as items are resolved.
   comma-separated CTEs, subqueries inside a multi-condition `where`/`join` ON, scalar subqueries in
   the select list, and any subquery containing a line comment (→ passthrough). Decision made with
   the user (2026-07-15): "shallow indent, `)` aligned under the clause keyword".
-- **`case when ... then ... else ... end`.** No dedicated wrapping/alignment.
+- **`case when ... then ... else ... end`.** ✅ Done (select-list items). A select/group-by/order-by
+  list item that is exactly `case [selector] when ... [else ...] end [alias]` expands: `case` on the
+  item line, each `when`/`else` segment and the closing `end` aligned at the item's column (the
+  `case` column). `parseCase`/`renderCase` in `layout.ts`; `renderItemLines` routes each list item.
+  A nested `case` stays inline on its branch; a long `when ... then ...` stays on one line (no wrap);
+  a `case` not at the start of an item (e.g. wrapped in a function) or in where/join stays inline.
 - **DML** — `insert` / `update` / `delete`. ✅ Done. Formats like a select: anchors join the river;
   `set`/`values` break one item per line (>1 item); `delete from` kept together; `insert into
   t (cols)` on one line. `insert ... select` recomputes the river for the select. Reviewed golden

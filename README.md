@@ -163,7 +163,9 @@ changes needed to grow the suite; this is our guardrail against regressions.
   re-aligned one level in and the closing `)` aligns under the clause keyword. Still inline:
   multiple comma-separated CTEs, subqueries inside a multi-condition `where`/`join` ON, and scalar
   subqueries in the select list.
-- `case when ... end` alignment is basic for now.
+- A `case ... end` in the select list expands with `when` / `else` / `end` aligned under `case`.
+  A nested `case` stays inline on its branch, a long `when ... then` is not wrapped, and a `case`
+  inside a function call or in a `where` stays inline for now.
 
 ## License
 

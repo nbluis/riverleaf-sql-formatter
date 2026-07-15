@@ -78,9 +78,22 @@ Idempotent because the base is the minimum indent (the inner block never becomes
 ### List clauses
 
 `splitListItems` splits on top-level commas and extracts line comments (see Comments). Render:
-- Stay on one line when there is no comment and (single item, or — unless `alwaysBreak` — it fits).
+- Stay on one line when there is no comment, no `case` to expand, and (single item, or — unless
+  `alwaysBreak` — it fits).
 - Else break: first item on the head line, rest at `operandCol`, **trailing commas**, each item's
-  comment appended after its comma.
+  comment appended after its comma. An item can span several lines (a `case`) via
+  `renderItemLines`; its comma and trailing comment attach to the item's **last** line.
+
+### case expressions
+
+`parseCase(tokens)` matches a list item that is exactly `CASE [selector] WHEN ... [ELSE ...] END
+[alias]` (first token `CASE`, matching `END` with case/end nesting, ≥1 `WHEN`/`ELSE` segment).
+`renderCase(c, caseCol)` emits `case [selector]` (line 0, no pad — the caller positions it), then
+each `WHEN`/`ELSE` segment and the closing `END [alias]` at `caseCol` (= the item's column). So
+`case`/`when`/`else`/`end` share the item column. Only top-level branches split (nested case/parens
+are skipped), so a nested `case` renders inline on its branch. A long `when ... then ...` is not
+wrapped. A `case` not at the start of a list item (e.g. inside a function) or outside list clauses
+(where/join) stays inline.
 
 ### Boolean expressions — RIVER vs BLOCK
 
