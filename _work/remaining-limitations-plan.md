@@ -3,6 +3,26 @@
 > Documento de trabalho. Escrito em **2026-07-15** após concluir as 4 Known Limitations originais
 > (`main` em `aac729e`+, 90 testes passando). Idioma do código/doc/testes: **inglês** (regra de
 > ouro); este rascunho de trabalho pode ficar em PT.
+
+## Progresso
+
+- ✅ **Fase 5 (A3, A4, A2, B1) — CONCLUÍDA** (2026-07-15, commit `3e9d3f4`, já em `main` e pushado).
+  114 testes passando (era 90). Feito:
+  - **A3** subquery como tabela de `join` (`join (select …) alias on …`); ON single inline,
+    multi-condição mantém o secondary river na linha do `) alias`. Segmenter passou a reconhecer
+    `join (` como join (não a função `LEFT(`) só quando o interior começa com `SELECT`/`WITH`.
+  - **A4** subquery escalar na lista do `select` (expande na coluna do item; `func(select …)` fica
+    inline).
+  - **A2** subquery no **1º** termo de um `where` multi-condição (expande sob a keyword; demais
+    condições descem via `renderRiverTail`). Subquery em termo não-primeiro fica inline.
+  - **B1** comentário **dentro** de subquery expandida agora reflui — `isCommentSafe` virou
+    recursivo (desce em toda subquery que o layout expande). Comentário dentro de subquery
+    não-expandida ainda cai para passthrough.
+  - `findSubquery`/`matchParen` movidos para `segmenter.ts` (compartilhados com `format.ts`).
+- ⬜ **Fase 7 (C1, C3)** — próxima (ordem sugerida 5 → **7** → 6 → 8 → 9).
+- ⬜ **Fase 6 (A1)** — múltiplas CTEs.
+- ⬜ **Fase 8 (C2)** — quebrar `when … then` longo.
+- ⬜ **Fase 9 (D1 travado, D2 a decidir com preview, D3 fora)**.
 >
 > Seleção do usuário (2026-07-15): resolver **A1, A2, A3, A4** (subqueries/CTEs), **C1, C2, C3**
 > (case), e **B1** vem de graça junto com as subqueries. **B2 fica como está** (passthrough é o
