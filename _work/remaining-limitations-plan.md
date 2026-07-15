@@ -146,11 +146,12 @@ Quando `when <cond> then <result>` passa da largura, quebrar.
 
 A seleção veio contraditória; **cada item começa com um preview antes/depois** e confirmação.
 
-- **D1 — unificar BLOCK vs RIVER dentro de parênteses.** Decisão (usuário, 2026-07-15): conectores
-  dentro do grupo `( )` passam a ser **right-aligned (RIVER)**, iguais ao topo, **e o `)` de
-  fechamento alinha sob a keyword da cláusula** (o `w` de `where`). Muda o **golden** existente —
-  atualizar o golden e os testes afetados junto. Impl em `renderBoolBlock` (conectores) + o ponto
-  onde o `)` do grupo é emitido em `emitTerm` (`pad(lineStart)` → alinhar sob o leading da cláusula).
+- **D1 — unificar BLOCK vs RIVER dentro de parênteses.** Decisão (usuário, 2026-07-15): **única
+  mudança** = conectores dentro do grupo `( )` passam a ser **right-aligned (RIVER)**, iguais ao
+  topo. O `)` de fechamento **continua alinhado com o `(` de abertura** (os dois parênteses na
+  mesma coluna, como já é hoje). Muda o **golden** existente — atualizar o golden e os testes
+  afetados junto. Impl só em `renderBoolBlock` (conectores); **não** mexer no ponto onde o `)` do
+  grupo é emitido em `emitTerm`.
 - **D2 — normalizar indentação base.** Hoje preserva (coluna mínima). Alternativa: sempre coluna 0.
   Afeta **todos** os outputs e a idempotência — testar com cuidado. (Ainda a decidir com preview.)
 - **D3 — fixar `maxLineLength` default.** **Decidido: fica como está** (`null → editor.rulers[0] →
