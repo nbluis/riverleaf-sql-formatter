@@ -51,6 +51,146 @@
           join customers c on c.id = o.customer_id
                           and c.active = true
       ) x
+- description: a subquery in the first of several where conditions expands, rest below
+  input: select id from orders where customer_id in (select customer_id from vip_customers where active = true) and status_id = 1
+  expected: |
+    select id
+      from orders
+     where customer_id in (
+       select customer_id
+         from vip_customers
+        where active = true
+     )
+       and status_id = 1
+- description: a subquery in a non-first where condition stays inline
+  input: select id from orders where order_status_id = 1 and customer_id in (select customer_id from vip_customers where active = true)
+  expected: |
+    select id
+      from orders
+     where order_status_id = 1
+       and customer_id in (select customer_id from vip_customers where active = true)
+- description: a scalar subquery in the select list expands at the item column
+  input: select id, (select count(*) from order_items oi where oi.order_id = orders.id) as item_count from orders
+  expected: |
+    select id,
+           (
+             select count(*)
+               from order_items oi
+              where oi.order_id = orders.id
+           ) as item_count
+      from orders
+- description: a subquery wrapped in a function in the select list stays inline
+  input: select id, coalesce((select max(amount) from order_items oi where oi.order_id = orders.id), 0) as top from orders
+  expected: |
+    select id,
+           coalesce((select max(amount) from order_items oi where oi.order_id = orders.id), 0) as top
+      from orders
+- description: a subquery as a join table expands, alias and single ON on the ) line
+  input: select o.id from orders o join (select customer_id from vip_customers) v on v.customer_id = o.customer_id
+  expected: |
+    select o.id
+      from orders o
+      join (
+        select customer_id
+          from vip_customers
+      ) v on v.customer_id = o.customer_id
+- description: a join-table subquery with a multi-condition ON keeps the ON river on the ) line
+  input: select o.id from orders o join (select customer_id from vip_customers) v on v.customer_id = o.customer_id and v.tier = o.tier
+  expected: |
+    select o.id
+      from orders o
+      join (
+        select customer_id
+          from vip_customers
+      ) v on v.customer_id = o.customer_id
+         and v.tier = o.tier
+- description: a standalone comment inside a from-subquery reflows at the inner content column
+  input: |
+    select x.id from (
+      select id
+      -- note inside
+      from orders
+    ) x
+  expected: |
+    select x.id
+      from (
+        select id
+               -- note inside
+          from orders
+      ) x
+- description: a comment inside a where-subquery (first condition) reflows recursively
+  input: |
+    select id from orders where customer_id in (
+      select customer_id
+      -- only the active ones
+      from vip_customers
+    ) and status_id = 1
+  expected: |
+    select id
+      from orders
+     where customer_id in (
+       select customer_id
+              -- only the active ones
+         from vip_customers
+     )
+       and status_id = 1
+- description: a comment inside a join-table subquery reflows recursively
+  input: |
+    select o.id from orders o join (
+      select customer_id
+      -- vips only
+      from vip_customers
+    ) v on v.customer_id = o.customer_id
+  expected: |
+    select o.id
+      from orders o
+      join (
+        select customer_id
+               -- vips only
+          from vip_customers
+      ) v on v.customer_id = o.customer_id
+- description: a comment inside a scalar subquery in the select list reflows recursively
+  input: |
+    select id, (
+      select count(*)
+      -- count of items
+      from order_items oi where oi.order_id = orders.id
+    ) as item_count from orders
+  expected: |
+    select id,
+           (
+             select count(*)
+                    -- count of items
+               from order_items oi
+              where oi.order_id = orders.id
+           ) as item_count
+      from orders
+- description: a comment inside a non-first (non-expanded) where-subquery passes through intact
+  input: |
+    select id from orders where status_id = 1 and customer_id in (
+      select customer_id
+      -- must not vanish
+      from vip_customers
+    )
+  expected: |
+    select id from orders where status_id = 1 and customer_id in (
+      select customer_id
+      -- must not vanish
+      from vip_customers
+    )
+- description: a comment inside a function-wrapped subquery passes through intact
+  input: |
+    select id, coalesce((
+      select max(amount)
+      -- careful
+      from order_items oi where oi.order_id = orders.id
+    ), 0) as top from orders
+  expected: |
+    select id, coalesce((
+      select max(amount)
+      -- careful
+      from order_items oi where oi.order_id = orders.id
+    ), 0) as top from orders
 - description: multiple comma-separated CTEs stay on the with line (fallback)
   input: with a as (select id from orders), b as (select id from customers) select a.id from a join b on a.id = b.id
   expected: |2

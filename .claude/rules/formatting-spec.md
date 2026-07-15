@@ -58,22 +58,37 @@ single item stays inline). `where` reuses the normal RIVER bool rendering.
 
 ### Subqueries / CTEs (recursive)
 
-`findSubquery(tokens)` returns the first top-level `( ... )` whose first interior token is `SELECT`
-or `WITH`. `renderSubqueryBlock(prefix, inner, ownerLeading, afterStr)` emits `prefix(`, then the
-inner tokens formatted recursively via `renderInner` (`segmentClauses` → a `Statement` →
-`formatStatement`) at `innerBase = ownerLeading + indentSize`, then `pad(ownerLeading) + ') ' +
-afterStr`. So the inner block is one level past the owner clause keyword and the closing `)` aligns
-**under that keyword** (not the base margin). Hooks:
+`findSubquery(tokens)` (exported from `segmenter.ts`, shared by `layout.ts` and `format.ts`)
+returns the first top-level `( ... )` whose first interior token is `SELECT` or `WITH`.
+`renderSubqueryBlock(prefix, inner, ownerLeading, afterStr)` emits `prefix(`, then the inner tokens
+formatted recursively via `renderInner` (`segmentClauses` → a `Statement` → `formatStatement`) at
+`innerBase = ownerLeading + indentSize`, then `pad(ownerLeading) + ') ' + afterStr`. So the inner
+block is one level past the owner clause keyword and the closing `)` aligns **under that keyword**
+(not the base margin). Hooks:
 - `renderFromClause` — `from ( select ... ) alias` when the whole from body is one subquery
   (`sub.open === 0`); `ownerLeading` = `from`'s leading; `afterStr` = the alias.
 - `renderCteClause` (`cte` kind, `WITH`) — a single `with name as ( ... )` (nothing after the
   close); `ownerLeading` = `with`'s leading; the `name as` part is the prefix. Multiple
   comma-separated CTEs fall back to `renderGenericClause`.
-- `renderBoolClause` — a single-condition `where`/`having` whose atom contains a subquery
-  (`where x in ( select ... )`); `ownerLeading` = the clause's leading.
+- `renderBoolClause` — the **first** condition of a `where`/`having` whose atom contains a subquery
+  (`where x in ( select ... )`); `ownerLeading` = the clause's leading. When there are more
+  conditions, they render below the `)` via `renderRiverTail` (connectors right-aligned at
+  `riverEnd`). A subquery in a non-first condition stays inline.
+- `renderJoinClause` — the join **table** is a subquery (`join ( select ... ) alias on ...`,
+  `findSubquery(tableRef)` with `open === 0`); `ownerLeading` = the join's leading; the alias + ON
+  go on the `)` line via `renderOn` (a single ON inline; two or more keep the secondary river right
+  after `on`). Note: the segmenter now recognizes `join (` as a join — not the `LEFT(` function —
+  only when the interior begins `SELECT`/`WITH`.
+- `renderItemLines` — a select/group-by/order-by list item that **is** a scalar subquery
+  (`( select ... ) [alias]`, `itemSubquery`: `findSubquery` with `open === 0`); `ownerLeading` =
+  the item column; `afterStr` = the part after `)` (e.g. `as item_count`). A subquery merely wrapped
+  in a function (`coalesce((select ...), 0)`) is not expanded (`open !== 0`). A scalar-subquery item
+  forces the list to break, like a `case`.
 Recursion recomputes the inner river and handles nesting. `formatStatement` builds the inner
-statement with `semicolon: false`. Subqueries with line comments hit `isCommentSafe` → passthrough.
-Idempotent because the base is the minimum indent (the inner block never becomes the leftmost).
+statement with `semicolon: false`. A subquery containing a line comment expands too: `isCommentSafe`
+recurses into every subquery it expands (see Comments), so the recursion places the comment; a
+comment inside a *non-expanded* subquery still forces passthrough. Idempotent because the base is
+the minimum indent (the inner block never becomes the leftmost).
 
 ### List clauses
 
@@ -176,17 +191,32 @@ call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KE
   - *Comment after the final `;`*: a trailing comment-only unit (no clauses) glues under the
     previous block with a single `\n` instead of becoming its own blank-line-separated block
     (see `format()`).
+  - **Comments inside an expanded subquery** reflow via the recursion. `isCommentSafe`
+    (`format.ts`) is itself recursive: for any clause whose subquery it *will* expand, it recurses
+    into that subquery's interior (`clausesCommentsSafe(segmentClauses(inner).clauses)`) instead of
+    rejecting the mid-item/mid-term comment. Because the top-level gate recurses into every subquery
+    the layout expands, a formatted inner block never carries an unsafe comment — so `renderInner`
+    needs no gate of its own. The recursion mirrors the layout's expansion conditions exactly
+    (`fromCommentsSafe` / `cteCommentsSafe` / `whereCommentsSafe` / `joinCommentsSafe` /
+    `listCommentsSafe`): the parts *outside* the subquery must be comment-free, and the subquery
+    must be one that is actually expanded (from body / single CTE / **first** where condition / join
+    table / a select-list item that **is** the subquery). `whereCommentsSafe` uses
+    `blankFirstSubquery` to re-check the remaining conditions with the first subquery's interior
+    blanked out.
   - `isCommentSafe(statement)`: for list clauses, false if any item is `unsafe` (a line comment
-    strictly *inside* an item — not at a boundary); for `where`/`having`, false unless
-    `boolCommentsReflowable` (every comment sits at a top-level term boundary — inline-trailing,
-    standalone-between-terms, standalone-before-first — or inside a reflowable wrapped group);
-    for `join`, false unless the table-ref before `on` is comment-free and the ON expression is
+    strictly *inside* an item — not at a boundary) *unless* the item is an expanded scalar subquery
+    whose interior recurses safe; for `where`/`having`, false unless `boolCommentsReflowable` (every
+    comment at a top-level term boundary — inline-trailing, standalone-between-terms,
+    standalone-before-first — or inside a reflowable wrapped group) *or* the only offending comment
+    is inside the first condition's expanded subquery; for `from`/`cte`, recurse into the expanded
+    subquery (else list/last-token rule); for `join`, the table-ref before `on` must be comment-free
+    (or be an expanded subquery whose interior recurses safe) and the ON expression
     `boolCommentsReflowable`; for generic/set ops, false if a line comment is not the last body
     token. If unsafe → the whole statement is emitted unchanged (passthrough) so SQL is never
     commented-out by line joins.
-- Still passthrough: a comment mid-token (inside a single condition/item) or inside an inline
-  subquery/scalar-parenthesized expression that is not a boolean group. Recomputing an inner river
-  for subqueries/CTEs (and placing comments there) is the next step.
+- Still passthrough: a comment mid-token (inside a single condition/item), or inside a subquery that
+  is **not** expanded (a non-first `where` condition, a `join` ON, a function-wrapped subquery, or
+  one of multiple comma-separated CTEs).
 
 ## Invariants to keep
 

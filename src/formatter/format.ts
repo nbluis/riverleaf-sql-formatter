@@ -1,6 +1,15 @@
 import { FormatOptions, DEFAULT_OPTIONS, Token } from './types';
 import { tokenize } from './tokenizer';
-import { splitStatements, splitListItems, boolCommentsReflowable, Statement } from './segmenter';
+import {
+  splitStatements,
+  splitListItems,
+  boolCommentsReflowable,
+  findSubquery,
+  segmentClauses,
+  parseBoolExpr,
+  Clause,
+  Statement,
+} from './segmenter';
 import { Layout } from './layout';
 
 export { FormatOptions, DEFAULT_OPTIONS } from './types';
@@ -66,36 +75,138 @@ export function format(sql: string, options: Partial<FormatOptions> = {}): strin
 }
 
 /**
- * A line comment is safe to reformat only when it is a trailing comment of a
- * comma-list item (select/from/group by/order by) or the last token of any
- * other clause. Anything else falls back to passthrough.
+ * Whether a statement's line comments can all be reflowed safely. A comment that
+ * sits *inside a subquery we will expand* is checked recursively (the recursion
+ * places it); a comment we cannot place cleanly makes the whole statement pass
+ * through unchanged. Because this gate recurses into every subquery we expand, a
+ * formatted inner block never carries an unsafe comment.
  */
 function isCommentSafe(stmt: Statement): boolean {
-  for (const clause of stmt.clauses) {
-    if (clause.kind === 'select' || clause.kind === 'from' || clause.kind === 'list') {
-      if (splitListItems(clause.body).some((it) => it.unsafe)) return false;
-    } else if (clause.kind === 'where' || clause.kind === 'having') {
-      // reflowable when every comment inline-trails a top-level boolean term
-      if (!boolCommentsReflowable(clause.body)) return false;
-    } else if (clause.kind === 'join') {
-      // reflowable when the ON expression's comments sit at term boundaries and
-      // the table-ref part (before ON) carries no comment.
-      const onIdx = findTopLevelOn(clause.body);
-      if (onIdx === -1) {
-        if (clause.body.slice(0, -1).some((t) => t.type === 'lineComment')) return false;
-      } else {
-        if (clause.body.slice(0, onIdx).some((t) => t.type === 'lineComment')) return false;
-        if (!boolCommentsReflowable(clause.body.slice(onIdx + 1))) return false;
-      }
-    } else {
+  return clausesCommentsSafe(stmt.clauses);
+}
+
+function clausesCommentsSafe(clauses: Clause[]): boolean {
+  return clauses.every(clauseCommentsSafe);
+}
+
+function clauseCommentsSafe(clause: Clause): boolean {
+  switch (clause.kind) {
+    case 'select':
+    case 'list':
+      return listCommentsSafe(clause.body);
+    case 'from':
+      return fromCommentsSafe(clause.body);
+    case 'cte':
+      return cteCommentsSafe(clause.body);
+    case 'where':
+    case 'having':
+      return whereCommentsSafe(clause.body);
+    case 'join':
+      return joinCommentsSafe(clause.body);
+    default:
       // generic / set ops: only a comment as the last body token is safe
-      const b = clause.body;
-      for (let i = 0; i < b.length - 1; i++) {
-        if (b[i].type === 'lineComment') return false;
-      }
-    }
+      return lastTokenOnlyComment(clause.body);
+  }
+}
+
+function hasLineComment(tokens: Token[]): boolean {
+  return tokens.some((t) => t.type === 'lineComment');
+}
+
+function lastTokenOnlyComment(body: Token[]): boolean {
+  for (let i = 0; i < body.length - 1; i++) {
+    if (body[i].type === 'lineComment') return false;
   }
   return true;
+}
+
+/** Recurses into a subquery's interior tokens (formatted as its own statement). */
+function innerCommentsSafe(inner: Token[]): boolean {
+  return clausesCommentsSafe(segmentClauses(inner).clauses);
+}
+
+/** select / group by / order by list: a comment inside an expanded scalar
+ * subquery item is checked recursively; anything else must be at a boundary. */
+function listCommentsSafe(body: Token[]): boolean {
+  for (const item of splitListItems(body)) {
+    if (!item.unsafe) continue;
+    const sub = findSubquery(item.tokens);
+    if (
+      sub &&
+      sub.open === 0 &&
+      !hasLineComment(item.tokens.slice(sub.close + 1)) &&
+      innerCommentsSafe(item.tokens.slice(sub.open + 1, sub.close))
+    ) {
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+
+/** from ( subquery ) alias: recurse into the subquery; else treat as a list. */
+function fromCommentsSafe(body: Token[]): boolean {
+  const sub = findSubquery(body);
+  if (sub && sub.open === 0) {
+    if (hasLineComment(body.slice(sub.close + 1))) return false; // alias part
+    return innerCommentsSafe(body.slice(sub.open + 1, sub.close));
+  }
+  return listCommentsSafe(body);
+}
+
+/** with name as ( subquery ): recurse; multiple CTEs fall back to last-token. */
+function cteCommentsSafe(body: Token[]): boolean {
+  const sub = findSubquery(body);
+  if (sub && body.slice(sub.close + 1).length === 0) {
+    if (hasLineComment(body.slice(0, sub.open))) return false; // "name as"
+    return innerCommentsSafe(body.slice(sub.open + 1, sub.close));
+  }
+  return lastTokenOnlyComment(body);
+}
+
+/** where / having: reflowable boundaries, plus a comment inside the first
+ * condition's expandable subquery (checked recursively). */
+function whereCommentsSafe(body: Token[]): boolean {
+  if (boolCommentsReflowable(body)) return true;
+  // The one extra allowance: a comment inside the first condition's subquery,
+  // which renderBoolClause expands (first term must be an atom containing it).
+  const terms = parseBoolExpr(body);
+  const first = terms[0];
+  if (!first || first.node.kind !== 'atom' || first.comment || first.commentsBefore?.length) {
+    return false;
+  }
+  const ft = first.node.tokens;
+  const sub = findSubquery(ft);
+  if (!sub) return false;
+  if (hasLineComment(ft.slice(0, sub.open)) || hasLineComment(ft.slice(sub.close + 1))) return false;
+  if (!innerCommentsSafe(ft.slice(sub.open + 1, sub.close))) return false;
+  // every other comment (in the remaining conditions) must be reflowable
+  return boolCommentsReflowable(blankFirstSubquery(body));
+}
+
+/** Blanks the interior of the first top-level subquery (used to re-check the
+ * rest of a where body once the first condition's subquery is accounted for). */
+function blankFirstSubquery(body: Token[]): Token[] {
+  const sub = findSubquery(body);
+  if (!sub) return body;
+  return [...body.slice(0, sub.open + 1), ...body.slice(sub.close)];
+}
+
+/** join: a subquery table (recurse) plus a reflowable ON; else the old rule
+ * (table-ref comment-free, ON reflowable). */
+function joinCommentsSafe(body: Token[]): boolean {
+  const onIdx = findTopLevelOn(body);
+  const tableRef = onIdx === -1 ? body : body.slice(0, onIdx);
+  const onPart = onIdx === -1 ? [] : body.slice(onIdx + 1);
+  const sub = findSubquery(tableRef);
+  if (sub && sub.open === 0) {
+    if (hasLineComment(tableRef.slice(sub.close + 1))) return false; // alias
+    if (!innerCommentsSafe(tableRef.slice(sub.open + 1, sub.close))) return false;
+    return onIdx === -1 || boolCommentsReflowable(onPart);
+  }
+  if (onIdx === -1) return lastTokenOnlyComment(body);
+  if (hasLineComment(tableRef)) return false;
+  return boolCommentsReflowable(onPart);
 }
 
 /** Index of the first top-level ON in a JOIN body (or -1). */

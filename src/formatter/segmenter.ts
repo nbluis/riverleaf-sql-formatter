@@ -37,6 +37,41 @@ export interface Statement {
   trailingComments?: string[];
 }
 
+/** Index of the ')' matching the '(' at `open` (or -1). */
+export function matchParen(tokens: Token[], open: number): number {
+  let depth = 0;
+  for (let j = open; j < tokens.length; j++) {
+    const t = tokens[j];
+    if (t.type === 'punct' && t.value === '(') depth++;
+    else if (t.type === 'punct' && t.value === ')') {
+      depth--;
+      if (depth === 0) return j;
+    }
+  }
+  return -1;
+}
+
+/** First top-level '(' whose interior begins a subquery (SELECT / WITH). */
+export function findSubquery(tokens: Token[]): { open: number; close: number } | null {
+  let depth = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.type === 'punct' && t.value === '(') {
+      if (depth === 0) {
+        const next = tokens[i + 1];
+        if (next?.type === 'keyword' && (next.upper === 'SELECT' || next.upper === 'WITH')) {
+          const close = matchParen(tokens, i);
+          if (close !== -1) return { open: i, close };
+        }
+      }
+      depth++;
+    } else if (t.type === 'punct' && t.value === ')') {
+      depth = Math.max(0, depth - 1);
+    }
+  }
+  return null;
+}
+
 /** Splits the token list into statements at top-level ';'. */
 export function splitStatements(tokens: Token[]): Statement[] {
   const statements: Statement[] = [];
@@ -83,7 +118,15 @@ function isClauseBoundary(tokens: Token[], i: number): number {
 
   // JOIN starters — avoid confusing the LEFT(...) function
   if (JOIN_STARTERS.has(up)) {
-    if (tokens[i + 1]?.type === 'punct' && tokens[i + 1]?.value === '(') return 0;
+    // A join keyword immediately followed by '(' is normally a function call
+    // (e.g. LEFT(str, n)), not a join — unless the parenthesis opens a subquery
+    // (`join ( select ... )`), a join whose table is itself a subquery.
+    if (tokens[i + 1]?.type === 'punct' && tokens[i + 1]?.value === '(') {
+      const inner = tokens[i + 2];
+      const opensSubquery =
+        inner?.type === 'keyword' && (inner.upper === 'SELECT' || inner.upper === 'WITH');
+      if (!opensSubquery) return 0;
+    }
     // consume the join phrase up to (and including) JOIN
     let j = i;
     let sawJoin = up === 'JOIN' || up === 'STRAIGHT_JOIN';

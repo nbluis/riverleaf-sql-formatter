@@ -8,6 +8,7 @@ import {
   parseBoolExpr,
   splitListItems,
   segmentClauses,
+  findSubquery,
 } from './segmenter';
 
 function pad(n: number): string {
@@ -26,20 +27,6 @@ function findOn(tokens: Token[]): number {
     if (t.type === 'punct' && t.value === '(') depth++;
     else if (t.type === 'punct' && t.value === ')') depth = Math.max(0, depth - 1);
     else if (depth === 0 && t.type === 'keyword' && t.upper === 'ON') return i;
-  }
-  return -1;
-}
-
-/** Index of the ')' matching the '(' at `open` (or -1). */
-function matchParen(tokens: Token[], open: number): number {
-  let depth = 0;
-  for (let j = open; j < tokens.length; j++) {
-    const t = tokens[j];
-    if (t.type === 'punct' && t.value === '(') depth++;
-    else if (t.type === 'punct' && t.value === ')') {
-      depth--;
-      if (depth === 0) return j;
-    }
   }
   return -1;
 }
@@ -84,8 +71,16 @@ export class Layout {
     } else {
       this.emitTerm(lines, terms[0], firstLinePrefix, firstLinePrefix.length, connEnd);
     }
-    // remaining terms: connector right-aligned at connEnd
-    for (let i = 1; i < terms.length; i++) {
+    this.renderRiverTail(lines, terms, connEnd, 1);
+    return lines;
+  }
+
+  /**
+   * Appends `terms[startIdx..]` to `lines` in RIVER mode: each connector
+   * right-aligned so its right edge lands on `connEnd`, operands at `connEnd + 1`.
+   */
+  private renderRiverTail(lines: string[], terms: BoolTerm[], connEnd: number, startIdx: number): void {
+    for (let i = startIdx; i < terms.length; i++) {
       // standalone comments sit on their own line at the operand column
       for (const c of terms[i].commentsBefore ?? []) lines.push(pad(connEnd + 1) + c);
       const conn = caseConnector(terms[i].connector as 'and' | 'or', this.options);
@@ -93,7 +88,6 @@ export class Layout {
       const prefix = pad(lineStart) + conn + ' ';
       this.emitTerm(lines, terms[i], prefix, lineStart, connEnd + 1);
     }
-    return lines;
   }
 
   // --- boolean expression: BLOCK mode (connectors left-aligned) ----------
@@ -157,18 +151,21 @@ export class Layout {
     const rendered = items.map((it) => renderTokens(it.tokens, this.options));
     const hasComment = items.some((it) => it.comment);
     const hasStandalone = items.some((it) => it.commentsBefore?.length);
-    // a `case ... end` item always expands, so it forces the list to break
+    // a `case ... end` or a scalar subquery item always expands, so it forces
+    // the list to break
     const hasCase = items.some((it) => this.parseCase(it.tokens) !== null);
+    const hasSubquery = items.some((it) => this.itemSubquery(it.tokens) !== null);
     const inlineBody = rendered.join(', ');
     const full = pad(leading) + headStr + ' ' + inlineBody;
     // Stay on one line when there is no line comment (trailing or standalone) to
-    // own its own line, no `case` to expand, and either it's a single item or it
-    // fits. `alwaysBreak` clauses (SET / VALUES) break whenever there is more than
-    // one item; the rest break only when they exceed the width.
+    // own its own line, no `case` or subquery to expand, and either it's a single
+    // item or it fits. `alwaysBreak` clauses (SET / VALUES) break whenever there
+    // is more than one item; the rest break only when they exceed the width.
     if (
       !hasComment &&
       !hasStandalone &&
       !hasCase &&
+      !hasSubquery &&
       (items.length === 1 || (!alwaysBreak && this.fits(full)))
     ) {
       return [full];
@@ -206,11 +203,32 @@ export class Layout {
 
   // --- case expressions --------------------------------------------------
 
-  /** Renders one list item as lines: a `case ... end` expands, else one line. */
+  /**
+   * Renders one list item as lines: a `case ... end` expands; a scalar subquery
+   * (the item is `( select ... ) [alias]`) expands at the item column; else one
+   * line.
+   */
   private renderItemLines(tokens: Token[], caseCol: number): string[] {
     const c = this.parseCase(tokens);
     if (c) return this.renderCase(c, caseCol);
+    const sub = this.itemSubquery(tokens);
+    if (sub) {
+      const inner = tokens.slice(sub.open + 1, sub.close);
+      const after = tokens.slice(sub.close + 1);
+      const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
+      return this.renderSubqueryBlock('', inner, caseCol, afterStr);
+    }
     return [renderTokens(tokens, this.options)];
+  }
+
+  /**
+   * A list item that IS a scalar subquery — `( select|with ... ) [alias]` — so it
+   * expands. A subquery merely wrapped in a function (`coalesce((select ...), 0)`)
+   * is not: findSubquery only returns a top-level '(' and open !== 0 there.
+   */
+  private itemSubquery(tokens: Token[]): { open: number; close: number } | null {
+    const sub = findSubquery(tokens);
+    return sub && sub.open === 0 ? sub : null;
   }
 
   /**
@@ -287,18 +305,23 @@ export class Layout {
     const headStr = renderTokens(clause.head, this.options);
     const terms = parseBoolExpr(clause.body);
 
-    // A single condition whose atom contains a subquery (`where x in ( select
-    // ... )`) expands it, with the ')' aligned under the clause keyword.
-    if (terms.length === 1 && terms[0].node.kind === 'atom' && !terms[0].comment) {
-      const toks = terms[0].node.tokens;
-      const sub = this.findSubquery(toks);
+    // The first condition's atom contains a subquery (`where x in ( select ...
+    // )`): expand it, with the ')' aligned under the clause keyword. Any further
+    // conditions (and/or) render normally below the ')'. A subquery in a
+    // non-first condition stays inline (handled by the fall-through below).
+    const first = terms[0];
+    if (first.node.kind === 'atom' && !first.comment && !first.commentsBefore?.length) {
+      const toks = first.node.tokens;
+      const sub = findSubquery(toks);
       if (sub) {
         const before = renderTokens(toks.slice(0, sub.open), this.options);
         const inner = toks.slice(sub.open + 1, sub.close);
         const after = toks.slice(sub.close + 1);
         const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
         const prefix = pad(leading) + headStr + ' ' + (before ? before + ' ' : '');
-        return this.renderSubqueryBlock(prefix, inner, leading, afterStr);
+        const lines = this.renderSubqueryBlock(prefix, inner, leading, afterStr);
+        this.renderRiverTail(lines, terms, riverEnd, 1);
+        return lines;
       }
     }
 
@@ -322,16 +345,46 @@ export class Layout {
   private renderJoinClause(clause: Clause, leading: number): string[] {
     const headStr = renderTokens(clause.head, this.options);
     const onIdx = findOn(clause.body);
+    const tableRef = onIdx === -1 ? clause.body : clause.body.slice(0, onIdx);
+    const onTokens = onIdx === -1 ? [] : clause.body.slice(onIdx + 1);
+
+    // The join table is itself a subquery (`join ( select ... ) alias on ...`):
+    // expand it, and put the alias + ON on the closing ')' line.
+    const sub = findSubquery(tableRef);
+    if (sub && sub.open === 0) {
+      const inner = tableRef.slice(sub.open + 1, sub.close);
+      const aliasToks = tableRef.slice(sub.close + 1);
+      const aliasStr = renderTokens(aliasToks, this.options);
+      const aliasPart = aliasStr ? ' ' + aliasStr : '';
+      const lines = [
+        pad(leading) + headStr + ' (',
+        ...this.renderInner(inner, leading + this.options.indentSize),
+      ];
+      if (onIdx === -1) {
+        lines.push(pad(leading) + ')' + aliasPart);
+        return lines;
+      }
+      lines.push(...this.renderOn(onTokens, leading, ')' + aliasPart));
+      return lines;
+    }
+
     if (onIdx === -1) {
       // no ON (cross join / using / natural): single line
       return [pad(leading) + headStr + (clause.body.length ? ' ' + renderTokens(clause.body, this.options) : '')];
     }
-    const tableRef = clause.body.slice(0, onIdx);
-    const onTokens = clause.body.slice(onIdx + 1);
     const tableStr = renderTokens(tableRef, this.options);
-    const onKw = caseKeyword('on', this.options);
-    const headPart = headStr + (tableStr ? ' ' + tableStr : '') + ' ' + onKw;
+    return this.renderOn(onTokens, leading, headStr + (tableStr ? ' ' + tableStr : ''));
+  }
 
+  /**
+   * Renders an ON expression after a join head prefix that already sits at
+   * `leading` (`beforeOn` is the text before " on", e.g. "join customers c" or
+   * ") v"). A single condition stays inline; two or more break with the and/or
+   * connectors aligned under a secondary river right after "on".
+   */
+  private renderOn(onTokens: Token[], leading: number, beforeOn: string): string[] {
+    const onKw = caseKeyword('on', this.options);
+    const headPart = beforeOn + ' ' + onKw;
     const terms = parseBoolExpr(onTokens);
     // A single ON condition has nothing to align, so it stays inline. Any join
     // with two or more ON conditions always breaks (regardless of width) so the
@@ -340,7 +393,6 @@ export class Layout {
       const comment = terms[0].comment ? ' ' + terms[0].comment : '';
       return [pad(leading) + headPart + ' ' + this.renderInlineBool(terms) + comment];
     }
-
     const onRiverEnd = leading + headPart.length; // column right after "on"
     const firstLinePrefix = pad(leading) + headPart + ' ';
     return this.renderBoolRiver(terms, onRiverEnd, firstLinePrefix);
@@ -366,27 +418,6 @@ export class Layout {
   }
 
   // --- subqueries / CTEs (recursive) -------------------------------------
-
-  /** First top-level '(' whose interior begins a subquery (SELECT / WITH). */
-  private findSubquery(tokens: Token[]): { open: number; close: number } | null {
-    let depth = 0;
-    for (let i = 0; i < tokens.length; i++) {
-      const t = tokens[i];
-      if (t.type === 'punct' && t.value === '(') {
-        if (depth === 0) {
-          const next = tokens[i + 1];
-          if (next?.type === 'keyword' && (next.upper === 'SELECT' || next.upper === 'WITH')) {
-            const close = matchParen(tokens, i);
-            if (close !== -1) return { open: i, close };
-          }
-        }
-        depth++;
-      } else if (t.type === 'punct' && t.value === ')') {
-        depth = Math.max(0, depth - 1);
-      }
-    }
-    return null;
-  }
 
   /** Recursively formats subquery tokens as a statement at `innerBase`. */
   private renderInner(innerTokens: Token[], innerBase: number): string[] {
@@ -422,7 +453,7 @@ export class Layout {
   }
 
   private renderFromClause(clause: Clause, leading: number): string[] {
-    const sub = this.findSubquery(clause.body);
+    const sub = findSubquery(clause.body);
     // only expand when the whole from body is a single parenthesized subquery
     // (`from ( select ... ) alias`); anything else stays a list.
     if (sub && sub.open === 0) {
@@ -436,7 +467,7 @@ export class Layout {
   }
 
   private renderCteClause(clause: Clause, leading: number): string[] {
-    const sub = this.findSubquery(clause.body);
+    const sub = findSubquery(clause.body);
     const after = sub ? clause.body.slice(sub.close + 1) : [];
     // handle a single CTE (`with name as ( ... )`); multiple comma-separated
     // CTEs (tokens after the close) fall back to the generic one-liner for now.

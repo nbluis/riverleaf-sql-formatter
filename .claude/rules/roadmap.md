@@ -24,16 +24,21 @@ State as of the current session. Update this file as items are resolved.
   conditions**, **inside expanded parenthesized groups** (BLOCK mode), **before the first
   `where`/`having` condition** (keyword sits alone, first condition drops below the comment), and
   **inside a `join` ON** (reflowed under the ON river). See `formatting-spec.md` → Comments.
-  Remaining passthrough: a comment mid-token or inside an inline subquery/scalar-parenthesized
-  expression — folded into the subqueries/CTEs work below.
-- **Subqueries / CTEs (`with`).** ✅ Done (common shapes). A parenthesized `select`/`with` in a
-  `from (...) alias`, a single CTE body (`with name as (...)`), or a single-condition
-  `where ... in (...)` expands recursively: the inner query is formatted at `ownerLeading +
-  indentSize` and the closing `)` aligns under the owner clause keyword (alias on the `)` line).
-  Nested subqueries recurse; a subquery's inner river is recomputed. Still inline: multiple
-  comma-separated CTEs, subqueries inside a multi-condition `where`/`join` ON, scalar subqueries in
-  the select list, and any subquery containing a line comment (→ passthrough). Decision made with
-  the user (2026-07-15): "shallow indent, `)` aligned under the clause keyword".
+  **Comments inside an expanded subquery** (from / cte / join-table / scalar-in-select /
+  first where condition) also reflow now — `isCommentSafe` recurses into every subquery it expands
+  (Phase 5, B1). Remaining passthrough: a comment mid-token, or inside a subquery that is *not*
+  expanded (non-first where condition, join ON, function-wrapped, multiple CTEs).
+- **Subqueries / CTEs (`with`).** ✅ Done (Phase 5 extended the positions). Expand recursively:
+  `from (...) alias`, a single CTE body (`with name as (...)`), `where ... in (...)` (as a single
+  condition **or the first of several** — the rest render below the `)`), a subquery as a **`join`
+  table** (`join (...) alias on ...`, alias + ON on the `)` line — single ON inline, multi-condition
+  ON keeps the secondary river), and a **scalar subquery in the select list** (expanded at the item
+  column, `afterStr` like `as item_count` on the `)` line). The inner query is formatted at
+  `ownerLeading + indentSize` and the `)` aligns under the owner clause keyword (or the item
+  column). Nested subqueries recurse; a subquery's inner river is recomputed. Still inline: multiple
+  comma-separated CTEs (Phase 6), a subquery in a non-first `where` condition or inside a `join` ON,
+  and a subquery wrapped in a function call. Decision made with the user (2026-07-15): "shallow
+  indent, `)` aligned under the clause keyword".
 - **`case when ... then ... else ... end`.** ✅ Done (select-list items). A select/group-by/order-by
   list item that is exactly `case [selector] when ... [else ...] end [alias]` expands: `case` on the
   item line, each `when`/`else` segment and the closing `end` aligned at the item's column (the

@@ -55,11 +55,15 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   `delete from` is kept together as one head. `insert into t (cols)` keeps a space before the
   column-list `(` (via `renderInsertClause`, since `renderTokens` would glue it as a call).
 - **Subqueries / CTEs** expand recursively (always, for common shapes): `from (select ...) alias`,
-  a single `with name as (...)`, a single-condition `where ... in (select ...)`. Inner query
-  re-aligned at `ownerLeading + indentSize`; closing `)` aligns **under the owner clause keyword**,
-  alias on the `)` line (`renderSubqueryBlock`/`findSubquery`/`renderInner`). Nested subqueries
-  recurse. Multiple CTEs, subqueries in multi-condition where/join ON, and scalar subqueries in the
-  select list stay inline.
+  a single `with name as (...)`, `where ... in (select ...)` (single condition **or first of
+  several**), a subquery as a **join table** (`join (select ...) alias on ...`), and a **scalar
+  subquery in the select list** (expanded at the item column). Inner query re-aligned at
+  `ownerLeading + indentSize`; closing `)` aligns **under the owner clause keyword** (or item
+  column), alias/ON on the `)` line (`renderSubqueryBlock`/`findSubquery`/`renderInner`/`renderOn`/
+  `itemSubquery`). `findSubquery` lives in `segmenter.ts` (shared with `format.ts`). Nested
+  subqueries recurse. Still inline: multiple CTEs, a subquery in a non-first where condition or a
+  join ON, and a function-wrapped subquery. A comment **inside an expanded** subquery reflows
+  (`isCommentSafe` recurses); a comment inside a non-expanded one still forces passthrough.
 - **`case ... end`** in a select/group-by/order-by list item expands: `case` on the item line,
   each `when`/`else` and the `end` aligned at the item column (`parseCase`/`renderCase`, routed by
   `renderItemLines`). Nested `case` stays inline on its branch; long `when ... then` not wrapped; a
