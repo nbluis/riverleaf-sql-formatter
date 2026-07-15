@@ -20,10 +20,12 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
 - `src/formatter/keywords.ts` — keyword sets: `CLAUSE_STARTERS`, `JOIN_STARTERS`,
   `BOOL_CONNECTORS`, `KEYWORD_FOLLOWERS`, `KEYWORDS`, `FUNCTION_KEYWORDS`.
 - `src/formatter/tokenizer.ts` — `tokenize(sql)`: lexer, drops whitespace, keeps comments/strings,
-  records `start`/`end` offsets.
+  records `start`/`end` offsets and `newlineBefore` (used to tell standalone vs inline comments).
 - `src/formatter/render.ts` — `renderTokens` (canonical single-line spacing), keyword casing.
 - `src/formatter/segmenter.ts` — `splitStatements`, `segmentClauses`, `parseBoolExpr`
-  (`BoolTerm`/`BoolNode`), `splitCommaList`, `splitListItems` (extracts trailing line comments).
+  (`BoolTerm`/`BoolNode`), `splitCommaList`, `splitListItems` (extracts inline trailing comments +
+  standalone `commentsBefore`). `segmentClauses` lifts standalone comments into clause
+  `commentsBefore` / statement `trailingComments`.
 - `src/formatter/layout.ts` — `Layout` class: the alignment engine (river math, RIVER vs BLOCK
   modes, line breaking). **The hard part lives here.**
 - `src/formatter/format.ts` — public `format(sql, options)`, base-indent detection, comment-safety
@@ -45,8 +47,12 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   — **do not "fix" it without asking** (see roadmap).
 - Keywords lowercased (config); identifiers preserved. `between ... and ...` — that `and` is not a
   connector.
-- Line comments: kept as end-of-line comments where safe (comma-list items, last token of a
-  clause); otherwise the whole statement is passed through unchanged (never corrupt SQL).
+- Line comments: **inline** comments (trailing code on a line) stay attached to that line's last
+  token; **standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on
+  their own line, aligned to the adjacent code line — as a clause's `commentsBefore`, a list
+  item's `commentsBefore`, or the statement's `trailingComments`. Only a line comment in the
+  middle of a `where`/`on` boolean expression still triggers whole-statement passthrough (never
+  corrupt SQL).
 
 Full algorithm (river math, ON secondary river, BLOCK mode, comment handling, passthrough):
 read **`.claude/rules/formatting-spec.md`** before touching `layout.ts`/`segmenter.ts`.

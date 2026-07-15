@@ -119,19 +119,29 @@ export class Layout {
     }
     const rendered = items.map((it) => renderTokens(it.tokens, this.options));
     const hasComment = items.some((it) => it.comment);
+    const hasStandalone = items.some((it) => it.commentsBefore?.length);
     const inlineBody = rendered.join(', ');
     const full = pad(leading) + headStr + ' ' + inlineBody;
-    // a trailing comment forces a break (it must end its own line)
-    if (!hasComment && (items.length === 1 || this.fits(full))) return [full];
+    // any line comment (trailing or standalone) forces a break so it can own its line
+    if (!hasComment && !hasStandalone && (items.length === 1 || this.fits(full))) return [full];
 
     // break: first item on the keyword line, rest aligned, trailing comma,
-    // each item's line comment appended after its comma
+    // each item's trailing comment after its comma, standalone comments on their
+    // own line before the item they precede
     const operandCol = leading + headStr.length + 1;
     const n = items.length;
     const commentOf = (i: number): string => (items[i].comment ? ' ' + items[i].comment : '');
     const lines: string[] = [];
-    lines.push(pad(leading) + headStr + ' ' + rendered[0] + (n > 1 ? ',' : '') + commentOf(0));
+    // first item: a standalone comment before it forces the head onto its own line
+    if (items[0].commentsBefore?.length) {
+      lines.push(pad(leading) + headStr);
+      for (const c of items[0].commentsBefore) lines.push(pad(operandCol) + c);
+      lines.push(pad(operandCol) + rendered[0] + (n > 1 ? ',' : '') + commentOf(0));
+    } else {
+      lines.push(pad(leading) + headStr + ' ' + rendered[0] + (n > 1 ? ',' : '') + commentOf(0));
+    }
     for (let k = 1; k < n; k++) {
+      for (const c of items[k].commentsBefore ?? []) lines.push(pad(operandCol) + c);
       const suffix = k < n - 1 ? ',' : '';
       lines.push(pad(operandCol) + rendered[k] + suffix + commentOf(k));
     }
@@ -184,13 +194,23 @@ export class Layout {
 
   formatStatement(stmt: Statement, base: number): string[] {
     const clauses = stmt.clauses;
-    if (clauses.length === 0) return [];
+    const lines: string[] = [];
+
+    if (clauses.length === 0) {
+      // statement with no clauses (e.g. only comments) — render at the base column
+      for (const c of stmt.trailingComments ?? []) lines.push(pad(base) + c);
+      return lines;
+    }
+
     const K = clauses.reduce((m, c) => Math.max(m, c.firstWord.length), 0);
     const riverEnd = base + K;
 
-    const lines: string[] = [];
+    let lastLeading = base;
     for (const clause of clauses) {
       const leading = riverEnd - clause.firstWord.length;
+      lastLeading = leading;
+      // standalone comments preceding this clause, aligned to the clause column
+      for (const c of clause.commentsBefore ?? []) lines.push(pad(leading) + c);
       let clauseLines: string[];
       switch (clause.kind) {
         case 'select':
@@ -212,9 +232,12 @@ export class Layout {
       lines.push(...clauseLines);
     }
 
+    // ';' goes on the last code line, before any trailing comments
     if (stmt.semicolon && lines.length > 0) {
       lines[lines.length - 1] += ';';
     }
+    // statement-trailing standalone comments align under the last clause
+    for (const c of stmt.trailingComments ?? []) lines.push(pad(lastLeading) + c);
     return lines;
   }
 }

@@ -110,3 +110,48 @@
      group by department_id
     having count(*) > 5
      order by department_id
+- description: a leading line comment stays on its own line and does not pollute the river
+  input: |
+    -- comment
+    select orders.closed_at as order_date, orders.closed_at as date, orders.salon_id
+      from orders
+  expected: |
+    -- comment
+    select orders.closed_at as order_date, orders.closed_at as date, orders.salon_id
+      from orders
+- description: a leading line comment is kept while a long select still breaks below it
+  options:
+    maxLineLength: 60
+  input: |
+    -- comment
+    select orders.closed_at as order_date, orders.closed_at as date, orders.salon_id
+      from orders
+  expected: |
+    -- comment
+    select orders.closed_at as order_date,
+           orders.closed_at as date,
+           orders.salon_id
+      from orders
+- description: an inline comment on the last select column is kept while the list breaks
+  input: |
+    select orders.closed_at as order_date, orders.closed_at as date, orders.salon_id -- last token comment
+      from orders
+  expected: |
+    select orders.closed_at as order_date,
+           orders.closed_at as date,
+           orders.salon_id -- last token comment
+      from orders
+- description: a standalone comment between list items and a trailing statement comment stay on their own lines
+  input: |
+    select orders.closed_at as order_date, orders.closed_at as date,
+           -- line with comment
+           orders.salon_id
+      from orders
+    -- line with comment
+  expected: |
+    select orders.closed_at as order_date,
+           orders.closed_at as date,
+           -- line with comment
+           orders.salon_id
+      from orders
+      -- line with comment

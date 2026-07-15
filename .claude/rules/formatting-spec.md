@@ -84,14 +84,31 @@ call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KE
 ## Comments
 
 - Block comments `/* */` render inline and are always safe.
-- Line comments `--` must end their physical line. Handling:
-  - In comma-list clauses, `splitListItems` turns a comment after `X,` or at the end of an item
-    into that item's **trailing comment**; a mid-item comment marks the item `unsafe`.
-  - `isCommentSafe(statement)`: for list clauses, false if any item is `unsafe`; for other clauses,
-    false if any line comment is not the last token. If unsafe → the whole statement is emitted
-    unchanged (passthrough) so SQL is never commented-out by line joins.
-- Not yet handled: line comments trailing individual `where`/`on` boolean terms (they trigger
-  passthrough). Extending end-of-line comment handling into `BoolTerm`s is the natural next step.
+- Line comments `--` must end their physical line. The tokenizer records
+  `token.newlineBefore` (a newline separates the token from the previous one, or it is first),
+  which distinguishes a **standalone** comment (alone on its line) from an **inline** one
+  (trailing code on the same physical line). This drives placement:
+  - **Standalone comments stay on their own line, aligned to the adjacent rendered line's
+    column** (the following line if there is one, else the preceding line):
+    - *Leading / between clauses*: `segmentClauses` lifts standalone line comments out of the
+      token stream into the following clause's `commentsBefore` (rendered at that clause's
+      leading column). This also stops a leading comment from inflating the river width `K`.
+    - *Between list items*: `splitListItems` puts a standalone comment into the following item's
+      `commentsBefore` (rendered on its own line at the item operand column). A standalone
+      comment forces the list to break.
+    - *After the last clause*: returned as `Statement.trailingComments`, rendered under the last
+      clause's leading column (the `;`, if any, goes on the last code line, before them).
+  - **Inline comments** stay attached to the last token of their line: `splitListItems` keeps a
+    comment after `X,` or at the end of an item as that item's trailing `comment`; an inline
+    comment as the last token of a `where`/`having`/`join` body renders at end of line.
+  - `isCommentSafe(statement)`: for list clauses, false if any item is `unsafe` (a line comment
+    strictly *inside* an item — not at a boundary); for other clauses, false if a line comment is
+    not the last body token (a **mid-expression** comment in `where`/`having`/`on`). If unsafe →
+    the whole statement is emitted unchanged (passthrough) so SQL is never commented-out by line
+    joins.
+- Not yet handled: line comments in the **middle** of a `where`/`on` boolean expression (between
+  terms) still trigger passthrough. Extending `commentsBefore`/trailing-comment handling into
+  `BoolTerm`s is the natural next step.
 
 ## Invariants to keep
 

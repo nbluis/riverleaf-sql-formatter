@@ -18,6 +18,12 @@ export interface Token {
   start: number;
   /** End offset (exclusive) in the source text. */
   end: number;
+  /**
+   * True when a newline separates this token from the previous one (or it is the
+   * first token). Distinguishes a standalone line comment (alone on its line)
+   * from an inline one that trails code on the same physical line.
+   */
+  newlineBefore: boolean;
 }
 
 export type KeywordCase = 'lower' | 'upper' | 'preserve';

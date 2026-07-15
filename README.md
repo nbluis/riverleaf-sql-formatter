@@ -92,6 +92,11 @@ select table1.column1, table2.column2
 - In `where`/`having`, the `and`/`or` connectors align to the main river.
 - A **SELECT with many columns** stays on one line if it fits; otherwise it breaks with
   trailing commas, aligning the columns.
+- **Line comments (`--`)** stay associated with the code around them. A comment that trails
+  code on a line stays attached to that line (its last token). A comment alone on its line
+  stays alone, aligned to the river/column of the adjacent code line — a leading comment sits
+  above the statement, a comment between list items sits above the next item, and a trailing
+  comment sits under the last clause.
 - **Maximum width** = the first value of `editor.rulers` (fallback 80), or the override in
   `riverleaf.maxLineLength`.
 
@@ -142,9 +147,10 @@ changes needed to grow the suite; this is our guardrail against regressions.
 
 ## Known limitations (roadmap)
 
-- Line comments (`--`) in the middle of a statement cause that slice to be **kept as-is**
-  (so code is not commented out when lines are joined). Comments at the end of a
-  line/statement are formatted normally.
+- Line comments (`--`) are reflowed in select/from/group-by/order-by lists and around clauses
+  (leading, between clauses, trailing). A comment in the **middle of a `where`/`on` boolean
+  expression** (between conditions) is not yet reflowed — that statement is **kept as-is** so
+  code is never commented out when lines are joined.
 - Subqueries and CTEs (`with`) are still rendered inline (without recomputing the inner
   river) — planned refinement.
 - `case when ... end` and INSERT/UPDATE/DELETE alignment are basic for now.

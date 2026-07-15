@@ -19,6 +19,8 @@ export interface Clause {
   firstWord: string;
   /** Remaining clause tokens. */
   body: Token[];
+  /** Standalone line comments rendered on their own lines before this clause. */
+  commentsBefore?: string[];
 }
 
 export interface Statement {
@@ -27,6 +29,8 @@ export interface Statement {
   tokens: Token[];
   /** Whether there was a ';' at the end of the statement in the source. */
   semicolon: boolean;
+  /** Standalone line comments after the last clause (own lines). */
+  trailingComments?: string[];
 }
 
 /** Splits the token list into statements at top-level ';'. */
@@ -37,7 +41,13 @@ export function splitStatements(tokens: Token[]): Statement[] {
 
   const flush = (semicolon: boolean): void => {
     if (current.length === 0) return;
-    statements.push({ clauses: segmentClauses(current), tokens: current, semicolon });
+    const { clauses, trailingComments } = segmentClauses(current);
+    statements.push({
+      clauses,
+      tokens: current,
+      semicolon,
+      trailingComments: trailingComments.length ? trailingComments : undefined,
+    });
     current = [];
   };
 
@@ -106,14 +116,37 @@ function clauseKind(head: Token[]): ClauseKind {
   return 'generic';
 }
 
-/** Groups a statement's tokens into clauses. */
-export function segmentClauses(tokens: Token[]): Clause[] {
+/** Removes trailing standalone line comments from `body`, returning their text in order. */
+function takeTrailingStandaloneComments(body: Token[]): string[] {
+  const out: string[] = [];
+  while (body.length > 0) {
+    const last = body[body.length - 1];
+    if (last.type === 'lineComment' && last.newlineBefore) {
+      out.unshift(body.pop()!.value);
+    } else {
+      break;
+    }
+  }
+  return out;
+}
+
+/**
+ * Groups a statement's tokens into clauses. Standalone line comments (alone on
+ * their line) are lifted out of the token stream: leading ones and those between
+ * clauses become the following clause's `commentsBefore`; any after the last
+ * clause are returned as the statement's `trailingComments`. This keeps them on
+ * their own line and stops them from polluting the river width.
+ */
+export function segmentClauses(tokens: Token[]): { clauses: Clause[]; trailingComments: string[] } {
   const clauses: Clause[] = [];
   let depth = 0;
   let i = 0;
 
   // walk tokens up to the first clause, attaching any preamble as generic
   let pending: { head: Token[]; body: Token[] } | null = null;
+  // standalone comments waiting to attach to the next clause (or, at the end,
+  // to be returned as the statement's trailing comments)
+  let carry: string[] = [];
 
   const startClause = (headLen: number): void => {
     const head = tokens.slice(i, i + headLen);
@@ -124,12 +157,15 @@ export function segmentClauses(tokens: Token[]): Clause[] {
   const commit = (): void => {
     if (!pending) return;
     const p = pending as { head: Token[]; body: Token[] };
+    const trailing = takeTrailingStandaloneComments(p.body);
     clauses.push({
       kind: clauseKind(p.head),
       head: p.head,
       firstWord: p.head[0].value.toLowerCase(),
       body: p.body,
+      commentsBefore: carry.length ? carry : undefined,
     });
+    carry = trailing;
     pending = null;
   };
 
@@ -146,8 +182,14 @@ export function segmentClauses(tokens: Token[]): Clause[] {
     }
 
     if (!pending) {
-      // preamble before any recognized clause (e.g. WITH ...):
-      // create a generic clause with head = first token.
+      // Before any clause: a standalone line comment is a leading comment of the
+      // first clause (carried forward); anything else starts a preamble (e.g.
+      // WITH ...) rendered as a generic clause.
+      if (tok.type === 'lineComment' && tok.newlineBefore) {
+        carry.push(tok.value);
+        i++;
+        continue;
+      }
       pending = { head: [tok], body: [] };
       i++;
       continue;
@@ -156,7 +198,7 @@ export function segmentClauses(tokens: Token[]): Clause[] {
     i++;
   }
   commit();
-  return clauses;
+  return { clauses, trailingComments: carry };
 }
 
 // ---------------------------------------------------------------------------
@@ -264,16 +306,19 @@ export function parseBoolExpr(tokens: Token[]): BoolTerm[] {
 export interface ListItem {
   /** Item tokens (line comments already extracted). */
   tokens: Token[];
-  /** Trailing line comment(s) for this item's line, if any. */
+  /** Inline trailing line comment(s) for this item's line, if any. */
   comment?: string;
+  /** Standalone line comment(s) rendered on their own lines before this item. */
+  commentsBefore?: string[];
   /** True if a line comment sits in a position we cannot format safely. */
   unsafe?: boolean;
 }
 
 /**
- * Splits a comma-list body into items, extracting line comments as trailing
- * comments. A comment after `X,` belongs to X's line; a comment at the end of
- * an item belongs to that item's line. A line comment in the middle of an item
+ * Splits a comma-list body into items, extracting line comments. A comment on
+ * its own line (standalone) becomes the following item's `commentsBefore` (kept
+ * on its own line). An inline comment after `X,` or at the end of an item stays
+ * as that item's trailing `comment`. A line comment in the middle of an item
  * marks it `unsafe` (cannot be reflowed without risk).
  */
 export function splitListItems(body: Token[]): ListItem[] {
@@ -281,16 +326,17 @@ export function splitListItems(body: Token[]): ListItem[] {
   for (let k = 0; k < items.length; k++) {
     const item = items[k];
 
-    // leading line comments: they followed the previous item's comma
-    const lead: string[] = [];
+    // leading line comments precede this item in the source
     while (item.tokens.length > 0 && item.tokens[0].type === 'lineComment') {
-      lead.push(item.tokens.shift()!.value);
-    }
-    if (lead.length > 0) {
-      if (k > 0) {
-        items[k - 1].comment = [items[k - 1].comment, ...lead].filter(Boolean).join(' ');
+      const c = item.tokens.shift()!;
+      if (c.newlineBefore) {
+        // standalone: keep it on its own line before this item
+        (item.commentsBefore ??= []).push(c.value);
+      } else if (k > 0) {
+        // inline: it trailed the previous item's comma on the same line
+        items[k - 1].comment = [items[k - 1].comment, c.value].filter(Boolean).join(' ');
       } else {
-        item.unsafe = true; // comment before the first item — leave to passthrough
+        item.unsafe = true; // inline comment before the very first item
       }
     }
 

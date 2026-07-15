@@ -17,10 +17,12 @@ State as of the current session. Update this file as items are resolved.
 
 ## Not yet implemented (known limitations, documented in README)
 
-- **Line comments inside boolean expressions** (`where`/`on` terms). Currently any line comment that
-  isn't a comma-list trailing comment or a clause's last token triggers whole-statement passthrough.
-  Natural next step: extend the end-of-line-comment handling (already done for comma lists in
-  `splitListItems`) into `BoolTerm`s so `where a = 1 -- note\nand b = 2` reflows.
+- **Line comments inside boolean expressions** (`where`/`on` terms). Standalone and inline
+  comments are now handled in list clauses and around clauses (leading / between clauses /
+  trailing — see `formatting-spec.md` → Comments, driven by `token.newlineBefore`). Still open:
+  a line comment in the **middle** of a `where`/`on` boolean expression (between terms) triggers
+  whole-statement passthrough. Natural next step: extend `commentsBefore`/trailing-comment
+  handling into `BoolTerm`s so `where a = 1 -- note\nand b = 2` reflows.
 - **Subqueries / CTEs (`with`).** Rendered inline; the inner river is not recomputed. A parenthesized
   `select` inside `from (...)` or a CTE body stays on effectively one logical line.
 - **`case when ... then ... else ... end`.** No dedicated wrapping/alignment.

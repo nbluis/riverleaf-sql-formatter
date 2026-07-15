@@ -52,8 +52,13 @@ export function tokenize(sql: string): Token[] {
   let i = 0;
   const n = sql.length;
 
+  // Whether a newline has been seen since the last emitted token. Starts true so
+  // the first token counts as beginning a line.
+  let newlineBefore = true;
+
   const push = (type: Token['type'], value: string, start: number): void => {
-    tokens.push({ type, value, upper: value.toUpperCase(), start, end: start + value.length });
+    tokens.push({ type, value, upper: value.toUpperCase(), start, end: start + value.length, newlineBefore });
+    newlineBefore = false;
   };
 
   while (i < n) {
@@ -61,6 +66,7 @@ export function tokenize(sql: string): Token[] {
 
     // whitespace
     if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r' || ch === '\f') {
+      if (ch === '\n' || ch === '\r' || ch === '\f') newlineBefore = true;
       i++;
       continue;
     }
