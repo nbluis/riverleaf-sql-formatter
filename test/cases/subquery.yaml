@@ -1,9 +1,11 @@
 - description: from ( subquery ) alias expands, closing ) aligned under from
   input: select x.id, x.total from (select id, sum(amount) as total from orders group by id) x where x.total > 100
   expected: |
-    select x.id, x.total
+    select x.id,
+           x.total
       from (
-        select id, sum(amount) as total
+        select id,
+               sum(amount) as total
           from orders
          group by id
       ) x

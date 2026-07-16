@@ -198,7 +198,7 @@ export class Layout {
 
   // --- clauses -----------------------------------------------------------
 
-  private renderListClause(clause: Clause, leading: number, alwaysBreak = false): string[] {
+  private renderListClause(clause: Clause, leading: number): string[] {
     const headStr = renderTokens(clause.head, this.options);
     const items = splitListItems(clause.body);
     if (items.length === 0) {
@@ -213,21 +213,20 @@ export class Layout {
     const hasCase = items.some((it) => this.parseCase(it.tokens) !== null);
     const hasSubquery = items.some((it) => this.itemSubquery(it.tokens) !== null);
     // a parenthesized tuple (a VALUES row) that overflows wraps internally, so it
-    // forces the list to break even when it is the only item
+    // forces the list to break even when it is the only item (B2, removed in R3)
     const hasWideTuple = items.some((it) => this.tupleNeedsWrap(it.tokens, operandCol));
     const inlineBody = rendered.join(', ');
     const full = pad(leading) + headStr + ' ' + inlineBody;
-    // Stay on one line when there is no line comment (trailing or standalone) to
-    // own its own line, no `case`/subquery/wide tuple to expand, and either it's a
-    // single item or it fits. `alwaysBreak` clauses (SET / VALUES) break whenever
-    // there is more than one item; the rest break only when they exceed the width.
+    // Break by rule, not by width: a list with more than one item always breaks
+    // (one item per line). A single item stays inline (it just grows) unless it
+    // owns a comment or expands a `case`/subquery/wide tuple.
     if (
       !hasComment &&
       !hasStandalone &&
       !hasCase &&
       !hasSubquery &&
       !hasWideTuple &&
-      (items.length === 1 || (!alwaysBreak && this.fits(full)))
+      items.length === 1
     ) {
       return [full];
     }
@@ -579,9 +578,9 @@ export class Layout {
   /**
    * INSERT INTO ... (col, ...). Unlike a generic clause, the column list keeps a
    * space before its '(' (renderTokens would glue it to the table name as if it
-   * were a function call). When the list overflows and has more than one column,
-   * it wraps with the columns aligned one past the '(', trailing commas, ')' on
-   * the last column.
+   * were a function call). When the list has more than one column, it breaks by
+   * rule (the columns are a list, like a select): each column aligned one past
+   * the '(', trailing commas, ')' on the last column.
    */
   private renderInsertClause(clause: Clause, leading: number): string[] {
     const all = clause.body.length ? [...clause.head, ...clause.body] : clause.head;
@@ -590,10 +589,10 @@ export class Layout {
     const before = renderTokens(all.slice(0, parenIdx), this.options);
     const single = pad(leading) + before + ' ' + renderTokens(all.slice(parenIdx), this.options);
     const close = matchParen(all, parenIdx);
-    // wrap only a plain column list (nothing after the ')') that overflows
+    // break a plain column list (nothing after the ')') with more than one column
     if (close === all.length - 1) {
       const cols = splitCommaList(all.slice(parenIdx + 1, close));
-      if (cols.length > 1 && !this.fits(single)) {
+      if (cols.length > 1) {
         const prefix = pad(leading) + before + ' ';
         const valueCol = (prefix + '(').length;
         const tupleLines = this.renderTupleBroken(all.slice(parenIdx, close + 1), valueCol);
@@ -726,8 +725,9 @@ export class Layout {
           break;
         case 'set':
         case 'values':
-          // DML lists: one item per line whenever there is more than one
-          clauseLines = this.renderListClause(clause, leading, true);
+          // DML lists behave like any other list now: one item per line when
+          // there is more than one (a single assignment / tuple stays inline).
+          clauseLines = this.renderListClause(clause, leading);
           break;
         case 'insert':
           clauseLines = this.renderInsertClause(clause, leading);

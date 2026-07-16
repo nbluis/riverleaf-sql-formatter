@@ -213,6 +213,17 @@ runner já checa `format(format(x)) === format(x)` por caso. Revalidar todos.
    - Em especial: reescrever a seção "The river" / "List clauses" / "RIVER vs BLOCK" para descrever
      a regra por contagem, e a seção de config; remover menções a `maxLineLength`/"fits"/"width".
 
+## Progresso da implementação
+
+- **R1 — listas por contagem + B1** ✅ (feito). `renderListClause` quebra quando `items.length > 1`
+  (removidos o ramo `fits` e o parâmetro `alwaysBreak`; `set`/`values` são listas comuns).
+  `renderInsertClause` quebra a lista de colunas por contagem (`cols.length > 1`, sem `fits`).
+  Goldens regenerados: `postgres.yaml` (select/from/group by multi-item quebram, +2 casos novos:
+  single-column inline e from com vírgula, removida a duplicata `maxLineLength: 60`), `dml.yaml`
+  (colunas do insert quebram nos 5 casos), `subquery.yaml` (selects internos multi-coluna quebram).
+  `tupleNeedsWrap`/`hasWideTuple` (B2) e `renderCaseSegment`/`findThen` (C2) ainda ativos até R3;
+  `fits`/`maxWidth`/config `maxLineLength` ainda presentes até R3. 146 testes.
+
 ## Ordem sugerida (fases, 1 commit cada)
 1. **Fase R1** — listas por contagem: `select`/`group by`/`order by`/`from` quebram >1 (D-a/D-b).
    Remover o ramo `fits` do `renderListClause` (quebra quando `items.length > 1`); `alwaysBreak` deixa

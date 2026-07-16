@@ -43,11 +43,24 @@
           or status_id = 3
            )
        and total_amount > 0
-- description: short select stays on one line
+- description: a multi-column select breaks one column per line
   input: select first_name, last_name, email from customers
   expected: |
-    select first_name, last_name, email
+    select first_name,
+           last_name,
+           email
       from customers
+- description: a single-column select stays inline (nothing to break)
+  input: select first_name from customers
+  expected: |
+    select first_name
+      from customers
+- description: a from list with more than one table breaks one per line
+  input: select order_id from orders o, customers c
+  expected: |
+    select order_id
+      from orders o,
+           customers c
 - description: long select breaks with trailing commas
   options:
     maxLineLength: 30
@@ -71,14 +84,16 @@
 - description: a multi-condition join always breaks, aligning and/or under on (even when it fits)
   input: select table1.column1, table2.column2 from table1 join table2 on table2.id = table1.ref_id and table2.ref_id is null
   expected: |
-    select table1.column1, table2.column2
+    select table1.column1,
+           table2.column2
       from table1
       join table2 on table2.id = table1.ref_id
                  and table2.ref_id is null
 - description: no space before ( in function calls
   input: select coalesce(nickname, full_name), count(*) from users where status_id in (1, 2, 3)
   expected: |
-    select coalesce(nickname, full_name), count(*)
+    select coalesce(nickname, full_name),
+           count(*)
       from users
      where status_id in (1, 2, 3)
 - description: line comment after a select column is kept as an end-of-line comment while the rest is formatted
@@ -212,23 +227,13 @@
 - description: group by / having / order by alignment
   input: select department_id, count(*) from employees group by department_id having count(*) > 5 order by department_id
   expected: |
-    select department_id, count(*)
+    select department_id,
+           count(*)
       from employees
      group by department_id
     having count(*) > 5
      order by department_id
 - description: a leading line comment stays on its own line and does not pollute the river
-  input: |
-    -- comment
-    select orders.closed_at as order_date, orders.closed_at as date, orders.salon_id
-      from orders
-  expected: |
-    -- comment
-    select orders.closed_at as order_date, orders.closed_at as date, orders.salon_id
-      from orders
-- description: a leading line comment is kept while a long select still breaks below it
-  options:
-    maxLineLength: 60
   input: |
     -- comment
     select orders.closed_at as order_date, orders.closed_at as date, orders.salon_id
@@ -301,7 +306,8 @@
         where status_id = 1
         order by total_amount desc
   expected: |
-    select order_id, total_amount
+    select order_id,
+           total_amount
       from orders
      where status_id = 1
      order by total_amount desc

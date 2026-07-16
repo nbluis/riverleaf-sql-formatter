@@ -42,6 +42,10 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   chose normalization.)
 - Clause first word right-aligned to the river; arguments start 1 space after. Multi-word keywords
   (`left join`, `order by`) align only their **first** word; the rest flows.
+- **Breaking is by rule (count), not by width** (2026-07-16). A list clause (`select`, `from` with a
+  comma, `group by`, `order by`, `set`, `values`, and the `insert` column list) **breaks one item
+  per line whenever there is more than one item**; a single item stays inline and just grows. Line
+  length no longer participates in any breaking decision.
 - Joins with **more than one ON condition always break** (regardless of width); the `and`/`or`
   conditions align under `on`. A single-condition ON stays inline.
 - `where`/`on`: connectors (`and`/`or`) right-aligned to the river (RIVER mode).
@@ -52,13 +56,13 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
 - Keywords lowercased (config); identifiers preserved. `between ... and ...` — that `and` is not a
   connector.
 - **DML** (`insert`/`update`/`delete`) formats like a select: the anchors join the river. `set`
-  and `values` are list clauses that break **one item per line whenever there's more than one**
-  (unlike select/from lists, which break only on width); a single assignment/tuple stays inline.
-  `delete from` is kept together as one head. `insert into t (cols)` keeps a space before the
-  column-list `(` (via `renderInsertClause`, since `renderTokens` would glue it as a call). A **wide
-  INSERT column list** and a **wide `values` tuple** wrap (Phase 12): columns/values aligned one
-  column past the `(`, trailing commas, `)` on the last (`renderTupleBroken`/`tupleNeedsWrap`;
-  `hasWideTuple` forces a single wide tuple to break).
+  and `values` are ordinary list clauses (same count rule as select/from); a single assignment/tuple
+  stays inline. `delete from` is kept together as one head. `insert into t (cols)` keeps a space
+  before the column-list `(` (via `renderInsertClause`, since `renderTokens` would glue it as a
+  call); the **column list breaks by count** (>1 column → one per line, aligned one column past the
+  `(`, trailing commas, `)` on the last, via `renderTupleBroken`). A **wide `values` tuple** still
+  wraps (Phase 12/B2, `tupleNeedsWrap`/`hasWideTuple`) — removed in R3, where a single tuple grows
+  instead.
 - **Subqueries / CTEs** expand recursively (always, for common shapes): `from (select ...) alias`,
   one or more comma-separated CTEs (`with a as (...), b as (...)`), a `where`/`having` condition
   subquery in **any** position, a subquery inside a **join ON** condition, a subquery as a **join

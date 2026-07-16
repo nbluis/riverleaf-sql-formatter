@@ -17,14 +17,16 @@
 - description: insert with multiple value tuples breaks one tuple per line
   input: insert into orders (customer_id, total_amount) values (42, 100), (43, 250), (44, 90)
   expected: |
-    insert into orders (customer_id, total_amount)
+    insert into orders (customer_id,
+                        total_amount)
     values (42, 100),
            (43, 250),
            (44, 90)
 - description: insert with a single value tuple stays on the values line
   input: insert into orders (customer_id, total_amount) values (42, 100)
   expected: |
-    insert into orders (customer_id, total_amount)
+    insert into orders (customer_id,
+                        total_amount)
     values (42, 100)
 - description: delete keeps "delete from" together and aligns where under the river
   input: delete from orders where status_id = 0
@@ -34,8 +36,10 @@
 - description: insert ... select recomputes the river across the select body
   input: insert into orders (customer_id, total_amount) select customer_id, total_amount from staging_orders where valid = true
   expected: |
-    insert into orders (customer_id, total_amount)
-    select customer_id, total_amount
+    insert into orders (customer_id,
+                        total_amount)
+    select customer_id,
+           total_amount
       from staging_orders
      where valid = true
 - description: returning joins the river (widest clause), so the shorter heads align under it
@@ -58,14 +62,18 @@
 - description: a single wide VALUES tuple wraps, values under the first (B2)
   input: insert into t (a, b, c) values ('a long literal value here', 'another quite long literal', 'a third long literal too')
   expected: |
-    insert into t (a, b, c)
+    insert into t (a,
+                   b,
+                   c)
     values ('a long literal value here',
             'another quite long literal',
             'a third long literal too')
 - description: a wide tuple in a multi-row VALUES wraps internally
   input: insert into t (a, b, c) values (1, 2, 3), ('a long literal value here', 'another quite long literal', 'a third long literal too')
   expected: |
-    insert into t (a, b, c)
+    insert into t (a,
+                   b,
+                   c)
     values (1, 2, 3),
            ('a long literal value here',
             'another quite long literal',
