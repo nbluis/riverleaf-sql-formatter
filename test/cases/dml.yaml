@@ -45,3 +45,28 @@
           set status_id = 2
         where id = 42
     returning id, status_id
+- description: a wide INSERT column list wraps, columns under the first (B1)
+  input: insert into big_table (column_one, column_two, column_three, column_four, column_five, column_six) values (1,2,3,4,5,6)
+  expected: |
+    insert into big_table (column_one,
+                           column_two,
+                           column_three,
+                           column_four,
+                           column_five,
+                           column_six)
+    values (1, 2, 3, 4, 5, 6)
+- description: a single wide VALUES tuple wraps, values under the first (B2)
+  input: insert into t (a, b, c) values ('a long literal value here', 'another quite long literal', 'a third long literal too')
+  expected: |
+    insert into t (a, b, c)
+    values ('a long literal value here',
+            'another quite long literal',
+            'a third long literal too')
+- description: a wide tuple in a multi-row VALUES wraps internally
+  input: insert into t (a, b, c) values (1, 2, 3), ('a long literal value here', 'another quite long literal', 'a third long literal too')
+  expected: |
+    insert into t (a, b, c)
+    values (1, 2, 3),
+           ('a long literal value here',
+            'another quite long literal',
+            'a third long literal too')

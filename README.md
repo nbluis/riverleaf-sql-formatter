@@ -104,7 +104,8 @@ select table1.column1, table2.column2
   below the comment.
 - **INSERT / UPDATE / DELETE** format like a select: the anchors join the river, `set` and
   `values` break one item per line (when there is more than one), `delete from` stays together,
-  and `where` reuses the river.
+  and `where` reuses the river. A wide `INSERT` column list, and a wide `values` tuple, wrap with
+  their columns / values aligned one column past the `(`.
 - **Subqueries and CTEs** expand recursively — `from (select ...) alias`, one or more
   comma-separated CTEs (`with a as (...), b as (...)`), a `where`/`having` condition subquery in
   **any** position (`where ... in (select ...)`, and after `and`/`or` too), a subquery inside a
@@ -179,9 +180,6 @@ These narrower cases are not reflowed — they are rendered inline or kept exact
 - **Subqueries / CTEs** stay inline only when the subquery is wrapped in a function call
   (`coalesce((select ...), 0)`).
 - **`case`** stays inline only when it is wrapped in a function call.
-- **DML lists** — a multi-row `values` breaks one tuple per line, but an `INSERT` column list
-  (`(col, col, ...)`) and a single very-wide `values` tuple are never wrapped internally, even past
-  the maximum width.
 
 ## License
 

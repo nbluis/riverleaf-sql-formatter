@@ -15,7 +15,9 @@
 > - **E (comentário mid-token)** — **não corrigir**; passthrough é o correto.
 > - **D3** — **manter** `null → editor.rulers[0] → 80` (sem mudança).
 >
-> Ordem de execução: **10 → 11 → 12**. (13 fora; D3 sem ação.)
+> Ordem de execução: **10 ✅ → 11 ✅ → 12 ✅**. (13 fora de escopo; D3 sem ação.)
+> **Todas as fases planejadas concluídas (2026-07-16).** 144 testes. Restam inline por decisão:
+> subquery/`case` embrulhado em função (C1/C2, fora de escopo) e comentário mid-token (correto).
 
 ## Inventário das limitações (verificado 2026-07-16)
 
@@ -121,7 +123,14 @@ select o.id
 
 ---
 
-## Fase 12 — Quebra de listas DML largas (B1, B2) 🔴 layout a travar
+## Fase 12 — Quebra de listas DML largas (B1, B2) ✅ CONCLUÍDA
+
+> ✅ Feito (2026-07-16). 144 testes (era 138). `renderInsertClause` (B1): quando a lista de colunas
+> passa da largura e tem >1 coluna, quebra via `renderTupleBroken` (colunas 1 col após o `(`, vírgula
+> à direita, `)` na última). `renderItemLines` (B2): tupla larga de `values` quebra via
+> `renderTupleBroken`; `tupleNeedsWrap`/`isTuple` detectam; `hasWideTuple` no `renderListClause` força
+> o break mesmo para tupla única. `matchParen` importado em `layout.ts`. Layout travado (colunas sob a
+> primeira) conferido contra a saída real.
 
 ### B1 — lista de colunas do `INSERT`
 Hoje `renderInsertClause` é sempre 1 linha. Quebrar quando passar da largura, **alinhando as

@@ -23,7 +23,7 @@ State as of the current session. Update this file as items are resolved.
 
 ## Implemented features & their residual inline/passthrough sub-cases
 
-The feature areas below are implemented (phases 1–10). What remains are the narrower sub-cases each
+The feature areas below are implemented (phases 1–12). What remains are the narrower sub-cases each
 one still renders inline or passes through unchanged — the "Known limitations" in the README.
 
 - **Line comments inside boolean expressions.** ✅ Done. Handled: comments in list clauses, around
@@ -66,11 +66,13 @@ one still renders inline or passes through unchanged — the "Known limitations"
   expands too (`renderOn` passes `expandCase` true; `hasCase` forces the break, even single-ON).
   Still inline: a `case` wrapped in a function.
 - **DML** — `insert` / `update` / `delete`. ✅ Done. Formats like a select: anchors join the river;
-  `set`/`values` break one item per line (>1 item — so **multi-row `values` does break**, one tuple
-  per line); `delete from` kept together; `insert into t (cols)` on one line. `insert ... select`
-  recomputes the river for the select. Reviewed golden cases in `test/cases/dml.yaml`. Residual
-  limitation: the **INSERT column list** `(col, col, ...)` and a **single wide `values` tuple** never
-  wrap internally, even past the width (kept single-line for now).
+  `set`/`values` break one item per line (>1 item — so multi-row `values` breaks one tuple per line);
+  `delete from` kept together; `insert into t (cols)` on one line when it fits. `insert ... select`
+  recomputes the river for the select. **Phase 12 (B1/B2)**: a wide **INSERT column list** and a wide
+  **`values` tuple** now wrap — columns/values aligned one column past the `(`, trailing commas, `)`
+  on the last (`renderInsertClause` + `renderTupleBroken`/`tupleNeedsWrap`, `hasWideTuple` forces the
+  list to break even for a single tuple). Reviewed golden cases in `test/cases/dml.yaml`. Layout
+  locked with the user 2026-07-16 (columns under the first).
 
 ## When you pick one up
 

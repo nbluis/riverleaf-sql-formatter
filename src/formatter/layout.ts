@@ -10,6 +10,7 @@ import {
   splitCommaList,
   segmentClauses,
   findSubquery,
+  matchParen,
 } from './segmenter';
 
 function pad(n: number): string {
@@ -203,6 +204,7 @@ export class Layout {
     if (items.length === 0) {
       return [pad(leading) + headStr];
     }
+    const operandCol = leading + headStr.length + 1;
     const rendered = items.map((it) => renderTokens(it.tokens, this.options));
     const hasComment = items.some((it) => it.comment);
     const hasStandalone = items.some((it) => it.commentsBefore?.length);
@@ -210,17 +212,21 @@ export class Layout {
     // the list to break
     const hasCase = items.some((it) => this.parseCase(it.tokens) !== null);
     const hasSubquery = items.some((it) => this.itemSubquery(it.tokens) !== null);
+    // a parenthesized tuple (a VALUES row) that overflows wraps internally, so it
+    // forces the list to break even when it is the only item
+    const hasWideTuple = items.some((it) => this.tupleNeedsWrap(it.tokens, operandCol));
     const inlineBody = rendered.join(', ');
     const full = pad(leading) + headStr + ' ' + inlineBody;
     // Stay on one line when there is no line comment (trailing or standalone) to
-    // own its own line, no `case` or subquery to expand, and either it's a single
-    // item or it fits. `alwaysBreak` clauses (SET / VALUES) break whenever there
-    // is more than one item; the rest break only when they exceed the width.
+    // own its own line, no `case`/subquery/wide tuple to expand, and either it's a
+    // single item or it fits. `alwaysBreak` clauses (SET / VALUES) break whenever
+    // there is more than one item; the rest break only when they exceed the width.
     if (
       !hasComment &&
       !hasStandalone &&
       !hasCase &&
       !hasSubquery &&
+      !hasWideTuple &&
       (items.length === 1 || (!alwaysBreak && this.fits(full)))
     ) {
       return [full];
@@ -230,7 +236,6 @@ export class Layout {
     // each item's trailing comment after its comma, standalone comments on their
     // own line before the item they precede. An item may span several lines (a
     // `case`): its comma and trailing comment attach to its last line.
-    const operandCol = leading + headStr.length + 1;
     const n = items.length;
     const suffixOf = (i: number): string =>
       (i < n - 1 ? ',' : '') + (items[i].comment ? ' ' + items[i].comment : '');
@@ -273,7 +278,45 @@ export class Layout {
       const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
       return this.renderSubqueryBlock('', inner, caseCol, afterStr);
     }
+    // a wide VALUES tuple wraps: values aligned one column past the '(' (the item
+    // is placed at caseCol by the caller, so the values land at caseCol + 1).
+    if (this.tupleNeedsWrap(tokens, caseCol)) {
+      return this.renderTupleBroken(tokens, caseCol + 1);
+    }
     return [renderTokens(tokens, this.options)];
+  }
+
+  /** A list item that is a parenthesized tuple `( ... )` (a VALUES row). */
+  private isTuple(tokens: Token[]): boolean {
+    return (
+      tokens.length >= 2 &&
+      tokens[0].type === 'punct' &&
+      tokens[0].value === '(' &&
+      matchParen(tokens, 0) === tokens.length - 1
+    );
+  }
+
+  /** A tuple placed at `col` overflows and has more than one element to wrap. */
+  private tupleNeedsWrap(tokens: Token[], col: number): boolean {
+    if (!this.isTuple(tokens)) return false;
+    if (this.fits(pad(col) + renderTokens(tokens, this.options))) return false;
+    return splitCommaList(tokens.slice(1, tokens.length - 1)).length > 1;
+  }
+
+  /**
+   * Renders a parenthesized comma list broken one element per line, each aligned
+   * at `valueCol` (just past the '('), trailing commas, ')' on the last element.
+   * Line 0 is `(first,` with no leading pad — the caller positions it.
+   */
+  private renderTupleBroken(tokens: Token[], valueCol: number): string[] {
+    const cols = splitCommaList(tokens.slice(1, tokens.length - 1)).map((c) =>
+      renderTokens(c, this.options),
+    );
+    const lines = ['(' + cols[0] + (cols.length > 1 ? ',' : ')')];
+    for (let i = 1; i < cols.length; i++) {
+      lines.push(pad(valueCol) + cols[i] + (i === cols.length - 1 ? ')' : ','));
+    }
+    return lines;
   }
 
   /**
@@ -534,17 +577,31 @@ export class Layout {
   }
 
   /**
-   * INSERT INTO ... (col, ...) on one line. Unlike a generic clause, the column
-   * list keeps a space before its '(' (renderTokens would glue it to the table
-   * name as if it were a function call).
+   * INSERT INTO ... (col, ...). Unlike a generic clause, the column list keeps a
+   * space before its '(' (renderTokens would glue it to the table name as if it
+   * were a function call). When the list overflows and has more than one column,
+   * it wraps with the columns aligned one past the '(', trailing commas, ')' on
+   * the last column.
    */
   private renderInsertClause(clause: Clause, leading: number): string[] {
     const all = clause.body.length ? [...clause.head, ...clause.body] : clause.head;
     const parenIdx = all.findIndex((t) => t.type === 'punct' && t.value === '(');
     if (parenIdx === -1) return [pad(leading) + renderTokens(all, this.options)];
     const before = renderTokens(all.slice(0, parenIdx), this.options);
-    const list = renderTokens(all.slice(parenIdx), this.options);
-    return [pad(leading) + before + ' ' + list];
+    const single = pad(leading) + before + ' ' + renderTokens(all.slice(parenIdx), this.options);
+    const close = matchParen(all, parenIdx);
+    // wrap only a plain column list (nothing after the ')') that overflows
+    if (close === all.length - 1) {
+      const cols = splitCommaList(all.slice(parenIdx + 1, close));
+      if (cols.length > 1 && !this.fits(single)) {
+        const prefix = pad(leading) + before + ' ';
+        const valueCol = (prefix + '(').length;
+        const tupleLines = this.renderTupleBroken(all.slice(parenIdx, close + 1), valueCol);
+        tupleLines[0] = prefix + tupleLines[0];
+        return tupleLines;
+      }
+    }
+    return [single];
   }
 
   // --- subqueries / CTEs (recursive) -------------------------------------

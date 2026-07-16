@@ -55,7 +55,10 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   and `values` are list clauses that break **one item per line whenever there's more than one**
   (unlike select/from lists, which break only on width); a single assignment/tuple stays inline.
   `delete from` is kept together as one head. `insert into t (cols)` keeps a space before the
-  column-list `(` (via `renderInsertClause`, since `renderTokens` would glue it as a call).
+  column-list `(` (via `renderInsertClause`, since `renderTokens` would glue it as a call). A **wide
+  INSERT column list** and a **wide `values` tuple** wrap (Phase 12): columns/values aligned one
+  column past the `(`, trailing commas, `)` on the last (`renderTupleBroken`/`tupleNeedsWrap`;
+  `hasWideTuple` forces a single wide tuple to break).
 - **Subqueries / CTEs** expand recursively (always, for common shapes): `from (select ...) alias`,
   one or more comma-separated CTEs (`with a as (...), b as (...)`), a `where`/`having` condition
   subquery in **any** position, a subquery inside a **join ON** condition, a subquery as a **join
@@ -146,8 +149,7 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 ## Open items / roadmap
 
 See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (a `case` or
-subquery wrapped in a function, comments mid-token or inside a function-wrapped subquery, and DML
-lists that never wrap internally — the INSERT column list and a single wide `values` tuple). The
+subquery wrapped in a function, and comments mid-token or inside a function-wrapped subquery). The
 aesthetic decisions are settled: D1 (nested-paren BLOCK vs RIVER →
 both RIVER) and D2 (base-indent → **normalize to column 0**) are resolved; only D3 (explicit default
 `maxLineLength`) remains deferred.
