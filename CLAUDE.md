@@ -35,10 +35,11 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
 
 ## Formatting rules (summary)
 
-- River column = `baseIndent + max(firstWord length over clauses)`. `baseIndent` = the **minimum**
-  indentation across the query's non-empty lines (the left margin where the widest clause head
-  sits; **preserved**, so a query at column 0 → river at 6). Minimum (not first-line) so it round
-  trips even when the first clause is not the widest (e.g. `update ... returning`).
+- River column = `baseIndent + max(firstWord length over clauses)`. `baseIndent` is always **0**
+  (D2, 2026-07-16): output is normalized to the left margin, discarding any source indentation. The
+  widest clause head lands at column 0 (e.g. river at 6 for a `select`), so it round trips.
+  (Formerly `baseIndent` = the minimum source indent, preserved; that scan was removed when D2
+  chose normalization.)
 - Clause first word right-aligned to the river; arguments start 1 space after. Multi-word keywords
   (`left join`, `order by`) align only their **first** word; the rest flows.
 - Joins with **more than one ON condition always break** (regardless of width); the `and`/`or`
@@ -144,6 +145,6 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 
 See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (a subquery in a
 non-first where condition or a join ON, a function-wrapped subquery, comments mid-token or inside a
-non-expanded subquery) and the aesthetic **decisions awaiting the user**: base-indent preservation
-(D2) and the default `maxLineLength` (D3). The nested-paren BLOCK-vs-RIVER inconsistency is resolved
-(D1: both levels are RIVER now).
+non-expanded subquery). The aesthetic decisions are settled: D1 (nested-paren BLOCK vs RIVER →
+both RIVER) and D2 (base-indent → **normalize to column 0**) are resolved; only D3 (explicit default
+`maxLineLength`) remains deferred.

@@ -12,24 +12,24 @@
         where previous_order.organization_id = current_order.organization_id and previous_order.organization_id = 220 and previous_order.customer_id = current_order.customer_id and previous_order.order_month < current_order.order_month and previous_order.order_count > 0
         order by order_month desc
         limit 1
-  expected: |2
-        select order_month as previous_order_month
-          from monthly_order_summaries previous_order
-          join customers on customers.customer_id = previous_order.customer_id
-          left join shipping_addresses on shipping_addresses.customer_id = customers.customer_id
-                                      and shipping_addresses.address_type = customers.default_address_type
-                                      and shipping_addresses.priority between 1 and 2
-                                      and (
-                                        shipping_addresses.region_id = customers.region_id
-                                     or shipping_addresses.country_code = customers.country_code
-                                      )
-         where previous_order.organization_id = current_order.organization_id
-           and previous_order.organization_id = 220
-           and previous_order.customer_id = current_order.customer_id
-           and previous_order.order_month < current_order.order_month
-           and previous_order.order_count > 0
-         order by order_month desc
-         limit 1
+  expected: |
+    select order_month as previous_order_month
+      from monthly_order_summaries previous_order
+      join customers on customers.customer_id = previous_order.customer_id
+      left join shipping_addresses on shipping_addresses.customer_id = customers.customer_id
+                                  and shipping_addresses.address_type = customers.default_address_type
+                                  and shipping_addresses.priority between 1 and 2
+                                  and (
+                                    shipping_addresses.region_id = customers.region_id
+                                 or shipping_addresses.country_code = customers.country_code
+                                  )
+     where previous_order.organization_id = current_order.organization_id
+       and previous_order.organization_id = 220
+       and previous_order.customer_id = current_order.customer_id
+       and previous_order.order_month < current_order.order_month
+       and previous_order.order_count > 0
+     order by order_month desc
+     limit 1
 - description: an expanded OR group aligns its connectors to the group river (RIVER, D1)
   options:
     maxLineLength: 40
@@ -294,3 +294,14 @@
     -- second query
     select customer_id
       from customers
+- description: an indented query is normalized to column 0 (D2)
+  input: |2
+        select order_id, total_amount
+        from orders
+        where status_id = 1
+        order by total_amount desc
+  expected: |
+    select order_id, total_amount
+      from orders
+     where status_id = 1
+     order by total_amount desc

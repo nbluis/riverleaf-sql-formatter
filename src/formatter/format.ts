@@ -16,30 +16,6 @@ import { Layout } from './layout';
 export { FormatOptions, DEFAULT_OPTIONS } from './types';
 
 /**
- * The base column = the left margin the query sits at, taken as the *minimum*
- * indentation across all non-empty lines (tabs expand to `indentSize`). This is
- * the column of the widest clause head (the river's leftmost word), so it round
- * trips: reformatting a formatted query re-detects the same base. Using the
- * first line's indent instead would compound the indent whenever the first
- * clause is not the widest one (e.g. UPDATE ... RETURNING, where RETURNING is
- * wider than UPDATE).
- */
-function detectBaseIndent(sql: string, indentSize: number): number {
-  let min = -1;
-  for (const line of sql.split('\n')) {
-    if (line.trim() === '') continue;
-    let width = 0;
-    for (const ch of line) {
-      if (ch === ' ') width++;
-      else if (ch === '\t') width += indentSize;
-      else break;
-    }
-    if (min === -1 || width < min) min = width;
-  }
-  return min === -1 ? 0 : min;
-}
-
-/**
  * Formats a SQL script in the river alignment style.
  * Always uses spaces; never tabs.
  */
@@ -47,7 +23,12 @@ export function format(sql: string, options: Partial<FormatOptions> = {}): strin
   const opts: FormatOptions = { ...DEFAULT_OPTIONS, ...options };
   if (sql.trim() === '') return '';
 
-  const base = detectBaseIndent(sql, opts.indentSize);
+  // The output always starts at column 0 (D2): the query is normalized to the
+  // left margin regardless of where it sat in the source. The widest clause head
+  // (the river's leftmost word) lands at column 0, so the result round trips
+  // (reformatting a formatted query keeps it at column 0). Inner subquery blocks
+  // are still indented one level in, recursively.
+  const base = 0;
   const tokens = tokenize(sql);
   const statements = splitStatements(tokens);
   const layout = new Layout(opts, opts.maxLineLength);

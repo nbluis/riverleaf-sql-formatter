@@ -8,16 +8,18 @@ State as of the current session. Update this file as items are resolved.
   inside an expanded parenthesized group now right-align (RIVER) to the group's own river
   (`blockIndent - 1`), same as the top level; the closing `)` position is unchanged. The golden
   example was updated. (See `formatting-spec.md` → "RIVER everywhere (D1)".)
+- **Base indent (D2).** ✅ Resolved (Phase 9, 2026-07-16) — **normalize to column 0**. Decided with
+  the user via a two-option preview (the user changed the initial pick): output always starts at the
+  left margin regardless of source indentation. `base` is now the constant `0` in `format()` (the
+  old `detectBaseIndent` minimum-indent scan was removed). The widest clause head lands at column 0,
+  so the result still round trips (reformatting a column-0 query keeps it there). Inner subquery
+  blocks are still indented one level in, recursively. Trade-off accepted: any intentional source
+  indentation (SQL embedded in an indented block) is discarded.
 
 ## Decisions awaiting the user
 
-- **Base-indent preservation.** `base` = the **minimum** indentation across the query's non-empty
-  lines (the widest clause head's column), preserved on output (a query at column 0 → river at 6;
-  the golden at 4 spaces stays at 4). Changed from first-line indent to minimum so it round trips
-  when the first clause is not the widest (DML `update ... returning`). Confirm preservation is
-  preferred over always normalizing to a fixed indent.
-- **Default `maxLineLength`.** Setting default is `null` → resolves to `editor.rulers[0]`, else 80.
-  User has considered pinning an explicit default; not decided.
+- **Default `maxLineLength` (D3).** Setting default is `null` → resolves to `editor.rulers[0]`, else
+  80. User has considered pinning an explicit default; deferred (out of scope for now).
 
 ## Not yet implemented (known limitations, documented in README)
 

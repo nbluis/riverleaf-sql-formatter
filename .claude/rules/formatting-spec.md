@@ -7,12 +7,12 @@ character columns.
 ## Pipeline
 
 `format(sql, options)`:
-1. `detectBaseIndent` — `base` = the **minimum** leading indentation across the query's non-empty
-   lines (tabs expand to `indentSize`). That is the column of the widest clause head (the river's
-   leftmost word), so it is preserved on output and round trips: reformatting a formatted query
-   re-detects the same base. Using the first line's indent would compound the indent whenever the
-   first clause is not the widest (e.g. `update ... returning`, `returning` being wider than
-   `update`). Respects where the query sits.
+1. `base` is the constant **0** (D2, 2026-07-16): the output always starts at the left margin,
+   normalizing away any source indentation. The widest clause head (the river's leftmost word) lands
+   at column 0, so it round trips (reformatting a column-0 query re-emits it at column 0). Inner
+   subquery blocks are still indented one level in, recursively (their base is `ownerLeading +
+   indentSize`, independent of the top-level base). (Earlier versions preserved the minimum source
+   indent via `detectBaseIndent`; that scan was removed when D2 chose normalization.)
 2. `tokenize` → tokens with offsets.
 3. `splitStatements` — split on top-level `;`. Each `Statement` keeps its raw `tokens` (for the
    comment-safety gate and passthrough slicing) and `semicolon`.
@@ -30,8 +30,8 @@ character columns.
 - `K = max(firstWord.length over all clauses)` (dominated by `select`=6 in typical queries).
 - `riverEnd = base + K` (exclusive column where first words' right edges land).
 - A clause line starts at `leading = riverEnd - firstWord.length`. The head is rendered from there;
-  the body follows after one space. Example (base 4, K 6, riverEnd 10):
-  `select`→4 leading, `from`→6, `where`→5, `and`→7, `order`→5 (then `by` flows), `left`→6 (then
+  the body follows after one space. Example (base 0, K 6, riverEnd 6):
+  `select`→0 leading, `from`→2, `where`→1, `and`→3, `order`→1 (then `by` flows), `left`→2 (then
   `join` flows).
 - Operand/arg column for a clause = `leading + headStr.length + 1`.
 
@@ -92,8 +92,8 @@ block is one level past the owner clause keyword and the closing `)` aligns **un
 Recursion recomputes the inner river and handles nesting. `formatStatement` builds the inner
 statement with `semicolon: false`. A subquery containing a line comment expands too: `isCommentSafe`
 recurses into every subquery it expands (see Comments), so the recursion places the comment; a
-comment inside a *non-expanded* subquery still forces passthrough. Idempotent because the base is
-the minimum indent (the inner block never becomes the leftmost).
+comment inside a *non-expanded* subquery still forces passthrough. Idempotent because the top-level
+base is always 0 (the outer widest clause head is the leftmost; the inner block never displaces it).
 
 ### List clauses
 

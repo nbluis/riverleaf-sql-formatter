@@ -46,13 +46,15 @@
     (`findThen`, paren/case depth 0) e quebra. `ELSE` nunca quebra (sem `THEN`; else longo fica
     inline). Case aninhado num ramo tem precedência (já é multi-linha). Idempotente (tokens iguais
     na releitura → mesma decisão de largura). Layout travado (usuário 2026-07-15).
-- 🔵 **Fase 9 (D1 ✅; D2 aguardando decisão; D3 fora)** — em andamento (2026-07-16). 130 testes.
-  - **D1** ✅ CONCLUÍDA. Conectores dentro de um grupo `( )` expandido agora right-align (RIVER) à
-    river do próprio grupo (`blockIndent - 1`), operandos em `blockIndent`; o `)` continua sob o
-    conector dono (só mexi em `renderBoolBlock`, não no `emitTerm`). Golden atualizado + 1 caso novo
-    (D1 target). Comentários dentro do grupo continuam refluindo.
-  - **D2** ⏸️ aguardando o usuário. **PARAR antes de implementar** e apresentar preview das duas
-    opções (preservar mínimo atual vs. normalizar para coluna 0).
+- ✅ **Fase 9 (D1 ✅; D2 ✅; D3 fora) — CONCLUÍDA** (2026-07-16). 132 testes.
+  - **D1** ✅. Conectores dentro de um grupo `( )` expandido agora right-align (RIVER) à river do
+    próprio grupo (`blockIndent - 1`), operandos em `blockIndent`; o `)` continua sob o conector
+    dono (só mexi em `renderBoolBlock`, não no `emitTerm`). Golden atualizado + 1 caso novo.
+  - **D2** ✅ **normalizar para coluna 0**. Preview apresentado; o usuário inicialmente escolheu
+    preservar e depois mudou de ideia para normalizar. `base` agora é a constante `0` em `format()`
+    (removi `detectBaseIndent`). Saída sempre no left-margin; indentação de origem é descartada.
+    Continua idempotente (a cláusula mais larga fica na coluna 0; blocos internos indentam 1 nível).
+    Golden re-gerado + 1 caso novo (input indentado → coluna 0).
   - **D3** fora de escopo (fica `null → editor.rulers[0] → 80`).
 >
 > Seleção do usuário (2026-07-15): resolver **A1, A2, A3, A4** (subqueries/CTEs), **C1, C2, C3**
@@ -249,7 +251,7 @@ select case
 
 ---
 
-## Fase 9 — Decisões estéticas (D1 travado, D2 a decidir, D3 fora)
+## Fase 9 — Decisões estéticas (D1 ✅, D2 ✅ normalizar, D3 fora) ✅ CONCLUÍDA
 
 - **D1 — unificar BLOCK vs RIVER dentro de parênteses.** Decisão (usuário, 2026-07-15): **única
   mudança** = conectores dentro do grupo `( )` passam a ser **right-aligned (RIVER)**, iguais ao
@@ -267,14 +269,15 @@ select case
   ```
   ✅ **CONCLUÍDA** (2026-07-16, Phase 9). Implementado em `renderBoolBlock`: `connEnd = blockIndent
   - 1`, operandos em `blockIndent`, conectores right-aligned. `)` intocado (`emitTerm`).
-- **D2 — normalizar indentação base.** Hoje preserva (coluna mínima). Alternativa: sempre coluna 0.
-  Afeta **todos** os outputs e a idempotência — testar com cuidado. (Ainda a decidir com preview.)
+- **D2 — normalizar indentação base.** ✅ **DECIDIDO: sempre coluna 0** (usuário, 2026-07-16, após
+  preview — mudou da escolha inicial de preservar). `base = 0` constante em `format()`;
+  `detectBaseIndent` removido. Idempotência mantida (cláusula mais larga na col 0). Golden re-gerado.
 - **D3 — fixar `maxLineLength` default.** **Decidido: fica como está** (`null → editor.rulers[0] →
   80`). Conversar sobre um default explícito depois — fora de escopo agora.
 
 ### Arquivos Fase 9
-D1: `layout.ts` (`renderBoolBlock`). D2: `format.ts` (`detectBaseIndent`/uso do base).
-D3: `types.ts` (`DEFAULT_OPTIONS`), talvez `extension.ts`.
+D1: `layout.ts` (`renderBoolBlock`). D2: `format.ts` (`base = 0`; `detectBaseIndent` removido).
+D3: `types.ts` (`DEFAULT_OPTIONS`), talvez `extension.ts` — não mexido (fora de escopo).
 
 ---
 
