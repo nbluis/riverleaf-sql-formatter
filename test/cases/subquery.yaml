@@ -191,10 +191,68 @@
       -- careful
       from order_items oi where oi.order_id = orders.id
     ), 0) as top from orders
-- description: multiple comma-separated CTEs stay on the with line (fallback)
+- description: multiple comma-separated CTEs each expand, names recede to the with column
   input: with a as (select id from orders), b as (select id from customers) select a.id from a join b on a.id = b.id
   expected: |2
-      with a as (select id from orders), b as (select id from customers)
+      with a as (
+        select id
+          from orders
+      ),
+      b as (
+        select id
+          from customers
+      )
     select a.id
       from a
       join b on a.id = b.id
+- description: 'three CTEs: each ) aligns under with, comma after each ) but the last'
+  input: with a as (select id from orders), b as (select id from customers), c as (select id from products) select a.id from a
+  expected: |2
+      with a as (
+        select id
+          from orders
+      ),
+      b as (
+        select id
+          from customers
+      ),
+      c as (
+        select id
+          from products
+      )
+    select a.id
+      from a
+- description: multiple CTEs with inner where clauses expand recursively
+  input: with a as (select id from orders where status_id = 1), b as (select customer_id from customers where active = true) select a.id from a join b on a.id = b.customer_id where a.id > 0
+  expected: |2
+      with a as (
+        select id
+          from orders
+         where status_id = 1
+      ),
+      b as (
+        select customer_id
+          from customers
+         where active = true
+      )
+    select a.id
+      from a
+      join b on a.id = b.customer_id
+     where a.id > 0
+- description: a comment inside one of several CTEs reflows via the recursion
+  input: |-
+    with a as (select id
+    -- first cte
+    from orders), b as (select id from customers) select a.id from a
+  expected: |2
+      with a as (
+        select id
+               -- first cte
+          from orders
+      ),
+      b as (
+        select id
+          from customers
+      )
+    select a.id
+      from a

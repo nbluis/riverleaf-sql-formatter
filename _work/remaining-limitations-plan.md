@@ -29,8 +29,17 @@
     (threaded por `renderBoolRiver`/`renderRiverTail`; `renderBoolClause` passa `true` e força o
     break via `hasCase`; `renderOn`/join passa `false` → case em join ON fica inline).
     `group by`/`order by` já funcionavam via `renderItemLines` (confirmado com caso).
-- ⬜ **Fase 6 (A1)** — múltiplas CTEs. Próxima.
-- ⬜ **Fase 8 (C2)** — quebrar `when … then` longo.
+- ✅ **Fase 6 (A1) — CONCLUÍDA** (2026-07-16). 124 testes (era 118). Feito:
+  - **A1** múltiplas CTEs `with a as (…), b as (…)` expandem cada uma. `renderCteClause` agora faz
+    `splitCommaList` do corpo do `with`; cada CTE precisa ser `name as ( select|with … )`
+    (`findSubquery`). `ownerLeading = leading` do `with` para **todas** → cada `)` sob o `with`. A
+    1ª CTE leva o head `with`; as demais recuam o nome para a coluna do `with` (prefix só
+    `name as `). A vírgula vai como `afterStr` depois do `)` da CTE anterior (a última sem vírgula).
+    Se algum corpo de CTE não for parênteses `select`/`with` (ex.: `values`), cai no one-liner
+    (`renderGenericClause`). `cteCommentsSafe` (format.ts) estendido: recorre em cada CTE quando
+    todas expandem (comentário dentro reflui via a recursão; parte `name as`/pós-`)` deve ser
+    comment-free). Layout travado (usuário 2026-07-15).
+- ⬜ **Fase 8 (C2)** — quebrar `when … then` longo. Próxima.
 - ⬜ **Fase 9 (D1 travado, D2 a decidir com preview, D3 fora)**.
 >
 > Seleção do usuário (2026-07-15): resolver **A1, A2, A3, A4** (subqueries/CTEs), **C1, C2, C3**
@@ -146,7 +155,7 @@ possível `renderInner` (checagem de segurança).
 
 ---
 
-## Fase 6 — Múltiplas CTEs `with a as (...), b as (...)` (A1) 🔴
+## Fase 6 — Múltiplas CTEs `with a as (...), b as (...)` (A1) ✅ CONCLUÍDA
 
 `renderCteClause` hoje só trata **uma** CTE (nada após o `)`). Estender para lista separada por
 vírgula no nível do `with`.

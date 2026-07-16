@@ -67,9 +67,14 @@ block is one level past the owner clause keyword and the closing `)` aligns **un
 (not the base margin). Hooks:
 - `renderFromClause` — `from ( select ... ) alias` when the whole from body is one subquery
   (`sub.open === 0`); `ownerLeading` = `from`'s leading; `afterStr` = the alias.
-- `renderCteClause` (`cte` kind, `WITH`) — a single `with name as ( ... )` (nothing after the
-  close); `ownerLeading` = `with`'s leading; the `name as` part is the prefix. Multiple
-  comma-separated CTEs fall back to `renderGenericClause`.
+- `renderCteClause` (`cte` kind, `WITH`) — one or more comma-separated CTEs. `splitCommaList`
+  splits the `with` body; each CTE must be `name as ( select|with ... )` (`findSubquery` matches its
+  interior). `ownerLeading` = `with`'s leading for **every** CTE, so each `)` aligns under `with`.
+  The first CTE's prefix carries the `with` head (`with a as (`); each subsequent CTE's prefix is
+  just `pad(leading) + "name as " ` — its name **recedes to the `with` column**. The trailing comma
+  follows the previous `)` (it is that CTE's `afterStr`, dropped on the last). If any CTE body is not
+  a parenthesized `select`/`with` (e.g. a `values` CTE), the whole clause falls back to
+  `renderGenericClause` (the one-liner).
 - `renderBoolClause` — the **first** condition of a `where`/`having` whose atom contains a subquery
   (`where x in ( select ... )`); `ownerLeading` = the clause's leading. When there are more
   conditions, they render below the `)` via `renderRiverTail` (connectors right-aligned at
@@ -221,15 +226,16 @@ call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KE
     whose interior recurses safe; for `where`/`having`, false unless `boolCommentsReflowable` (every
     comment at a top-level term boundary — inline-trailing, standalone-between-terms,
     standalone-before-first — or inside a reflowable wrapped group) *or* the only offending comment
-    is inside the first condition's expanded subquery; for `from`/`cte`, recurse into the expanded
-    subquery (else list/last-token rule); for `join`, the table-ref before `on` must be comment-free
+    is inside the first condition's expanded subquery; for `from`, recurse into the expanded
+    subquery (else list rule); for `cte`, split the `with` body on commas and — when every CTE is an
+    expandable subquery — recurse into each (its `name as` and any trailing part must be
+    comment-free), else the last-token rule; for `join`, the table-ref before `on` must be comment-free
     (or be an expanded subquery whose interior recurses safe) and the ON expression
     `boolCommentsReflowable`; for generic/set ops, false if a line comment is not the last body
     token. If unsafe → the whole statement is emitted unchanged (passthrough) so SQL is never
     commented-out by line joins.
 - Still passthrough: a comment mid-token (inside a single condition/item), or inside a subquery that
-  is **not** expanded (a non-first `where` condition, a `join` ON, a function-wrapped subquery, or
-  one of multiple comma-separated CTEs).
+  is **not** expanded (a non-first `where` condition, a `join` ON, or a function-wrapped subquery).
 
 ## Invariants to keep
 

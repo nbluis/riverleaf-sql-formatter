@@ -55,15 +55,19 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   `delete from` is kept together as one head. `insert into t (cols)` keeps a space before the
   column-list `(` (via `renderInsertClause`, since `renderTokens` would glue it as a call).
 - **Subqueries / CTEs** expand recursively (always, for common shapes): `from (select ...) alias`,
-  a single `with name as (...)`, `where ... in (select ...)` (single condition **or first of
-  several**), a subquery as a **join table** (`join (select ...) alias on ...`), and a **scalar
-  subquery in the select list** (expanded at the item column). Inner query re-aligned at
-  `ownerLeading + indentSize`; closing `)` aligns **under the owner clause keyword** (or item
-  column), alias/ON on the `)` line (`renderSubqueryBlock`/`findSubquery`/`renderInner`/`renderOn`/
-  `itemSubquery`). `findSubquery` lives in `segmenter.ts` (shared with `format.ts`). Nested
-  subqueries recurse. Still inline: multiple CTEs, a subquery in a non-first where condition or a
-  join ON, and a function-wrapped subquery. A comment **inside an expanded** subquery reflows
-  (`isCommentSafe` recurses); a comment inside a non-expanded one still forces passthrough.
+  one or more comma-separated CTEs (`with a as (...), b as (...)`), `where ... in (select ...)`
+  (single condition **or first of several**), a subquery as a **join table**
+  (`join (select ...) alias on ...`), and a **scalar subquery in the select list** (expanded at the
+  item column). Inner query re-aligned at `ownerLeading + indentSize`; closing `)` aligns **under the
+  owner clause keyword** (or item column), alias/ON on the `)` line
+  (`renderSubqueryBlock`/`findSubquery`/`renderInner`/`renderOn`/`itemSubquery`). `findSubquery`
+  lives in `segmenter.ts` (shared with `format.ts`). In a **multi-CTE `with`** (`renderCteClause`
+  loops `splitCommaList`), each CTE name after the first recedes to the `with` column, the comma
+  follows the previous `)`, every `)` aligns under `with`; falls back to the one-liner if any CTE
+  body isn't a parenthesized `select`/`with`. Nested subqueries recurse. Still inline: a subquery in
+  a non-first where condition or a join ON, and a function-wrapped subquery. A comment **inside an
+  expanded** subquery reflows (`isCommentSafe` recurses, into each CTE too); a comment inside a
+  non-expanded one still forces passthrough.
 - **`case ... end`** in a select/group-by/order-by list item expands: `case` on the item line,
   each `when`/`else` and the `end` aligned at the item column (`parseCase`/`renderCase`, routed by
   `renderItemLines`). A **nested `case`** in a `when`/`else` branch expands recursively at the
@@ -136,8 +140,9 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 
 ## Open items / roadmap
 
-See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (multiple CTEs,
-subqueries in a multi-condition where / join ON, scalar subqueries, long `case` branch wrapping,
-comments mid-token or inside a subquery) and the aesthetic **decisions awaiting the user**:
+See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (a subquery in a
+non-first where condition or a join ON, a function-wrapped subquery, long `case` branch wrapping,
+comments mid-token or inside a non-expanded subquery) and the aesthetic **decisions awaiting the
+user**:
 nested-paren BLOCK vs RIVER inconsistency, base-indent preservation, and the default
 `maxLineLength`.

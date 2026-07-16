@@ -3,6 +3,7 @@ import { tokenize } from './tokenizer';
 import {
   splitStatements,
   splitListItems,
+  splitCommaList,
   boolCommentsReflowable,
   findSubquery,
   segmentClauses,
@@ -154,12 +155,22 @@ function fromCommentsSafe(body: Token[]): boolean {
   return listCommentsSafe(body);
 }
 
-/** with name as ( subquery ): recurse; multiple CTEs fall back to last-token. */
+/** with a as ( ... ), b as ( ... ): every CTE that expands is recursed into
+ * (the "name as" and any trailing part must be comment-free); if any CTE is not
+ * an expandable subquery, fall back to the last-token rule. Mirrors the layout's
+ * expansion condition (renderCteClause) exactly. */
 function cteCommentsSafe(body: Token[]): boolean {
-  const sub = findSubquery(body);
-  if (sub && body.slice(sub.close + 1).length === 0) {
-    if (hasLineComment(body.slice(0, sub.open))) return false; // "name as"
-    return innerCommentsSafe(body.slice(sub.open + 1, sub.close));
+  const items = splitCommaList(body);
+  const subs = items.map((toks) => findSubquery(toks));
+  if (items.length > 0 && subs.every((s) => s !== null)) {
+    for (let k = 0; k < items.length; k++) {
+      const toks = items[k];
+      const sub = subs[k]!;
+      if (hasLineComment(toks.slice(0, sub.open))) return false; // "name as"
+      if (hasLineComment(toks.slice(sub.close + 1))) return false; // after ')'
+      if (!innerCommentsSafe(toks.slice(sub.open + 1, sub.close))) return false;
+    }
+    return true;
   }
   return lastTokenOnlyComment(body);
 }

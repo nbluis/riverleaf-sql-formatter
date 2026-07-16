@@ -7,6 +7,7 @@ import {
   BoolNode,
   parseBoolExpr,
   splitListItems,
+  splitCommaList,
   segmentClauses,
   findSubquery,
 } from './segmenter';
@@ -534,18 +535,37 @@ export class Layout {
   }
 
   private renderCteClause(clause: Clause, leading: number): string[] {
-    const sub = findSubquery(clause.body);
-    const after = sub ? clause.body.slice(sub.close + 1) : [];
-    // handle a single CTE (`with name as ( ... )`); multiple comma-separated
-    // CTEs (tokens after the close) fall back to the generic one-liner for now.
-    if (sub && after.length === 0) {
-      const headStr = renderTokens(clause.head, this.options);
-      const before = renderTokens(clause.body.slice(0, sub.open), this.options);
-      const inner = clause.body.slice(sub.open + 1, sub.close);
-      const prefix = pad(leading) + headStr + (before ? ' ' + before : '') + ' ';
-      return this.renderSubqueryBlock(prefix, inner, leading, '');
+    // Split the WITH body into comma-separated CTEs. Each must be
+    // `name as ( select|with ... )` to expand; otherwise fall back to the
+    // generic one-liner (e.g. a VALUES-based CTE, or an unparenthesized body).
+    const items = splitCommaList(clause.body);
+    const parsed = items.map((toks) => {
+      const sub = findSubquery(toks);
+      return sub ? { toks, sub } : null;
+    });
+    if (items.length === 0 || parsed.some((p) => p === null)) {
+      return this.renderGenericClause(clause, leading);
     }
-    return this.renderGenericClause(clause, leading);
+    const headStr = renderTokens(clause.head, this.options);
+    const lines: string[] = [];
+    for (let k = 0; k < parsed.length; k++) {
+      const { toks, sub } = parsed[k]!;
+      const before = renderTokens(toks.slice(0, sub.open), this.options);
+      const inner = toks.slice(sub.open + 1, sub.close);
+      const rest = toks.slice(sub.close + 1);
+      const restStr = rest.length ? ' ' + renderTokens(rest, this.options) : '';
+      // trailing comma after every CTE except the last, right after its ')'
+      const afterStr = restStr + (k < parsed.length - 1 ? ',' : '');
+      // The first CTE carries the `with` head; every subsequent CTE recedes to
+      // the `with` column (leading) with just `name as`. Each ')' aligns under
+      // the `with` (ownerLeading = leading).
+      const prefix =
+        k === 0
+          ? pad(leading) + headStr + (before ? ' ' + before : '') + ' '
+          : pad(leading) + before + ' ';
+      lines.push(...this.renderSubqueryBlock(prefix, inner, leading, afterStr));
+    }
+    return lines;
   }
 
   // --- statement ---------------------------------------------------------
