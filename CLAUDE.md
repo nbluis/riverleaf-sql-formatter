@@ -114,6 +114,11 @@ Data-driven: `test/cases/*.yaml` hold scenarios, `test/cases.test.ts` loads **ev
 Add scenarios by editing/creating a yaml — **no code changes**. Details and the "generate
 `expected` from the formatter, never hand-count spaces" workflow: **`.claude/rules/testing.md`**.
 
+**Every example uses the astronomy dictionary.** All example SQL (test-case `input`/`expected`,
+README/doc snippets) is written with names from **`.claude/rules/example-dictionary.md`** — real
+queries are rewritten onto those tables/columns/aliases/literals so examples stay isomorphic and
+never leak real data. Read it before writing or rewriting any example.
+
 ## Commands
 
 ```bash

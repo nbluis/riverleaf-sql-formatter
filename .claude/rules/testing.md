@@ -45,9 +45,13 @@ test ensures it never silently changes.
 
 ## Naming / dummy data
 
-Use realistic but context-free names (`customers`, `orders`, `order_items`, `customer_id`,
-`total_amount`, ...). No single letters (`a`, `b`, `t`). No real business tables from the user's
-domain.
+**Use the astronomy dictionary** — `.claude/rules/example-dictionary.md`. Every table, column, alias,
+and literal in a case comes from there (`planet`, `star`, `mission`, `mass`, `observed_at`, aliases
+`p`/`s`/`ms`, values like `'confirmed'`/`'terrestrial'`). Rewrite any real query onto dictionary names
+by role, keeping the structure identical. No real business tables from the user's domain, and no
+off-theme placeholders. The dictionary's short aliases (`p`, `s`, `m`, ...) are intentional and
+allowed — they supersede any "avoid single-letter alias" habit; what to avoid is *meaningless*
+aliases (`a`, `b`, `t`) that carry no role.
 
 ## Growing the suite
 
