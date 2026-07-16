@@ -89,7 +89,9 @@ select table1.column1, table2.column2
 - **JOINs with more than one ON condition always break**, aligning the `and`/`or`
   conditions under the `on` — regardless of line width. A join with a single ON condition
   stays inline (there is nothing to align).
-- In `where`/`having`, the `and`/`or` connectors align to the main river.
+- In `where`/`having`, the `and`/`or` connectors align to the main river. An expanded
+  parenthesized group aligns its own `and`/`or` connectors the same way — to the group's
+  river, one level in.
 - A **SELECT with many columns** stays on one line if it fits; otherwise it breaks with
   trailing commas, aligning the columns.
 - **Line comments (`--`)** stay associated with the code around them. A comment that trails

@@ -44,9 +44,10 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
 - Joins with **more than one ON condition always break** (regardless of width); the `and`/`or`
   conditions align under `on`. A single-condition ON stays inline.
 - `where`/`on`: connectors (`and`/`or`) right-aligned to the river (RIVER mode).
-- Parenthesized boolean groups expand in BLOCK mode (connectors left-aligned, indented). This
-  reproduces the user's golden example, which is intentionally inconsistent between the two levels
-  — **do not "fix" it without asking** (see roadmap).
+- Parenthesized boolean groups expand in BLOCK mode which, since D1 (locked 2026-07-15), also
+  **right-aligns** connectors — to the group's own river (`blockIndent - 1`), operands at
+  `blockIndent`. The closing `)` still aligns under the owner connector (unchanged). So both levels
+  are RIVER now (the old left-aligned inconsistency is gone).
 - Keywords lowercased (config); identifiers preserved. `between ... and ...` — that `and` is not a
   connector.
 - **DML** (`insert`/`update`/`delete`) formats like a select: the anchors join the river. `set`
@@ -142,8 +143,7 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 ## Open items / roadmap
 
 See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (a subquery in a
-non-first where condition or a join ON, a function-wrapped subquery, long `case` branch wrapping,
-comments mid-token or inside a non-expanded subquery) and the aesthetic **decisions awaiting the
-user**:
-nested-paren BLOCK vs RIVER inconsistency, base-indent preservation, and the default
-`maxLineLength`.
+non-first where condition or a join ON, a function-wrapped subquery, comments mid-token or inside a
+non-expanded subquery) and the aesthetic **decisions awaiting the user**: base-indent preservation
+(D2) and the default `maxLineLength` (D3). The nested-paren BLOCK-vs-RIVER inconsistency is resolved
+(D1: both levels are RIVER now).

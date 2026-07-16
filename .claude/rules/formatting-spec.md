@@ -148,19 +148,28 @@ split point (`pendingBetween` counter in `splitTerms`).
     ON conditions **always breaks** (regardless of width); a single-condition ON stays inline
     (nothing to align).
 - **BLOCK mode** (`renderBoolBlock`, used inside an expanded parenthesized group): connectors are
-  **left-aligned** at `blockIndent`; each term is `blockIndent + [connector + " "] + operand`;
-  first term has no connector.
+  **right-aligned** (RIVER, same as the top level, D1). Operands align at `blockIndent`; each
+  connector's right edge lands at `blockIndent - 1` (a secondary river inside the group), so a term
+  is `pad(blockIndent - 1 - connLen) + connector + " " + operand`. The first term has no connector
+  and sits at `blockIndent`. Standalone comments align with the operands (`blockIndent`).
 
 When a term is a group that doesn't fit inline (`emitTerm`): emit `... (` on the owner line, render
 the interior in BLOCK mode at `blockIndent = ownerLineStart + indentSize`, close with `)` at
-`ownerLineStart` (aligned under the connector that owns the group).
+`ownerLineStart` (aligned under the connector that owns the group). Note: because the `)` position
+is unchanged by D1, for a **connector-preceded** group (e.g. `and (` inside an ON/where river) the
+`(` and `)` sit in different columns and a short interior connector (`or`) can protrude one column
+left of the owner connector — that is the mechanical result of right-aligning to the group river and
+is expected. For a **first-term** group (`where (`), the `(` and `)` share a column, matching the
+user's locked target.
 
-### Why RIVER top-level but BLOCK inside parens
+### RIVER everywhere (D1, locked 2026-07-15)
 
-This asymmetry is deliberate: it reproduces the user's golden example exactly. In that example the
-top-level ON/WHERE connectors are right-aligned (aligned operands) while the connectors inside the
-parenthesized group are left-aligned/indented. The example is internally inconsistent between the
-two levels, and we matched it on purpose. **Confirm with the user before changing** (roadmap).
+Both the top level and the inside of an expanded parenthesized group right-align connectors now.
+The connectors inside a group align to the **group's own river** (`blockIndent - 1`), mirroring the
+top-level where/on style. The closing `)` stays where it was (`ownerLineStart`) — D1 changed
+**only** the connector alignment in `renderBoolBlock`, not the `)` emission in `emitTerm`. This
+replaced the earlier BLOCK style (connectors left-aligned at `blockIndent`), which was internally
+inconsistent with the top level; the golden example was updated to match.
 
 ## Token spacing (`render.ts` `needsSpace`)
 

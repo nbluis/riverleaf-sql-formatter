@@ -2,13 +2,15 @@
 
 State as of the current session. Update this file as items are resolved.
 
+## Decisions resolved
+
+- **Nested-paren BLOCK vs RIVER inconsistency (D1).** ✅ Resolved (Phase 9, 2026-07-16). Connectors
+  inside an expanded parenthesized group now right-align (RIVER) to the group's own river
+  (`blockIndent - 1`), same as the top level; the closing `)` position is unchanged. The golden
+  example was updated. (See `formatting-spec.md` → "RIVER everywhere (D1)".)
+
 ## Decisions awaiting the user
 
-- **Nested-paren BLOCK vs RIVER inconsistency.** Top-level `where`/`on` connectors are
-  right-aligned (RIVER); connectors inside an expanded parenthesized group are left-aligned/indented
-  (BLOCK). This matches the user's golden example exactly, but the example is internally
-  inconsistent. Confirm this is the desired aesthetic before "fixing" it. (See
-  `formatting-spec.md` → "Why RIVER top-level but BLOCK inside parens".)
 - **Base-indent preservation.** `base` = the **minimum** indentation across the query's non-empty
   lines (the widest clause head's column), preserved on output (a query at column 0 → river at 6;
   the golden at 4 spaces stays at 4). Changed from first-line indent to minimum so it round trips

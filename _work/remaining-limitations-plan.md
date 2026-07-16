@@ -46,8 +46,14 @@
     (`findThen`, paren/case depth 0) e quebra. `ELSE` nunca quebra (sem `THEN`; else longo fica
     inline). Case aninhado num ramo tem precedência (já é multi-linha). Idempotente (tokens iguais
     na releitura → mesma decisão de largura). Layout travado (usuário 2026-07-15).
-- ⬜ **Fase 9 (D1 travado, D2 a decidir com preview, D3 fora)**. Próxima. **PARAR antes de D2** e
-  apresentar preview das duas opções (preservar vs. normalizar base) ao usuário.
+- 🔵 **Fase 9 (D1 ✅; D2 aguardando decisão; D3 fora)** — em andamento (2026-07-16). 130 testes.
+  - **D1** ✅ CONCLUÍDA. Conectores dentro de um grupo `( )` expandido agora right-align (RIVER) à
+    river do próprio grupo (`blockIndent - 1`), operandos em `blockIndent`; o `)` continua sob o
+    conector dono (só mexi em `renderBoolBlock`, não no `emitTerm`). Golden atualizado + 1 caso novo
+    (D1 target). Comentários dentro do grupo continuam refluindo.
+  - **D2** ⏸️ aguardando o usuário. **PARAR antes de implementar** e apresentar preview das duas
+    opções (preservar mínimo atual vs. normalizar para coluna 0).
+  - **D3** fora de escopo (fica `null → editor.rulers[0] → 80`).
 >
 > Seleção do usuário (2026-07-15): resolver **A1, A2, A3, A4** (subqueries/CTEs), **C1, C2, C3**
 > (case), e **B1** vem de graça junto com as subqueries. **B2 fica como está** (passthrough é o
@@ -259,6 +265,8 @@ select case
          )
      and total_amount > 0
   ```
+  ✅ **CONCLUÍDA** (2026-07-16, Phase 9). Implementado em `renderBoolBlock`: `connEnd = blockIndent
+  - 1`, operandos em `blockIndent`, conectores right-aligned. `)` intocado (`emitTerm`).
 - **D2 — normalizar indentação base.** Hoje preserva (coluna mínima). Alternativa: sempre coluna 0.
   Afeta **todos** os outputs e a idempotência — testar com cuidado. (Ainda a decidir com preview.)
 - **D3 — fixar `maxLineLength` default.** **Decidido: fica como está** (`null → editor.rulers[0] →
