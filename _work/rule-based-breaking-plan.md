@@ -1,8 +1,8 @@
 # Plano — quebra por regra, não por largura (mudança estrutural)
 
 > Documento de trabalho, escrito em **2026-07-16** após concluir as fases 1–12 (`main` em `a406f4b`,
-> 144 testes). **Será implementado em outra sessão.** Idioma de código/doc/testes: **inglês**;
-> este rascunho pode ficar em PT.
+> 144 testes). **✅ IMPLEMENTADO (2026-07-16), fases R1–R4** — ver "Progresso da implementação"
+> abaixo. Idioma de código/doc/testes: **inglês**; este rascunho pode ficar em PT.
 >
 > ## ✅ DECISÕES TRAVADAS com o usuário (2026-07-16, via preview)
 > - **D-a + D-b** — **todas** as listas de cláusula quebram uma por linha quando há **>1 item**:
@@ -240,6 +240,10 @@ runner já checa `format(format(x)) === format(x)` por caso. Revalidar todos.
   crescem), `dml.yaml` (tupla `values` cresce, single e multi-row). Docs varridos: README, CLAUDE.md,
   formatting-spec.md (nova seção "Breaking model"), roadmap.md, testing.md. 150 testes; `tsc`/`lint`
   limpos. Falta R4: remover `maxLineLength` dos options dos casos + re-package vsix.
+- **R4 — varredura final** ✅ (feito). Removido `maxLineLength` dos `options` dos 3 casos restantes
+  em `postgres.yaml` (títulos ajustados). Idempotência revalidada (o runner checa por caso), `tsc` +
+  `npm test` (150) + `lint` limpos. vsix re-empacotado e reinstalado. **Mudança concluída** —
+  quebra é 100% por regra (contagem); largura não existe mais no formatter.
 
 ## Ordem sugerida (fases, 1 commit cada)
 1. **Fase R1** — listas por contagem: `select`/`group by`/`order by`/`from` quebram >1 (D-a/D-b).

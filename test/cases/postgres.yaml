@@ -2,8 +2,6 @@
 # input (unformatted) and expected (formatted). The test runner loads every
 # *.yaml file in this directory and asserts format(input, options) === expected.
 - description: river alignment with a broken join (nested OR group) and a multi-condition where
-  options:
-    maxLineLength: 100
   input: |2
         select order_month as previous_order_month
         from monthly_order_summaries previous_order
@@ -31,8 +29,6 @@
      order by order_month desc
      limit 1
 - description: an expanded OR group aligns its connectors to the group river (RIVER, D1)
-  options:
-    maxLineLength: 40
   input: select order_id from orders where (status_id = 1 or status_id = 2 or status_id = 3) and total_amount > 0
   expected: |
     select order_id
@@ -61,9 +57,7 @@
     select order_id
       from orders o,
            customers c
-- description: long select breaks with trailing commas
-  options:
-    maxLineLength: 30
+- description: a three-column select breaks with trailing commas
   input: select product_name, unit_price, quantity from order_items
   expected: |
     select product_name,
