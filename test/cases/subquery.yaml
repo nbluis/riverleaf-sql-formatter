@@ -62,13 +62,27 @@
         where active = true
      )
        and status_id = 1
-- description: a subquery in a non-first where condition stays inline
+- description: a subquery in a non-first where condition expands, ) under the connector
   input: select id from orders where order_status_id = 1 and customer_id in (select customer_id from vip_customers where active = true)
   expected: |
     select id
       from orders
      where order_status_id = 1
-       and customer_id in (select customer_id from vip_customers where active = true)
+       and customer_id in (
+         select customer_id
+           from vip_customers
+          where active = true
+       )
+- description: a subquery in a multi-condition join ON expands, ) under the connector
+  input: select o.id from orders o join customers c on c.id = o.customer_id and c.id in (select id from vip_customers)
+  expected: |
+    select o.id
+      from orders o
+      join customers c on c.id = o.customer_id
+                      and c.id in (
+                        select id
+                          from vip_customers
+                      )
 - description: a scalar subquery in the select list expands at the item column
   input: select id, (select count(*) from order_items oi where oi.order_id = orders.id) as item_count from orders
   expected: |
@@ -165,19 +179,22 @@
               where oi.order_id = orders.id
            ) as item_count
       from orders
-- description: a comment inside a non-first (non-expanded) where-subquery passes through intact
-  input: |
+- description: a comment inside a non-first where-subquery now reflows
+  input: |-
     select id from orders where status_id = 1 and customer_id in (
       select customer_id
       -- must not vanish
       from vip_customers
     )
   expected: |
-    select id from orders where status_id = 1 and customer_id in (
-      select customer_id
-      -- must not vanish
-      from vip_customers
-    )
+    select id
+      from orders
+     where status_id = 1
+       and customer_id in (
+         select customer_id
+                -- must not vanish
+           from vip_customers
+       )
 - description: a comment inside a function-wrapped subquery passes through intact
   input: |
     select id, coalesce((

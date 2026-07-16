@@ -106,12 +106,14 @@ select table1.column1, table2.column2
   `values` break one item per line (when there is more than one), `delete from` stays together,
   and `where` reuses the river.
 - **Subqueries and CTEs** expand recursively — `from (select ...) alias`, one or more
-  comma-separated CTEs (`with a as (...), b as (...)`), a `where ... in (select ...)` (as the first
-  of several conditions too), a subquery as a `join` table (`join (select ...) alias on ...`), and a
-  scalar subquery in the select list. The inner query is re-aligned one level in and the closing `)`
-  aligns under the owner clause keyword (or the item column, for a scalar subquery). In a multi-CTE
-  `with`, each CTE name after the first recedes to the `with` column and the comma follows the
-  previous `)`. A comment inside any of these expanded subqueries is reflowed by the recursion.
+  comma-separated CTEs (`with a as (...), b as (...)`), a `where`/`having` condition subquery in
+  **any** position (`where ... in (select ...)`, and after `and`/`or` too), a subquery inside a
+  `join` ON condition, a subquery as a `join` table (`join (select ...) alias on ...`), and a scalar
+  subquery in the select list. The inner query is re-aligned one level in and the closing `)` aligns
+  under the owner: the clause keyword for the first `where` condition, the `and`/`or` connector for a
+  later one (or ON condition), the item column for a scalar subquery. In a multi-CTE `with`, each CTE
+  name after the first recedes to the `with` column and the comma follows the previous `)`. A comment
+  inside any of these expanded subqueries is reflowed by the recursion.
 - **`case ... end`** in the select list (or `group by` / `order by`, and in a `where` / `having`
   condition) expands with `when` / `else` / `end` aligned under `case`; anything after the `end`
   (e.g. `> 100`) rides the `end` line. A nested `case` in a branch expands recursively at the
@@ -173,8 +175,8 @@ These narrower cases are not reflowed — they are rendered inline or kept exact
 - **Comments** are kept as-is (the whole statement is passed through unchanged) when a line comment
   sits mid-token, or inside a subquery that is *not* expanded (see below), where it cannot be moved
   without risk of commenting out code.
-- **Subqueries / CTEs** stay inline when they are: a subquery inside a multi-condition `where` other
-  than the first condition, a subquery inside a `join` ON, or a subquery wrapped in a function call.
+- **Subqueries / CTEs** stay inline only when the subquery is wrapped in a function call
+  (`coalesce((select ...), 0)`).
 - **`case`** stays inline when it is wrapped in a function call, or inside a `join` ON.
 - **DML lists** — a multi-row `values` breaks one tuple per line, but an `INSERT` column list
   (`(col, col, ...)`) and a single very-wide `values` tuple are never wrapped internally, even past

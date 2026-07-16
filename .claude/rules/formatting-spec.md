@@ -76,9 +76,14 @@ block is one level past the owner clause keyword and the closing `)` aligns **un
   a parenthesized `select`/`with` (e.g. a `values` CTE), the whole clause falls back to
   `renderGenericClause` (the one-liner).
 - `renderBoolClause` — the **first** condition of a `where`/`having` whose atom contains a subquery
-  (`where x in ( select ... )`); `ownerLeading` = the clause's leading. When there are more
-  conditions, they render below the `)` via `renderRiverTail` (connectors right-aligned at
-  `riverEnd`). A subquery in a non-first condition stays inline.
+  (`where x in ( select ... )`); `ownerLeading` = the clause's leading (so the `)` sits under the
+  keyword). When there are more conditions, they render below the `)` via `renderRiverTail`
+  (connectors right-aligned at `riverEnd`). A subquery in a **non-first** condition also expands
+  (Phase 10) via `emitTerm`'s `expandSubquery` flag, but with `ownerLeading = lineStart` — the
+  connector's column — so its `)` sits under the `and`/`or`. `hasSubquery` forces the break.
+- `renderOn` (join ON) — a subquery in an ON condition expands the same way (`expandSubquery` true;
+  `)` under the connector, or under the operand for a single ON condition). `hasSubquery` there
+  forces a single-condition ON to break instead of staying inline.
 - `renderJoinClause` — the join **table** is a subquery (`join ( select ... ) alias on ...`,
   `findSubquery(tableRef)` with `open === 0`); `ownerLeading` = the join's leading; the alias + ON
   go on the `)` line via `renderOn` (a single ON inline; two or more keep the secondary river right
@@ -219,7 +224,8 @@ call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KE
   - **Comments inside a `join` ON**: `renderJoinClause` reuses `parseBoolExpr` + `renderBoolRiver`,
     so between-condition standalone comments and inline comments already reflow under the ON river.
     The safety gate (`isCommentSafe`) requires the table-ref part before `on` to be comment-free and
-    the ON expression to be `boolCommentsReflowable`.
+    the ON expression to be `boolExprCommentsSafe` (boundary comments **or** comments inside an
+    expanded ON-condition subquery, Phase 10).
   - *Comment after the final `;`*: a trailing comment-only unit (no clauses) glues under the
     previous block with a single `\n` instead of becoming its own blank-line-separated block
     (see `format()`).
@@ -231,25 +237,25 @@ call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KE
     needs no gate of its own. The recursion mirrors the layout's expansion conditions exactly
     (`fromCommentsSafe` / `cteCommentsSafe` / `whereCommentsSafe` / `joinCommentsSafe` /
     `listCommentsSafe`): the parts *outside* the subquery must be comment-free, and the subquery
-    must be one that is actually expanded (from body / single CTE / **first** where condition / join
-    table / a select-list item that **is** the subquery). `whereCommentsSafe` uses
-    `blankFirstSubquery` to re-check the remaining conditions with the first subquery's interior
-    blanked out.
+    must be one that is actually expanded (from body / any CTE / **any** where/having condition /
+    join ON condition / join table / a select-list item that **is** the subquery).
+    `whereCommentsSafe` and the ON branch of `joinCommentsSafe` share `boolExprCommentsSafe`, which
+    blanks **every** top-level subquery interior (`blankAllSubqueries`), requires the remainder to be
+    `boolCommentsReflowable`, and checks each subquery interior recursively (`subqueryInteriorsSafe`).
   - `isCommentSafe(statement)`: for list clauses, false if any item is `unsafe` (a line comment
     strictly *inside* an item — not at a boundary) *unless* the item is an expanded scalar subquery
-    whose interior recurses safe; for `where`/`having`, false unless `boolCommentsReflowable` (every
-    comment at a top-level term boundary — inline-trailing, standalone-between-terms,
-    standalone-before-first — or inside a reflowable wrapped group) *or* the only offending comment
-    is inside the first condition's expanded subquery; for `from`, recurse into the expanded
-    subquery (else list rule); for `cte`, split the `with` body on commas and — when every CTE is an
-    expandable subquery — recurse into each (its `name as` and any trailing part must be
-    comment-free), else the last-token rule; for `join`, the table-ref before `on` must be comment-free
-    (or be an expanded subquery whose interior recurses safe) and the ON expression
-    `boolCommentsReflowable`; for generic/set ops, false if a line comment is not the last body
-    token. If unsafe → the whole statement is emitted unchanged (passthrough) so SQL is never
-    commented-out by line joins.
+    whose interior recurses safe; for `where`/`having`, `boolExprCommentsSafe` (every comment at a
+    top-level term boundary — inline-trailing, standalone-between-terms, standalone-before-first, or
+    inside a reflowable wrapped group — **or** inside any condition's expanded subquery, checked
+    recursively); for `from`, recurse into the expanded subquery (else list rule); for `cte`, split
+    the `with` body on commas and — when every CTE is an expandable subquery — recurse into each (its
+    `name as` and any trailing part must be comment-free), else the last-token rule; for `join`, the
+    table-ref before `on` must be comment-free (or be an expanded subquery whose interior recurses
+    safe) and the ON expression `boolExprCommentsSafe`; for generic/set ops, false if a line comment
+    is not the last body token. If unsafe → the whole statement is emitted unchanged (passthrough) so
+    SQL is never commented-out by line joins.
 - Still passthrough: a comment mid-token (inside a single condition/item), or inside a subquery that
-  is **not** expanded (a non-first `where` condition, a `join` ON, or a function-wrapped subquery).
+  is **not** expanded (a function-wrapped subquery).
 
 ## Invariants to keep
 

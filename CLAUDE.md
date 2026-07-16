@@ -57,18 +57,19 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   `delete from` is kept together as one head. `insert into t (cols)` keeps a space before the
   column-list `(` (via `renderInsertClause`, since `renderTokens` would glue it as a call).
 - **Subqueries / CTEs** expand recursively (always, for common shapes): `from (select ...) alias`,
-  one or more comma-separated CTEs (`with a as (...), b as (...)`), `where ... in (select ...)`
-  (single condition **or first of several**), a subquery as a **join table**
-  (`join (select ...) alias on ...`), and a **scalar subquery in the select list** (expanded at the
-  item column). Inner query re-aligned at `ownerLeading + indentSize`; closing `)` aligns **under the
-  owner clause keyword** (or item column), alias/ON on the `)` line
-  (`renderSubqueryBlock`/`findSubquery`/`renderInner`/`renderOn`/`itemSubquery`). `findSubquery`
-  lives in `segmenter.ts` (shared with `format.ts`). In a **multi-CTE `with`** (`renderCteClause`
-  loops `splitCommaList`), each CTE name after the first recedes to the `with` column, the comma
-  follows the previous `)`, every `)` aligns under `with`; falls back to the one-liner if any CTE
-  body isn't a parenthesized `select`/`with`. Nested subqueries recurse. Still inline: a subquery in
-  a non-first where condition or a join ON, and a function-wrapped subquery. A comment **inside an
-  expanded** subquery reflows (`isCommentSafe` recurses, into each CTE too); a comment inside a
+  one or more comma-separated CTEs (`with a as (...), b as (...)`), a `where`/`having` condition
+  subquery in **any** position, a subquery inside a **join ON** condition, a subquery as a **join
+  table** (`join (select ...) alias on ...`), and a **scalar subquery in the select list** (expanded
+  at the item column). Inner query re-aligned at `ownerLeading + indentSize`; the closing `)` aligns
+  **under the owner** — the clause keyword for the first `where` condition, the `and`/`or` connector
+  (`emitTerm`'s `expandSubquery`, Phase 10) for a later/ON condition, or the item column for a scalar
+  subquery (`renderSubqueryBlock`/`findSubquery`/`renderInner`/`renderOn`/`itemSubquery`).
+  `findSubquery` lives in `segmenter.ts` (shared with `format.ts`). In a **multi-CTE `with`**
+  (`renderCteClause` loops `splitCommaList`), each CTE name after the first recedes to the `with`
+  column, the comma follows the previous `)`, every `)` aligns under `with`; falls back to the
+  one-liner if any CTE body isn't a parenthesized `select`/`with`. Nested subqueries recurse. Still
+  inline: a function-wrapped subquery. A comment **inside an expanded** subquery reflows
+  (`isCommentSafe` recurses, into each CTE and each condition-subquery too); a comment inside a
   non-expanded one still forces passthrough.
 - **`case ... end`** in a select/group-by/order-by list item expands: `case` on the item line,
   each `when`/`else` and the `end` aligned at the item column (`parseCase`/`renderCase`, routed by
@@ -143,10 +144,9 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 
 ## Open items / roadmap
 
-See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (a subquery in a
-non-first where condition or a join ON, a `case` or subquery wrapped in a function, comments
-mid-token or inside a non-expanded subquery, and DML lists that never wrap internally — the INSERT
-column list and a single wide `values` tuple). The aesthetic decisions are settled: D1 (nested-paren
-BLOCK vs RIVER →
+See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (a `case` or
+subquery wrapped in a function, a `case` inside a join ON, comments mid-token or inside a
+function-wrapped subquery, and DML lists that never wrap internally — the INSERT column list and a
+single wide `values` tuple). The aesthetic decisions are settled: D1 (nested-paren BLOCK vs RIVER →
 both RIVER) and D2 (base-indent → **normalize to column 0**) are resolved; only D3 (explicit default
 `maxLineLength`) remains deferred.

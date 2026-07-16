@@ -64,6 +64,7 @@ export class Layout {
     connEnd: number,
     firstLinePrefix: string,
     expandCase = false,
+    expandSubquery = false,
   ): string[] {
     const lines: string[] = [];
     // first term: normally inline within the prefix. But a standalone comment
@@ -73,11 +74,11 @@ export class Layout {
       lines.push(firstLinePrefix.replace(/ +$/, ''));
       const operandCol = connEnd + 1;
       for (const c of terms[0].commentsBefore) lines.push(pad(operandCol) + c);
-      this.emitTerm(lines, terms[0], pad(operandCol), operandCol, operandCol, expandCase);
+      this.emitTerm(lines, terms[0], pad(operandCol), operandCol, operandCol, expandCase, expandSubquery);
     } else {
-      this.emitTerm(lines, terms[0], firstLinePrefix, firstLinePrefix.length, connEnd, expandCase);
+      this.emitTerm(lines, terms[0], firstLinePrefix, firstLinePrefix.length, connEnd, expandCase, expandSubquery);
     }
-    this.renderRiverTail(lines, terms, connEnd, 1, expandCase);
+    this.renderRiverTail(lines, terms, connEnd, 1, expandCase, expandSubquery);
     return lines;
   }
 
@@ -91,6 +92,7 @@ export class Layout {
     connEnd: number,
     startIdx: number,
     expandCase = false,
+    expandSubquery = false,
   ): void {
     for (let i = startIdx; i < terms.length; i++) {
       // standalone comments sit on their own line at the operand column
@@ -98,7 +100,7 @@ export class Layout {
       const conn = caseConnector(terms[i].connector as 'and' | 'or', this.options);
       const lineStart = connEnd - conn.length;
       const prefix = pad(lineStart) + conn + ' ';
-      this.emitTerm(lines, terms[i], prefix, lineStart, connEnd + 1, expandCase);
+      this.emitTerm(lines, terms[i], prefix, lineStart, connEnd + 1, expandCase, expandSubquery);
     }
   }
 
@@ -146,18 +148,34 @@ export class Layout {
     lineStart: number,
     _childCol: number,
     expandCase = false,
+    expandSubquery = false,
   ): void {
     const node = term.node;
     const suffix = term.comment ? ' ' + term.comment : '';
     if (node.kind === 'atom') {
-      // a `case ... end` condition (where/having) expands at the operand column;
-      // anything after the `end` (e.g. `> 100`) rides the `end` line.
+      // a `case ... end` condition (where/having/join ON) expands at the operand
+      // column; anything after the `end` (e.g. `> 100`) rides the `end` line.
       const c = expandCase ? this.parseCase(node.tokens) : null;
       if (c) {
         const caseLines = this.renderCase(c, prefix.length);
         caseLines[caseLines.length - 1] += suffix;
         lines.push(prefix + caseLines[0]);
         for (let i = 1; i < caseLines.length; i++) lines.push(caseLines[i]);
+        return;
+      }
+      // a subquery inside a condition (`... in ( select ... )`) expands with the
+      // closing ')' under the line's first word (the connector, via lineStart)
+      // and the inner block one level in from it.
+      const sub = expandSubquery ? findSubquery(node.tokens) : null;
+      if (sub) {
+        const before = renderTokens(node.tokens.slice(0, sub.open), this.options);
+        const inner = node.tokens.slice(sub.open + 1, sub.close);
+        const after = node.tokens.slice(sub.close + 1);
+        const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
+        const blockPrefix = prefix + (before ? before + ' ' : '');
+        const blockLines = this.renderSubqueryBlock(blockPrefix, inner, lineStart, afterStr);
+        blockLines[blockLines.length - 1] += suffix;
+        lines.push(...blockLines);
         return;
       }
       lines.push(prefix + renderTokens(node.tokens, this.options) + suffix);
@@ -410,8 +428,8 @@ export class Layout {
 
     // The first condition's atom contains a subquery (`where x in ( select ...
     // )`): expand it, with the ')' aligned under the clause keyword. Any further
-    // conditions (and/or) render normally below the ')'. A subquery in a
-    // non-first condition stays inline (handled by the fall-through below).
+    // conditions (and/or) render below the ')'; a subquery in one of those
+    // expands too, but with its ')' under its own connector (expandSubquery).
     const first = terms[0];
     if (first.node.kind === 'atom' && !first.comment && !first.commentsBefore?.length) {
       const toks = first.node.tokens;
@@ -423,7 +441,7 @@ export class Layout {
         const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
         const prefix = pad(leading) + headStr + ' ' + (before ? before + ' ' : '');
         const lines = this.renderSubqueryBlock(prefix, inner, leading, afterStr);
-        this.renderRiverTail(lines, terms, riverEnd, 1, true);
+        this.renderRiverTail(lines, terms, riverEnd, 1, true, true);
         return lines;
       }
     }
@@ -440,12 +458,14 @@ export class Layout {
     // a `case ... end` condition always expands (like a case in a list item), so
     // it forces the expression to break
     const hasCase = terms.some((t) => t.node.kind === 'atom' && this.parseCase(t.node.tokens) !== null);
+    // a subquery in a (non-first) condition also always expands and forces a break
+    const hasSubquery = terms.some((t) => t.node.kind === 'atom' && findSubquery(t.node.tokens) !== null);
     const full = pad(leading) + headStr + ' ' + inlineBody + (lastComment ? ' ' + lastComment : '');
-    if (terms.length === 1 && !nestedComments && !hasCase) return [full];
-    if (!midComment && !hasStandalone && !nestedComments && !hasCase && this.fits(full)) return [full];
+    if (terms.length === 1 && !nestedComments && !hasCase && !hasSubquery) return [full];
+    if (!midComment && !hasStandalone && !nestedComments && !hasCase && !hasSubquery && this.fits(full)) return [full];
 
     const firstLinePrefix = pad(leading) + headStr + ' ';
-    return this.renderBoolRiver(terms, riverEnd, firstLinePrefix, true);
+    return this.renderBoolRiver(terms, riverEnd, firstLinePrefix, true, true);
   }
 
   private renderJoinClause(clause: Clause, leading: number): string[] {
@@ -492,16 +512,19 @@ export class Layout {
     const onKw = caseKeyword('on', this.options);
     const headPart = beforeOn + ' ' + onKw;
     const terms = parseBoolExpr(onTokens);
-    // A single ON condition has nothing to align, so it stays inline. Any join
-    // with two or more ON conditions always breaks (regardless of width) so the
-    // and/or connectors align under the "on".
-    if (terms.length === 1 && !this.nodeHasComments(terms[0].node)) {
+    // A subquery in an ON condition always expands (forces a break).
+    const hasSubquery = terms.some((t) => t.node.kind === 'atom' && findSubquery(t.node.tokens) !== null);
+    // A single ON condition has nothing to align, so it stays inline — unless it
+    // contains a subquery to expand. Any join with two or more ON conditions
+    // always breaks (regardless of width) so the and/or connectors align under
+    // the "on".
+    if (terms.length === 1 && !this.nodeHasComments(terms[0].node) && !hasSubquery) {
       const comment = terms[0].comment ? ' ' + terms[0].comment : '';
       return [pad(leading) + headPart + ' ' + this.renderInlineBool(terms) + comment];
     }
     const onRiverEnd = leading + headPart.length; // column right after "on"
     const firstLinePrefix = pad(leading) + headPart + ' ';
-    return this.renderBoolRiver(terms, onRiverEnd, firstLinePrefix);
+    return this.renderBoolRiver(terms, onRiverEnd, firstLinePrefix, false, true);
   }
 
   private renderGenericClause(clause: Clause, leading: number): string[] {

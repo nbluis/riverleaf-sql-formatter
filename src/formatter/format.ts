@@ -7,7 +7,6 @@ import {
   boolCommentsReflowable,
   findSubquery,
   segmentClauses,
-  parseBoolExpr,
   Clause,
   Statement,
 } from './segmenter';
@@ -156,36 +155,44 @@ function cteCommentsSafe(body: Token[]): boolean {
   return lastTokenOnlyComment(body);
 }
 
-/** where / having: reflowable boundaries, plus a comment inside the first
- * condition's expandable subquery (checked recursively). */
-function whereCommentsSafe(body: Token[]): boolean {
-  if (boolCommentsReflowable(body)) return true;
-  // The one extra allowance: a comment inside the first condition's subquery,
-  // which renderBoolClause expands (first term must be an atom containing it).
-  const terms = parseBoolExpr(body);
-  const first = terms[0];
-  if (!first || first.node.kind !== 'atom' || first.comment || first.commentsBefore?.length) {
-    return false;
+/**
+ * A boolean expression body (where / having / join ON) is comment-safe when
+ * every comment is either at a top-level term boundary (`boolCommentsReflowable`
+ * once each expandable subquery's interior is blanked out) or inside one of those
+ * subqueries — which the layout expands in any condition (first or not), so its
+ * interior is checked recursively. Mirrors `emitTerm`'s subquery expansion.
+ */
+function boolExprCommentsSafe(body: Token[]): boolean {
+  return boolCommentsReflowable(blankAllSubqueries(body)) && subqueryInteriorsSafe(body);
+}
+
+/** Blanks the interior of every top-level subquery in `body`. */
+function blankAllSubqueries(body: Token[]): Token[] {
+  let toks = body;
+  for (let sub = findSubquery(toks); sub; sub = findSubquery(toks)) {
+    toks = [...toks.slice(0, sub.open + 1), ...toks.slice(sub.close)];
   }
-  const ft = first.node.tokens;
-  const sub = findSubquery(ft);
-  if (!sub) return false;
-  if (hasLineComment(ft.slice(0, sub.open)) || hasLineComment(ft.slice(sub.close + 1))) return false;
-  if (!innerCommentsSafe(ft.slice(sub.open + 1, sub.close))) return false;
-  // every other comment (in the remaining conditions) must be reflowable
-  return boolCommentsReflowable(blankFirstSubquery(body));
+  return toks;
 }
 
-/** Blanks the interior of the first top-level subquery (used to re-check the
- * rest of a where body once the first condition's subquery is accounted for). */
-function blankFirstSubquery(body: Token[]): Token[] {
-  const sub = findSubquery(body);
-  if (!sub) return body;
-  return [...body.slice(0, sub.open + 1), ...body.slice(sub.close)];
+/** Every top-level subquery interior in `body` is itself comment-safe. */
+function subqueryInteriorsSafe(body: Token[]): boolean {
+  let toks = body;
+  for (let sub = findSubquery(toks); sub; sub = findSubquery(toks)) {
+    if (!innerCommentsSafe(toks.slice(sub.open + 1, sub.close))) return false;
+    toks = [...toks.slice(0, sub.open + 1), ...toks.slice(sub.close)];
+  }
+  return true;
 }
 
-/** join: a subquery table (recurse) plus a reflowable ON; else the old rule
- * (table-ref comment-free, ON reflowable). */
+/** where / having: reflowable boundaries, plus comments inside any expanded
+ * condition-subquery (checked recursively). */
+function whereCommentsSafe(body: Token[]): boolean {
+  return boolExprCommentsSafe(body);
+}
+
+/** join: a subquery table (recurse) plus a reflowable ON (ON subqueries expand);
+ * else the old rule (table-ref comment-free, ON reflowable). */
 function joinCommentsSafe(body: Token[]): boolean {
   const onIdx = findTopLevelOn(body);
   const tableRef = onIdx === -1 ? body : body.slice(0, onIdx);
@@ -194,11 +201,11 @@ function joinCommentsSafe(body: Token[]): boolean {
   if (sub && sub.open === 0) {
     if (hasLineComment(tableRef.slice(sub.close + 1))) return false; // alias
     if (!innerCommentsSafe(tableRef.slice(sub.open + 1, sub.close))) return false;
-    return onIdx === -1 || boolCommentsReflowable(onPart);
+    return onIdx === -1 || boolExprCommentsSafe(onPart);
   }
   if (onIdx === -1) return lastTokenOnlyComment(body);
   if (hasLineComment(tableRef)) return false;
-  return boolCommentsReflowable(onPart);
+  return boolExprCommentsSafe(onPart);
 }
 
 /** Index of the first top-level ON in a JOIN body (or -1). */
