@@ -3,6 +3,23 @@
 > Documento de trabalho, escrito em **2026-07-16** após concluir as fases 1–12 (`main` em `a406f4b`,
 > 144 testes). **Será implementado em outra sessão.** Idioma de código/doc/testes: **inglês**;
 > este rascunho pode ficar em PT.
+>
+> ## ✅ DECISÕES TRAVADAS com o usuário (2026-07-16, via preview)
+> - **D-a + D-b** — **todas** as listas de cláusula quebram uma por linha quando há **>1 item**:
+>   `select`, `group by`, `order by`, `from` (com vírgula). 1 item → inline.
+> - **D-c** — `where`/`having` sempre quebram quando há **>1 condição** (RIVER); um grupo `( )` com
+>   >1 termo **sempre expande** (BLOCK). 1 condição → inline.
+> - **D-d** — 1 item / 1 condição **sempre fica inline** (nada a quebrar).
+> - **D-e**:
+>   - **B1** (lista de colunas do `insert`) → **sempre quebra >1** (são colunas).
+>   - **B2** (valores dentro de uma tupla `values`) → **cresce** (1 linha; **remover** o wrap B2 da
+>     fase 12). Multi-row continua quebrando 1 tupla por linha.
+>   - **C2** (`when ... then` longo) → **cresce** (1 linha; **remover** o wrap C2 da fase 8).
+> - **D-f / F** — **remover completamente** `fits()` / `maxWidth` do `layout.ts` **e** a setting
+>   `riverleaf.maxLineLength` + fallback `editor.rulers` (`types.ts`, `extension.ts`, `package.json`,
+>   `format.ts`). A largura deixa de existir no formatter.
+>
+> Regra geral: **quebra por contagem (>1), nunca por largura**; nível de expressão só cresce.
 
 ## Objetivo (pedido do usuário)
 
@@ -112,50 +129,51 @@ DEPOIS:
    and total > 0
 ```
 
-### insert lista de colunas (B1) 🔒 D-e — decidir
-- **Opção 1 (recomendo, consistente com "colunas quebram")**: sempre quebra >1 coluna.
-  ```
-  insert into t (a,
-                 b)
-  values (1, 2)
-  ```
-- **Opção 2**: nível de expressão → cresce (remove B1; volta a ficar em 1 linha).
+### insert lista de colunas (B1) ✅ TRAVADO — sempre quebra >1
+```
+insert into t (a,
+               b,
+               c)
+values (1, 2, 3)
+```
+(São colunas → mesma regra do select. Mantém/adapta `renderInsertClause`: quebra por contagem, não
+por `fits`.)
 
-### values (B2) 🔒 D-e — decidir
-Multi-row **já** quebra 1 tupla por linha (regra: >1 linha) — isso fica. A dúvida é o **interior de
-uma tupla**:
-- **Opção 1 (recomendo)**: interior da tupla é nível de expressão → **não quebra** (remove B2);
-  `values (1, 2, 3)` fica em 1 linha e cresce.
-- **Opção 2**: sempre quebra os valores >1 (fica muito verboso: todo `values (1,2,3)` vira 3 linhas).
+### values (B2) ✅ TRAVADO — cresce (remover wrap)
+Multi-row **já** quebra 1 tupla por linha (regra: >1 linha) — isso fica. O **interior de uma tupla**
+é nível de expressão → **não quebra**: `values (1, 2, 3)` fica em 1 linha e cresce.
+**Remover** `tupleNeedsWrap`/`renderTupleBroken` (parte da tupla) e o `hasWideTuple` do
+`renderListClause` (fase 12/B2).
 
-### case `when ... then` longo (C2) 🔒 D-e — decidir
-Sem largura, o gatilho (fase 8) some.
-- **Opção 1 (recomendo)**: remove C2 → `when ... then ...` fica em 1 linha e cresce.
-- **Opção 2**: sempre quebra antes do `then` (todo when/then vira 2 linhas — muito verboso).
+### case `when ... then` longo (C2) ✅ TRAVADO — cresce (remover wrap)
+`when ... then ...` fica em 1 linha e cresce. **Remover** o ramo de wrap por largura em
+`renderCaseSegment` + o helper `findThen` (fase 8/C2).
 
 ### Não muda
 `join` (cada join já é uma cláusula; ON multi-condição já quebra), múltiplas CTEs (já expandem),
 `case` na lista (já expande), subqueries (já expandem), comentários (placement já é por regra),
 `set` (já `alwaysBreak`).
 
-## Decisões a travar (no início da próxima sessão, via preview)
+## Decisões (TRAVADAS 2026-07-16)
 
-| id | Decisão | Recomendação |
-|----|---------|--------------|
-| D-a | `select` sempre quebra >1 coluna (1 coluna inline) | **Sim** (pedido) |
-| D-b | `group by`/`order by`/`from`(vírgula) sempre quebram >1 | **Sim** (consistência) |
+| id | Decisão | ✅ Travado |
+|----|---------|-----------|
+| D-a | `select` sempre quebra >1 coluna (1 coluna inline) | **Sim** |
+| D-b | `group by`/`order by`/`from`(vírgula) sempre quebram >1 | **Sim** |
 | D-c | `where`/`having` sempre quebram >1 condição; grupo `( )` sempre expande | **Sim** |
 | D-d | 1 item/condição **sempre fica inline** (nunca quebra sozinho) | **Sim** |
-| D-e | Destino de B1 / B2 / C2 (nível-expressão=cresce, ou always-break) | B1 = decidir; **B2 cresce**; **C2 cresce** |
-| D-f | `maxLineLength`/`fits()`/`maxWidth` | **Remover** de `layout.ts`; ver config abaixo |
+| D-e | B1 lista de colunas do `insert` | **Sempre quebra >1** |
+| D-e | B2 valores dentro de uma tupla `values` | **Cresce** (remover wrap) |
+| D-e | C2 `when ... then` longo | **Cresce** (remover wrap) |
+| D-f/F | `maxLineLength`/`fits()`/`maxWidth` + setting | **Remover tudo** |
 
-## Config (`maxLineLength`) — decisão F
+## Config (`maxLineLength`) — F ✅ TRAVADO: remover tudo
 
-Como "o tamanho da linha não importa mais":
-- **Recomendo**: remover `fits`/`maxWidth` do `Layout` (construtor deixa de receber largura).
-- Para a **setting** `riverleaf.maxLineLength` + fallback `editor.rulers[0]`: (a) remover de vez
-  (`types.ts`, `extension.ts`, `package.json` contributes, `format.ts`); ou (b) manter a setting como
-  **no-op deprecada** para não quebrar settings de usuários. Recomendo (a) — projeto pessoal pré-1.0.
+- Remover `fits`/`maxWidth` do `Layout` (o construtor deixa de receber largura → `new Layout(opts)`).
+- Remover a **setting** `riverleaf.maxLineLength` + fallback `editor.rulers[0]`: `types.ts`
+  (`FormatOptions.maxLineLength` e o default), `extension.ts` (`resolveMaxLineLength`, leitura de
+  `rulers`), `package.json` (`contributes.configuration` → `riverleaf.maxLineLength`), `format.ts`
+  (não passa mais largura). A largura deixa de existir no formatter.
 
 ## Impacto nos testes (o que muda)
 
@@ -196,15 +214,21 @@ runner já checa `format(format(x)) === format(x)` por caso. Revalidar todos.
      a regra por contagem, e a seção de config; remover menções a `maxLineLength`/"fits"/"width".
 
 ## Ordem sugerida (fases, 1 commit cada)
-1. **Fase R1** — `select` sempre quebra (D-a) + tornar a quebra de listas por contagem
-   (`group by`/`order by`/`from`, D-b). Remover `fits` do `renderListClause`.
-2. **Fase R2** — `where`/`having` + grupo `( )` por contagem (D-c). Remover `fits` do
-   `renderBoolClause`/`emitTerm`.
-3. **Fase R3** — B1/B2/C2 conforme D-e; remover `fits`/`maxWidth`/`maxLineLength` (D-f/F).
-4. **Fase R4** — varredura final: docs, remover `maxLineLength` dos casos, revalidar idempotência.
+1. **Fase R1** — listas por contagem: `select`/`group by`/`order by`/`from` quebram >1 (D-a/D-b).
+   Remover o ramo `fits` do `renderListClause` (quebra quando `items.length > 1`); `alwaysBreak` deixa
+   de distinguir (todas quebram) — simplificar. B1: `renderInsertClause` quebra por contagem.
+2. **Fase R2** — booleanos por contagem: `where`/`having` quebram >1 (D-c) e o grupo `( )` sempre
+   expande (só existe com >1 termo). Remover `fits` de `renderBoolClause` e do ramo de grupo em
+   `emitTerm`.
+3. **Fase R3** — remover os wraps por largura que agora "crescem": B2 (`tupleNeedsWrap`/
+   `renderTupleBroken`+`hasWideTuple`) e C2 (`renderCaseSegment` wrap + `findThen`). Depois remover
+   `fits`/`maxWidth` do `Layout` e a config `maxLineLength` (D-f/F: `types.ts`, `extension.ts`,
+   `package.json`, `format.ts`).
+4. **Fase R4** — varredura final: regerar todos os goldens afetados, remover `maxLineLength` dos
+   `options` dos casos, docs (5 arquivos), revalidar idempotência + `tsc`/`lint`, re-package vsix.
 
 ## Regras do processo (iguais às fases anteriores)
-1. **Travar as decisões (D-a…D-f, F) com o usuário via preview** antes de implementar.
+1. Decisões (D-a…D-f, F) **já travadas** (2026-07-16, ver topo). Implementar direto na próxima sessão.
 2. YAML-first; gerar `expected` via gerador no diretório do projeto (js-yaml 5.x `import { dump }`),
    revisar contra o layout travado, colar, apagar o gerador.
 3. Implementar mantendo idempotência; nunca corromper.
