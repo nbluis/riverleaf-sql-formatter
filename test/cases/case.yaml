@@ -33,11 +33,32 @@
            else 'other'
            end
       from orders
-- description: a nested case keeps the inner case inline on its branch
-  input: select case when priority_level = 1 then case when is_paid then 'paid' else 'unpaid' end else 'standard' end as label from orders
+- description: a nested case in a then-branch expands recursively at the inner case column
+  input: select case when priority = 1 then case when is_paid then 'a' else 'b' end else 'c' end as label from orders
   expected: |
     select case
-           when priority_level = 1 then case when is_paid then 'paid' else 'unpaid' end
-           else 'standard'
+           when priority = 1 then case
+                                  when is_paid then 'a'
+                                  else 'b'
+                                  end
+           else 'c'
            end as label
       from orders
+- description: a case in a where condition expands at the operand column, tail after end
+  input: select id from orders where case when status_id = 1 then total else 0 end > 100
+  expected: |
+    select id
+      from orders
+     where case
+           when status_id = 1 then total
+           else 0
+           end > 100
+- description: a case in an order by item expands at the item column
+  input: select id from orders order by case when status_id = 1 then 0 else 1 end
+  expected: |
+    select id
+      from orders
+     order by case
+              when status_id = 1 then 0
+              else 1
+              end

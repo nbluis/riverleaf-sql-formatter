@@ -66,8 +66,12 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   (`isCommentSafe` recurses); a comment inside a non-expanded one still forces passthrough.
 - **`case ... end`** in a select/group-by/order-by list item expands: `case` on the item line,
   each `when`/`else` and the `end` aligned at the item column (`parseCase`/`renderCase`, routed by
-  `renderItemLines`). Nested `case` stays inline on its branch; long `when ... then` not wrapped; a
-  `case` inside a function or in where/join stays inline.
+  `renderItemLines`). A **nested `case`** in a `when`/`else` branch expands recursively at the
+  column where the inner `case` begins (`renderCaseSegment`/`findNestedCase`). A `case` in a
+  **`where`/`having`** condition expands at the operand column, with anything after `end` (e.g.
+  `> 100`) on the `end` line (`emitTerm`'s `expandCase` flag, set for where/having but not join ON).
+  Long `when ... then` not wrapped; a `case` wrapped in a function or inside a `join` ON stays
+  inline.
 - Line comments: **inline** comments (trailing code on a line) stay attached to that line's last
   token — in lists (`ListItem.comment`) and on `where`/`having` conditions (`BoolTerm.comment`).
   **Standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on their own

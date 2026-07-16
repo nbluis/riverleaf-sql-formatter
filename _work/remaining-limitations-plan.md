@@ -19,8 +19,17 @@
     recursivo (desce em toda subquery que o layout expande). Comentário dentro de subquery
     não-expandida ainda cai para passthrough.
   - `findSubquery`/`matchParen` movidos para `segmenter.ts` (compartilhados com `format.ts`).
-- ⬜ **Fase 7 (C1, C3)** — próxima (ordem sugerida 5 → **7** → 6 → 8 → 9).
-- ⬜ **Fase 6 (A1)** — múltiplas CTEs.
+- ✅ **Fase 7 (C1, C3) — CONCLUÍDA** (2026-07-16). 118 testes (era 114). Feito:
+  - **C1** `case` aninhado num ramo `when`/`else` expande recursivamente na coluna onde o `case`
+    interno começa (`renderCaseSegment` + `findNestedCase`; `renderCase` chama o segmento). O que
+    vem depois do `end` interno segue na linha do `end` interno. Atualizado o golden que antes
+    mantinha o aninhado inline.
+  - **C3** `case` em `where`/`having` expande na coluna do operando; o que vem após o `end`
+    (ex.: `> 100`) segue na linha do `end`. Implementado via flag `expandCase` em `emitTerm`
+    (threaded por `renderBoolRiver`/`renderRiverTail`; `renderBoolClause` passa `true` e força o
+    break via `hasCase`; `renderOn`/join passa `false` → case em join ON fica inline).
+    `group by`/`order by` já funcionavam via `renderItemLines` (confirmado com caso).
+- ⬜ **Fase 6 (A1)** — múltiplas CTEs. Próxima.
 - ⬜ **Fase 8 (C2)** — quebrar `when … then` longo.
 - ⬜ **Fase 9 (D1 travado, D2 a decidir com preview, D3 fora)**.
 >
@@ -162,7 +171,7 @@ select …
 
 ---
 
-## Fase 7 — `case` aninhado e `case` fora do select (C1, C3)
+## Fase 7 — `case` aninhado e `case` fora do select (C1, C3) ✅ CONCLUÍDA
 
 ### 7a. C1 — `case` aninhado (recursivo) 🟡 (layout travado)
 `renderCase`: quando um segmento (`when … then <case…end>` ou `else <case…end>`) contém um case,

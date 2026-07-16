@@ -58,7 +58,12 @@ export class Layout {
   // connEnd = the (exclusive) column where connectors align to the right.
   // firstLinePrefix already positions the first operand at connEnd + 1.
 
-  private renderBoolRiver(terms: BoolTerm[], connEnd: number, firstLinePrefix: string): string[] {
+  private renderBoolRiver(
+    terms: BoolTerm[],
+    connEnd: number,
+    firstLinePrefix: string,
+    expandCase = false,
+  ): string[] {
     const lines: string[] = [];
     // first term: normally inline within the prefix. But a standalone comment
     // before it forces the keyword onto its own line, dropping the comment and
@@ -67,11 +72,11 @@ export class Layout {
       lines.push(firstLinePrefix.replace(/ +$/, ''));
       const operandCol = connEnd + 1;
       for (const c of terms[0].commentsBefore) lines.push(pad(operandCol) + c);
-      this.emitTerm(lines, terms[0], pad(operandCol), operandCol, operandCol);
+      this.emitTerm(lines, terms[0], pad(operandCol), operandCol, operandCol, expandCase);
     } else {
-      this.emitTerm(lines, terms[0], firstLinePrefix, firstLinePrefix.length, connEnd);
+      this.emitTerm(lines, terms[0], firstLinePrefix, firstLinePrefix.length, connEnd, expandCase);
     }
-    this.renderRiverTail(lines, terms, connEnd, 1);
+    this.renderRiverTail(lines, terms, connEnd, 1, expandCase);
     return lines;
   }
 
@@ -79,14 +84,20 @@ export class Layout {
    * Appends `terms[startIdx..]` to `lines` in RIVER mode: each connector
    * right-aligned so its right edge lands on `connEnd`, operands at `connEnd + 1`.
    */
-  private renderRiverTail(lines: string[], terms: BoolTerm[], connEnd: number, startIdx: number): void {
+  private renderRiverTail(
+    lines: string[],
+    terms: BoolTerm[],
+    connEnd: number,
+    startIdx: number,
+    expandCase = false,
+  ): void {
     for (let i = startIdx; i < terms.length; i++) {
       // standalone comments sit on their own line at the operand column
       for (const c of terms[i].commentsBefore ?? []) lines.push(pad(connEnd + 1) + c);
       const conn = caseConnector(terms[i].connector as 'and' | 'or', this.options);
       const lineStart = connEnd - conn.length;
       const prefix = pad(lineStart) + conn + ' ';
-      this.emitTerm(lines, terms[i], prefix, lineStart, connEnd + 1);
+      this.emitTerm(lines, terms[i], prefix, lineStart, connEnd + 1, expandCase);
     }
   }
 
@@ -119,10 +130,27 @@ export class Layout {
    * body); `_childCol` is the operand column for a nested group in RIVER mode
    * (unused in BLOCK mode).
    */
-  private emitTerm(lines: string[], term: BoolTerm, prefix: string, lineStart: number, _childCol: number): void {
+  private emitTerm(
+    lines: string[],
+    term: BoolTerm,
+    prefix: string,
+    lineStart: number,
+    _childCol: number,
+    expandCase = false,
+  ): void {
     const node = term.node;
     const suffix = term.comment ? ' ' + term.comment : '';
     if (node.kind === 'atom') {
+      // a `case ... end` condition (where/having) expands at the operand column;
+      // anything after the `end` (e.g. `> 100`) rides the `end` line.
+      const c = expandCase ? this.parseCase(node.tokens) : null;
+      if (c) {
+        const caseLines = this.renderCase(c, prefix.length);
+        caseLines[caseLines.length - 1] += suffix;
+        lines.push(prefix + caseLines[0]);
+        for (let i = 1; i < caseLines.length; i++) lines.push(caseLines[i]);
+        return;
+      }
       lines.push(prefix + renderTokens(node.tokens, this.options) + suffix);
       return;
     }
@@ -295,10 +323,46 @@ export class Layout {
       caseKeyword('case', this.options) +
       (c.selector.length ? ' ' + renderTokens(c.selector, this.options) : '');
     const lines = [head];
-    for (const seg of c.segments) lines.push(pad(caseCol) + renderTokens(seg, this.options));
+    for (const seg of c.segments) lines.push(...this.renderCaseSegment(seg, caseCol));
     const afterStr = c.after.length ? ' ' + renderTokens(c.after, this.options) : '';
     lines.push(pad(caseCol) + caseKeyword('end', this.options) + afterStr);
     return lines;
+  }
+
+  /**
+   * Renders one `when`/`else` segment at `caseCol`. If the segment's result is
+   * itself a `case ... end` (a nested case at paren depth 0, e.g.
+   * `when x then case ... end`), it expands recursively at the column where that
+   * inner `case` begins on the line; otherwise the segment is one line.
+   */
+  private renderCaseSegment(seg: Token[], caseCol: number): string[] {
+    const nested = this.findNestedCase(seg);
+    if (!nested) return [pad(caseCol) + renderTokens(seg, this.options)];
+    const before = renderTokens(seg.slice(0, nested.index), this.options);
+    const prefix = pad(caseCol) + before + ' ';
+    const innerLines = this.renderCase(nested.parsed, prefix.length);
+    return [prefix + innerLines[0], ...innerLines.slice(1)];
+  }
+
+  /**
+   * Finds a nested `case ... end` inside a segment: the first `CASE` keyword at
+   * paren depth 0 (skipping the segment's leading WHEN/ELSE) whose slice parses
+   * as a complete case. A `case` inside parens (a function) is left inline.
+   */
+  private findNestedCase(
+    seg: Token[],
+  ): { index: number; parsed: { selector: Token[]; segments: Token[][]; after: Token[] } } | null {
+    let pDepth = 0;
+    for (let i = 1; i < seg.length; i++) {
+      const t = seg[i];
+      if (t.type === 'punct' && t.value === '(') pDepth++;
+      else if (t.type === 'punct' && t.value === ')') pDepth = Math.max(0, pDepth - 1);
+      else if (pDepth === 0 && t.type === 'keyword' && t.upper === 'CASE') {
+        const parsed = this.parseCase(seg.slice(i));
+        if (parsed) return { index: i, parsed };
+      }
+    }
+    return null;
   }
 
   private renderBoolClause(clause: Clause, leading: number, riverEnd: number): string[] {
@@ -320,7 +384,7 @@ export class Layout {
         const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
         const prefix = pad(leading) + headStr + ' ' + (before ? before + ' ' : '');
         const lines = this.renderSubqueryBlock(prefix, inner, leading, afterStr);
-        this.renderRiverTail(lines, terms, riverEnd, 1);
+        this.renderRiverTail(lines, terms, riverEnd, 1, true);
         return lines;
       }
     }
@@ -334,12 +398,15 @@ export class Layout {
     // a comment nested inside a group forces the whole expression to break so the
     // group can expand (inline rendering would drop it)
     const nestedComments = terms.some((t) => this.nodeHasComments(t.node));
+    // a `case ... end` condition always expands (like a case in a list item), so
+    // it forces the expression to break
+    const hasCase = terms.some((t) => t.node.kind === 'atom' && this.parseCase(t.node.tokens) !== null);
     const full = pad(leading) + headStr + ' ' + inlineBody + (lastComment ? ' ' + lastComment : '');
-    if (terms.length === 1 && !nestedComments) return [full];
-    if (!midComment && !hasStandalone && !nestedComments && this.fits(full)) return [full];
+    if (terms.length === 1 && !nestedComments && !hasCase) return [full];
+    if (!midComment && !hasStandalone && !nestedComments && !hasCase && this.fits(full)) return [full];
 
     const firstLinePrefix = pad(leading) + headStr + ' ';
-    return this.renderBoolRiver(terms, riverEnd, firstLinePrefix);
+    return this.renderBoolRiver(terms, riverEnd, firstLinePrefix, true);
   }
 
   private renderJoinClause(clause: Clause, leading: number): string[] {

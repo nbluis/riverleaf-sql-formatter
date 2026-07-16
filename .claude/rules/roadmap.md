@@ -39,12 +39,16 @@ State as of the current session. Update this file as items are resolved.
   comma-separated CTEs (Phase 6), a subquery in a non-first `where` condition or inside a `join` ON,
   and a subquery wrapped in a function call. Decision made with the user (2026-07-15): "shallow
   indent, `)` aligned under the clause keyword".
-- **`case when ... then ... else ... end`.** ✅ Done (select-list items). A select/group-by/order-by
-  list item that is exactly `case [selector] when ... [else ...] end [alias]` expands: `case` on the
-  item line, each `when`/`else` segment and the closing `end` aligned at the item's column (the
-  `case` column). `parseCase`/`renderCase` in `layout.ts`; `renderItemLines` routes each list item.
-  A nested `case` stays inline on its branch; a long `when ... then ...` stays on one line (no wrap);
-  a `case` not at the start of an item (e.g. wrapped in a function) or in where/join stays inline.
+- **`case when ... then ... else ... end`.** ✅ Done (list items + where/having + nested). A
+  select/group-by/order-by list item that is exactly `case [selector] when ... [else ...] end
+  [alias]` expands: `case` on the item line, each `when`/`else` segment and the closing `end`
+  aligned at the item's column (the `case` column). `parseCase`/`renderCase` in `layout.ts`;
+  `renderItemLines` routes each list item. **Phase 7**: a **nested `case`** in a `when`/`else` branch
+  expands recursively at the column where the inner `case` begins (`renderCaseSegment`/
+  `findNestedCase`); a `case` in a **`where`/`having`** condition expands at the operand column with
+  anything after `end` (e.g. `> 100`) on the `end` line (`emitTerm` with the `expandCase` flag).
+  Still inline: a long `when ... then ...` (no wrap — Phase 8, C2), a `case` wrapped in a function,
+  and a `case` inside a `join` ON.
 - **DML** — `insert` / `update` / `delete`. ✅ Done. Formats like a select: anchors join the river;
   `set`/`values` break one item per line (>1 item); `delete from` kept together; `insert into
   t (cols)` on one line. `insert ... select` recomputes the river for the select. Reviewed golden

@@ -109,7 +109,10 @@ select table1.column1, table2.column2
   select list. The inner query is re-aligned one level in and the closing `)` aligns under the
   owner clause keyword (or the item column, for a scalar subquery). A comment inside any of these
   expanded subqueries is reflowed by the recursion.
-- **`case ... end`** in the select list expands with `when` / `else` / `end` aligned under `case`.
+- **`case ... end`** in the select list (or `group by` / `order by`, and in a `where` / `having`
+  condition) expands with `when` / `else` / `end` aligned under `case`; anything after the `end`
+  (e.g. `> 100`) rides the `end` line. A nested `case` in a branch expands recursively at the
+  column where the inner `case` begins.
 - **Maximum width** = the first value of `editor.rulers` (fallback 80), or the override in
   `riverleaf.maxLineLength`.
 
@@ -169,8 +172,8 @@ These narrower cases are not reflowed — they are rendered inline or kept exact
 - **Subqueries / CTEs** stay inline when they are: multiple comma-separated CTEs, a subquery inside
   a multi-condition `where` other than the first condition, a subquery inside a `join` ON, or a
   subquery wrapped in a function call.
-- **`case`** stays inline when it is nested inside another `case` branch, wrapped in a function
-  call, or used outside the select list (e.g. in a `where`); a long `when ... then` is not wrapped.
+- **`case`** stays inline when it is wrapped in a function call, or inside a `join` ON; a long
+  `when ... then` is not wrapped.
 
 ## License
 

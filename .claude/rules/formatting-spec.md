@@ -104,11 +104,24 @@ the minimum indent (the inner block never becomes the leftmost).
 `parseCase(tokens)` matches a list item that is exactly `CASE [selector] WHEN ... [ELSE ...] END
 [alias]` (first token `CASE`, matching `END` with case/end nesting, ≥1 `WHEN`/`ELSE` segment).
 `renderCase(c, caseCol)` emits `case [selector]` (line 0, no pad — the caller positions it), then
-each `WHEN`/`ELSE` segment and the closing `END [alias]` at `caseCol` (= the item's column). So
-`case`/`when`/`else`/`end` share the item column. Only top-level branches split (nested case/parens
-are skipped), so a nested `case` renders inline on its branch. A long `when ... then ...` is not
-wrapped. A `case` not at the start of a list item (e.g. inside a function) or outside list clauses
-(where/join) stays inline.
+each `WHEN`/`ELSE` segment (via `renderCaseSegment`) and the closing `END [alias]` at `caseCol`
+(= the item's column). So `case`/`when`/`else`/`end` share the item column. A long `when ... then
+...` is not wrapped (Phase 8).
+
+**Nested `case` (recursive).** `renderCaseSegment(seg, caseCol)` uses `findNestedCase` to locate a
+`case ... end` at paren depth 0 inside the segment (skipping the segment's leading `WHEN`/`ELSE`; a
+`case` inside parens/a function is left inline). When found, it renders the text before the inner
+`case` (e.g. `when x then `) then recurses with `renderCase` at the column where that inner `case`
+begins, so the inner `when`/`else`/`end` align there. Anything after the inner `END` rides the inner
+`end` line (it is the inner case's `after`).
+
+**`case` in `where`/`having` (C3).** `emitTerm` takes an `expandCase` flag (threaded from
+`renderBoolClause` → `renderBoolRiver`/`renderRiverTail`; `renderOn` for a join passes it false).
+When set and the term is an atom that `parseCase` accepts, the condition expands: `case` at the
+operand column, `when`/`else`/`end` aligned there, and anything after `end` (e.g. `> 100`) on the
+`end` line. `renderBoolClause` detects such a term (`hasCase`) and forces the expression to break
+(never the inline path). `group by`/`order by` already expand a `case` item via `renderItemLines`.
+A `case` inside a `join` ON stays inline (`expandCase` false there).
 
 ### Boolean expressions — RIVER vs BLOCK
 
