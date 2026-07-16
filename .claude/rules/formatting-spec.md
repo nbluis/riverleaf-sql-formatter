@@ -153,7 +153,9 @@ split point (`pendingBetween` counter in `splitTerms`).
 
 - **RIVER mode** (`renderBoolRiver`, used for top-level where/having/on): connectors right-aligned
   so their right edge lands on `connEnd`; operands at `connEnd + 1`. The first term is inline on
-  the clause/keyword line.
+  the clause/keyword line. `where`/`having` **break whenever there are two or more conditions**
+  (by count, never by width); a single condition stays inline unless it is a group (always expands)
+  or an atom that expands a `case`/subquery.
   - `where`: `connEnd = riverEnd`.
   - `join`: `connEnd = onRiverEnd = leading + len("<head> <tableref> on")` — a **secondary river**
     at the column right after `on`. First ON term stays on the join line. A join with two or more
@@ -165,9 +167,10 @@ split point (`pendingBetween` counter in `splitTerms`).
   is `pad(blockIndent - 1 - connLen) + connector + " " + operand`. The first term has no connector
   and sits at `blockIndent`. Standalone comments align with the operands (`blockIndent`).
 
-When a term is a group that doesn't fit inline (`emitTerm`): emit `... (` on the owner line, render
-the interior in BLOCK mode at `blockIndent = ownerLineStart + indentSize`, close with `)` at
-`ownerLineStart` (aligned under the connector that owns the group). Note: because the `)` position
+When a term is a group (`emitTerm`) — a group **always expands** (it only exists with >1 inner term,
+so the count rule always breaks it): emit `... (` on the owner line, render the interior in BLOCK
+mode at `blockIndent = ownerLineStart + indentSize`, close with `)` at `ownerLineStart` (aligned
+under the connector that owns the group). Note: because the `)` position
 is unchanged by D1, for a **connector-preceded** group (e.g. `and (` inside an ON/where river) the
 `(` and `)` sit in different columns and a short interior connector (`or`) can protrude one column
 left of the owner connector — that is the mechanical result of right-aligning to the group river and

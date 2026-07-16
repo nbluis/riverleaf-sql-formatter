@@ -223,6 +223,13 @@ runner já checa `format(format(x)) === format(x)` por caso. Revalidar todos.
   (colunas do insert quebram nos 5 casos), `subquery.yaml` (selects internos multi-coluna quebram).
   `tupleNeedsWrap`/`hasWideTuple` (B2) e `renderCaseSegment`/`findThen` (C2) ainda ativos até R3;
   `fits`/`maxWidth`/config `maxLineLength` ainda presentes até R3. 146 testes.
+- **R2 — booleanos por contagem** ✅ (feito). `renderBoolClause` quebra quando `terms.length > 1`
+  (removido o ramo `fits`); 1 condição fica inline, mas um grupo (`hasGroup`) ou um atom com
+  `case`/subquery força a expansão. `emitTerm` sempre expande o grupo (removido o ramo inline por
+  `fits`). `renderOn` também expande um único grupo em ON (`hasGroup`). Goldens: `dml.yaml` (update
+  where 2 condições quebra), `postgres.yaml` (comentário na última condição quando o where quebra;
+  +2 casos: where 1 condição inline, where só-grupo expande). `fits`/`maxWidth`/config ainda
+  presentes até R3. 150 testes.
 
 ## Ordem sugerida (fases, 1 commit cada)
 1. **Fase R1** — listas por contagem: `select`/`group by`/`order by`/`from` quebram >1 (D-a/D-b).

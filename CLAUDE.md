@@ -44,8 +44,10 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   (`left join`, `order by`) align only their **first** word; the rest flows.
 - **Breaking is by rule (count), not by width** (2026-07-16). A list clause (`select`, `from` with a
   comma, `group by`, `order by`, `set`, `values`, and the `insert` column list) **breaks one item
-  per line whenever there is more than one item**; a single item stays inline and just grows. Line
-  length no longer participates in any breaking decision.
+  per line whenever there is more than one item**; a single item stays inline and just grows.
+  `where`/`having` (and `join` ON) **break whenever there is more than one condition** (RIVER); a
+  single condition stays inline. A parenthesized boolean group **always expands** (BLOCK) — it only
+  exists with >1 inner term. Line length no longer participates in any breaking decision.
 - Joins with **more than one ON condition always break** (regardless of width); the `and`/`or`
   conditions align under `on`. A single-condition ON stays inline.
 - `where`/`on`: connectors (`and`/`or`) right-aligned to the river (RIVER mode).

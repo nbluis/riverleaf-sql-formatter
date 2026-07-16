@@ -182,13 +182,8 @@ export class Layout {
       lines.push(prefix + renderTokens(node.tokens, this.options) + suffix);
       return;
     }
-    // group — a group carrying comments must expand (inline rendering drops them)
-    const inline = prefix + this.renderNodeInline(node);
-    if (!this.nodeHasComments(node) && this.fits(inline + suffix)) {
-      lines.push(inline + suffix);
-      return;
-    }
-    // expand group
+    // group — a group only exists when its interior has more than one term
+    // (parseBoolExpr), so by the count rule it always expands (never inline).
     const preStr = renderTokens(node.pre, this.options);
     lines.push(prefix + (preStr ? preStr + ' ' : '') + '(');
     const blockIndent = lineStart + this.options.indentSize;
@@ -488,23 +483,17 @@ export class Layout {
       }
     }
 
-    const inlineBody = this.renderInlineBool(terms);
-    // a comment on the last term can stay inline; one on an earlier term, or any
-    // standalone comment, forces a break
-    const lastComment = terms[terms.length - 1].comment;
-    const midComment = terms.slice(0, -1).some((t) => t.comment);
-    const hasStandalone = terms.some((t) => t.commentsBefore?.length);
-    // a comment nested inside a group forces the whole expression to break so the
-    // group can expand (inline rendering would drop it)
-    const nestedComments = terms.some((t) => this.nodeHasComments(t.node));
-    // a `case ... end` condition always expands (like a case in a list item), so
-    // it forces the expression to break
+    // Break by rule, not by width: more than one condition always breaks (RIVER).
+    // A single condition stays inline (a trailing comment rides its line) unless
+    // it is a group (always expands, since a group has >1 inner term), or an atom
+    // that expands a `case`/subquery.
+    const hasGroup = terms.some((t) => t.node.kind === 'group');
     const hasCase = terms.some((t) => t.node.kind === 'atom' && this.parseCase(t.node.tokens) !== null);
-    // a subquery in a (non-first) condition also always expands and forces a break
     const hasSubquery = terms.some((t) => t.node.kind === 'atom' && findSubquery(t.node.tokens) !== null);
-    const full = pad(leading) + headStr + ' ' + inlineBody + (lastComment ? ' ' + lastComment : '');
-    if (terms.length === 1 && !nestedComments && !hasCase && !hasSubquery) return [full];
-    if (!midComment && !hasStandalone && !nestedComments && !hasCase && !hasSubquery && this.fits(full)) return [full];
+    if (terms.length === 1 && !hasGroup && !hasCase && !hasSubquery) {
+      const lastComment = terms[0].comment ? ' ' + terms[0].comment : '';
+      return [pad(leading) + headStr + ' ' + this.renderInlineBool(terms) + lastComment];
+    }
 
     const firstLinePrefix = pad(leading) + headStr + ' ';
     return this.renderBoolRiver(terms, riverEnd, firstLinePrefix, true, true);
@@ -554,14 +543,15 @@ export class Layout {
     const onKw = caseKeyword('on', this.options);
     const headPart = beforeOn + ' ' + onKw;
     const terms = parseBoolExpr(onTokens);
-    // A subquery or a `case` in an ON condition always expands (forces a break).
+    // A group / subquery / `case` in an ON condition always expands (forces a break).
+    const hasGroup = terms.some((t) => t.node.kind === 'group');
     const hasSubquery = terms.some((t) => t.node.kind === 'atom' && findSubquery(t.node.tokens) !== null);
     const hasCase = terms.some((t) => t.node.kind === 'atom' && this.parseCase(t.node.tokens) !== null);
     // A single ON condition has nothing to align, so it stays inline — unless it
-    // contains a subquery or `case` to expand. Any join with two or more ON
-    // conditions always breaks (regardless of width) so the and/or connectors
-    // align under the "on".
-    if (terms.length === 1 && !this.nodeHasComments(terms[0].node) && !hasSubquery && !hasCase) {
+    // is a group or contains a subquery or `case` to expand. Any join with two or
+    // more ON conditions always breaks (regardless of width) so the and/or
+    // connectors align under the "on".
+    if (terms.length === 1 && !hasGroup && !this.nodeHasComments(terms[0].node) && !hasSubquery && !hasCase) {
       const comment = terms[0].comment ? ' ' + terms[0].comment : '';
       return [pad(leading) + headPart + ' ' + this.renderInlineBool(terms) + comment];
     }
