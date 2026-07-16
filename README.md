@@ -117,8 +117,10 @@ select table1.column1,
 - **Subqueries and CTEs** expand recursively — `from (select ...) alias`, one or more
   comma-separated CTEs (`with a as (...), b as (...)`), a `where`/`having` condition subquery in
   **any** position (`where ... in (select ...)`, and after `and`/`or` too), a subquery inside a
-  `join` ON condition, a subquery as a `join` table (`join (select ...) alias on ...`), and a scalar
-  subquery in the select list. The inner query is re-aligned one level in and the closing `)` aligns
+  `join` ON condition, a subquery as a `join` table (`join (select ...) alias on ...`), a scalar
+  subquery in the select list, and a **`LATERAL` derived table** in any position
+  (`join`/`cross join lateral (...)`, `from lateral (...)`, `from t, lateral (...)`). The inner
+  query is re-aligned one level in and the closing `)` aligns
   under the owner: the clause keyword for the first `where` condition, the `and`/`or` connector for a
   later one (or ON condition), the item column for a scalar subquery. The `with` preamble is a
   standalone command at the **left margin** (column 0), not aligned to the river: `with` and the

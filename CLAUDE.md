@@ -69,7 +69,11 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   one or more comma-separated CTEs (`with a as (...), b as (...)`), a `where`/`having` condition
   subquery in **any** position, a subquery inside a **join ON** condition, a subquery as a **join
   table** (`join (select ...) alias on ...`), and a **scalar subquery in the select list** (expanded
-  at the item column). Inner query re-aligned at `ownerLeading + indentSize`; the closing `)` aligns
+  at the item column). A **`LATERAL` derived table** expands the same way in every position
+  (`join`/`cross join lateral (...)`, `from lateral (...)`, and a `from`-list `, lateral (...)`) —
+  the shared `findDerivedSubquery` accepts a `(` that is either the first token or preceded solely by
+  the `LATERAL` keyword (`LATERAL` is in `KEYWORDS`, so it takes a space before `(`, never glued as a
+  function). Inner query re-aligned at `ownerLeading + indentSize`; the closing `)` aligns
   **under the owner** — the clause keyword for the first `where` condition, the `and`/`or` connector
   (`emitTerm`'s `expandSubquery`, Phase 10) for a later/ON condition, or the item column for a scalar
   subquery (`renderSubqueryBlock`/`findSubquery`/`renderInner`/`renderOn`/`itemSubquery`).

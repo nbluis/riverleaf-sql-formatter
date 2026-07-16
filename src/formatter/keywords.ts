@@ -76,6 +76,7 @@ export const KEYWORDS: ReadonlySet<string> = new Set([
   'ASC',
   'DESC',
   'USING',
+  'LATERAL',
   'DISTINCT',
   'INTO',
   'INSERT',

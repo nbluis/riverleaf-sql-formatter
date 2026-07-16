@@ -54,9 +54,15 @@ one still renders inline or passes through unchanged — the "Known limitations"
   subquery. For a **multi-CTE `with`** (Phase 6, A1), each CTE name after the first recedes to the
   `with` column, the comma follows the previous `)`, and every `)` aligns under `with`; falls back to
   the one-liner only if some CTE body is not a parenthesized `select`/`with`. Nested subqueries
-  recurse; a subquery's inner river is recomputed. Still inline: a subquery wrapped in a function
-  call. Decisions with the user: "shallow indent, `)` aligned under the clause keyword" (2026-07-15);
-  multi-CTE layout (2026-07-15); non-first/ON `)` under the connector (2026-07-16).
+  recurse; a subquery's inner river is recomputed. **`LATERAL` derived tables** (2026-07-16) expand
+  the same way in every position — `join`/`cross join lateral (...)`, `from lateral (...)`, and a
+  `from`-list `, lateral (...)` — via the shared `findDerivedSubquery` (accepts a `(` that is the
+  first token or preceded only by the `LATERAL` keyword; `LATERAL` was added to `KEYWORDS` so it is
+  not glued to the `(` as a function). The **`with` preamble** now sits at the base **column 0**, off
+  the river (2026-07-16). Still inline: a subquery wrapped in a function call. Decisions with the
+  user: "shallow indent, `)` aligned under the clause keyword" (2026-07-15); multi-CTE layout
+  (2026-07-15); non-first/ON `)` under the connector (2026-07-16); `with` at column 0 + `lateral`
+  everywhere (2026-07-16).
 - **`case when ... then ... else ... end`.** ✅ Done (list items + where/having + nested). A
   select/group-by/order-by list item that is exactly `case [selector] when ... [else ...] end
   [alias]` expands: `case` on the item line, each `when`/`else` segment and the closing `end`

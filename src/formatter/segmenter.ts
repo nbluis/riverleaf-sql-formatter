@@ -51,6 +51,24 @@ export function matchParen(tokens: Token[], open: number): number {
   return -1;
 }
 
+/**
+ * A top-level subquery that IS the whole (derived-table) reference: either the
+ * '(' is the first token (`( select ... ) alias`), or it is preceded only by the
+ * `LATERAL` keyword (`lateral ( select ... ) alias` — a derived-table modifier,
+ * not a function call). Returns null for a function-wrapped subquery such as
+ * `coalesce((select ...), 0)`, whose '(' is preceded by a function name.
+ */
+export function findDerivedSubquery(tokens: Token[]): { open: number; close: number } | null {
+  const sub = findSubquery(tokens);
+  if (!sub) return null;
+  if (sub.open === 0) return sub;
+  const before = tokens.slice(0, sub.open);
+  if (before.length === 1 && before[0].type === 'keyword' && before[0].upper === 'LATERAL') {
+    return sub;
+  }
+  return null;
+}
+
 /** First top-level '(' whose interior begins a subquery (SELECT / WITH). */
 export function findSubquery(tokens: Token[]): { open: number; close: number } | null {
   let depth = 0;

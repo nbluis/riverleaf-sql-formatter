@@ -6,6 +6,7 @@ import {
   splitCommaList,
   boolCommentsReflowable,
   findSubquery,
+  findDerivedSubquery,
   segmentClauses,
   Clause,
   Statement,
@@ -125,10 +126,11 @@ function listCommentsSafe(body: Token[]): boolean {
   return true;
 }
 
-/** from ( subquery ) alias: recurse into the subquery; else treat as a list. */
+/** from ( subquery ) alias (or from lateral ( ... ) alias): recurse into the
+ * subquery; else treat as a list. */
 function fromCommentsSafe(body: Token[]): boolean {
-  const sub = findSubquery(body);
-  if (sub && sub.open === 0) {
+  const sub = findDerivedSubquery(body);
+  if (sub) {
     if (hasLineComment(body.slice(sub.close + 1))) return false; // alias part
     return innerCommentsSafe(body.slice(sub.open + 1, sub.close));
   }
@@ -197,8 +199,8 @@ function joinCommentsSafe(body: Token[]): boolean {
   const onIdx = findTopLevelOn(body);
   const tableRef = onIdx === -1 ? body : body.slice(0, onIdx);
   const onPart = onIdx === -1 ? [] : body.slice(onIdx + 1);
-  const sub = findSubquery(tableRef);
-  if (sub && sub.open === 0) {
+  const sub = findDerivedSubquery(tableRef);
+  if (sub) {
     if (hasLineComment(tableRef.slice(sub.close + 1))) return false; // alias
     if (!innerCommentsSafe(tableRef.slice(sub.open + 1, sub.close))) return false;
     return onIdx === -1 || boolExprCommentsSafe(onPart);

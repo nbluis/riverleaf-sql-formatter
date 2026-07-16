@@ -81,13 +81,19 @@ RIVER bool rendering.
 
 `findSubquery(tokens)` (exported from `segmenter.ts`, shared by `layout.ts` and `format.ts`)
 returns the first top-level `( ... )` whose first interior token is `SELECT` or `WITH`.
+`findDerivedSubquery(tokens)` (also exported) is the **table/derived-table** variant used by the
+from / join / from-list hooks: it returns that subquery only when it **is** the whole reference —
+either the `(` is the first token, **or** it is preceded solely by the `LATERAL` keyword
+(`lateral ( select ... ) alias` — a derived-table modifier, not a function call). It returns null for
+a function-wrapped subquery (`coalesce((select ...), 0)`, whose `(` is preceded by a function name).
 `renderSubqueryBlock(prefix, inner, ownerLeading, afterStr)` emits `prefix(`, then the inner tokens
 formatted recursively via `renderInner` (`segmentClauses` → a `Statement` → `formatStatement`) at
 `innerBase = ownerLeading + indentSize`, then `pad(ownerLeading) + ') ' + afterStr`. So the inner
 block is one level past the owner clause keyword and the closing `)` aligns **under that keyword**
 (not the base margin). Hooks:
-- `renderFromClause` — `from ( select ... ) alias` when the whole from body is one subquery
-  (`sub.open === 0`); `ownerLeading` = `from`'s leading; `afterStr` = the alias.
+- `renderFromClause` — `from ( select ... ) alias` (or `from lateral ( select ... ) alias`) when the
+  whole from body is one derived subquery (`findDerivedSubquery`); the `lateral` prefix (if any) rides
+  the `(` line; `ownerLeading` = `from`'s leading; `afterStr` = the alias.
 - `renderCteClause` (`cte` kind, `WITH`) — one or more comma-separated CTEs. `splitCommaList`
   splits the `with` body; each CTE must be `name as ( select|with ... )` (`findSubquery` matches its
   interior). `ownerLeading` = `with`'s leading (= `base`, column 0 — the cte clause is off-river) for
@@ -106,16 +112,19 @@ block is one level past the owner clause keyword and the closing `)` aligns **un
 - `renderOn` (join ON) — a subquery in an ON condition expands the same way (`expandSubquery` true;
   `)` under the connector, or under the operand for a single ON condition). `hasSubquery` there
   forces a single-condition ON to break instead of staying inline.
-- `renderJoinClause` — the join **table** is a subquery (`join ( select ... ) alias on ...`,
-  `findSubquery(tableRef)` with `open === 0`); `ownerLeading` = the join's leading; the alias + ON
-  go on the `)` line via `renderOn` (a single ON inline; two or more keep the secondary river right
-  after `on`). Note: the segmenter now recognizes `join (` as a join — not the `LEFT(` function —
-  only when the interior begins `SELECT`/`WITH`.
-- `renderItemLines` — a select/group-by/order-by list item that **is** a scalar subquery
-  (`( select ... ) [alias]`, `itemSubquery`: `findSubquery` with `open === 0`); `ownerLeading` =
-  the item column; `afterStr` = the part after `)` (e.g. `as item_count`). A subquery merely wrapped
-  in a function (`coalesce((select ...), 0)`) is not expanded (`open !== 0`). A scalar-subquery item
-  forces the list to break, like a `case`.
+- `renderJoinClause` — the join **table** is a derived subquery (`join ( select ... ) alias on ...`,
+  `join lateral ( select ... ) alias on ...`, `cross join lateral ( ... )`; `findDerivedSubquery`);
+  the `lateral` prefix rides the `(` line; `ownerLeading` = the join's leading; the alias + ON go on
+  the `)` line via `renderOn` (a single ON inline; two or more keep the secondary river right after
+  `on`). Note: the segmenter recognizes `join (` as a join — not the `LEFT(` function — only when the
+  interior begins `SELECT`/`WITH`; a `lateral` between the join phrase and the `(` is fine (`lateral`
+  is a keyword, so it is not glued to the `(` and the join phrase does not consume it).
+- `renderItemLines` — a from/select/group-by/order-by list item that **is** a derived subquery
+  (`( select ... ) [alias]` or a from-list `lateral ( select ... ) alias`, `itemSubquery` =
+  `findDerivedSubquery`); the `lateral` prefix rides the `(` line; `ownerLeading` = the item column;
+  `afterStr` = the part after `)` (e.g. `as item_count`). A subquery merely wrapped in a function
+  (`coalesce((select ...), 0)`) is not expanded. A subquery item forces the list to break, like a
+  `case`.
 Recursion recomputes the inner river and handles nesting. `formatStatement` builds the inner
 statement with `semicolon: false`. A subquery containing a line comment expands too: `isCommentSafe`
 recurses into every subquery it expands (see Comments), so the recursion places the comment; a
@@ -206,7 +215,8 @@ inconsistent with the top level; the golden example was updated to match.
 
 No space: before `, ; ) ] .`; after `( [ .`; around `::`, `->`, `->>`; before `(` when it's a
 call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KEYWORDS` like
-`coalesce`/`cast`). Keywords like `in`/`values`/`on`/`exists`/`select` keep a space before `(`.
+`coalesce`/`cast`). Keywords like `in`/`values`/`on`/`exists`/`select`/`lateral` keep a space before
+`(` — so `lateral ( select ... )` is a derived table, not a `lateral(...)` function call.
 
 ## Comments
 

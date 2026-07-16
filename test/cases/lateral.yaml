@@ -1,0 +1,54 @@
+# LATERAL derived tables (subquery with a LATERAL prefix). Expand recursively
+# like a plain ( subquery ), in every position: join / cross join / from / a
+# from-list item. `lateral` is a keyword (kept apart from its '(' — not glued as
+# a function call).
+- description: a left join lateral (subquery) expands, alias + single ON on the ) line
+  input: select o.id from orders o left join lateral(select max(amount) as top from payments p where p.order_id = o.id) as last on true
+  expected: |
+    select o.id
+      from orders o
+      left join lateral (
+        select max(amount) as top
+          from payments p
+         where p.order_id = o.id
+      ) as last on true
+- description: a cross join lateral (subquery) expands
+  input: select o.id from orders o cross join lateral(select sum(amount) as total from payments p where p.order_id = o.id) x
+  expected: |
+    select o.id
+      from orders o
+     cross join lateral (
+       select sum(amount) as total
+         from payments p
+        where p.order_id = o.id
+     ) x
+- description: a from lateral (subquery) alias expands, closing ) under from
+  input: select x.a from lateral(select id as a from orders where orders.customer_id = 1) x
+  expected: |
+    select x.a
+      from lateral (
+        select id as a
+          from orders
+         where orders.customer_id = 1
+      ) x
+- description: a lateral item in a from list expands at the item column
+  input: select things.a, x.b from things, lateral(select id as b from orders where orders.thing_id = things.id) x
+  expected: |
+    select things.a,
+           x.b
+      from things,
+           lateral (
+             select id as b
+               from orders
+              where orders.thing_id = things.id
+           ) x
+- description: a join lateral (subquery) with a multi-condition ON keeps the ON river
+  input: select o.id from orders o join lateral(select id from payments) x on x.id = o.id and x.id > 0
+  expected: |
+    select o.id
+      from orders o
+      join lateral (
+        select id
+          from payments
+      ) x on x.id = o.id
+         and x.id > 0

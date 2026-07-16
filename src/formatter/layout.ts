@@ -10,6 +10,7 @@ import {
   splitCommaList,
   segmentClauses,
   findSubquery,
+  findDerivedSubquery,
   matchParen,
 } from './segmenter';
 
@@ -259,10 +260,11 @@ export class Layout {
     if (c) return this.renderCase(c, caseCol);
     const sub = this.itemSubquery(tokens);
     if (sub) {
+      const before = renderTokens(tokens.slice(0, sub.open), this.options); // '' or 'lateral'
       const inner = tokens.slice(sub.open + 1, sub.close);
       const after = tokens.slice(sub.close + 1);
       const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
-      return this.renderSubqueryBlock('', inner, caseCol, afterStr);
+      return this.renderSubqueryBlock(before ? before + ' ' : '', inner, caseCol, afterStr);
     }
     // an expression-level item (including a VALUES tuple) is never broken by rule;
     // it stays on one line and grows.
@@ -286,13 +288,13 @@ export class Layout {
   }
 
   /**
-   * A list item that IS a scalar subquery — `( select|with ... ) [alias]` — so it
+   * A list item that IS a (possibly LATERAL-prefixed) subquery —
+   * `( select|with ... ) [alias]` or `lateral ( select ... ) alias` — so it
    * expands. A subquery merely wrapped in a function (`coalesce((select ...), 0)`)
-   * is not: findSubquery only returns a top-level '(' and open !== 0 there.
+   * is not (its '(' is preceded by the function name, not empty/LATERAL).
    */
   private itemSubquery(tokens: Token[]): { open: number; close: number } | null {
-    const sub = findSubquery(tokens);
-    return sub && sub.open === 0 ? sub : null;
+    return findDerivedSubquery(tokens);
   }
 
   /**
@@ -451,16 +453,19 @@ export class Layout {
     const tableRef = onIdx === -1 ? clause.body : clause.body.slice(0, onIdx);
     const onTokens = onIdx === -1 ? [] : clause.body.slice(onIdx + 1);
 
-    // The join table is itself a subquery (`join ( select ... ) alias on ...`):
-    // expand it, and put the alias + ON on the closing ')' line.
-    const sub = findSubquery(tableRef);
-    if (sub && sub.open === 0) {
+    // The join table is itself a subquery (`join ( select ... ) alias on ...`,
+    // or `join lateral ( select ... ) alias on ...`): expand it, and put the
+    // alias + ON on the closing ')' line.
+    const sub = findDerivedSubquery(tableRef);
+    if (sub) {
+      const before = renderTokens(tableRef.slice(0, sub.open), this.options); // '' or 'lateral'
       const inner = tableRef.slice(sub.open + 1, sub.close);
       const aliasToks = tableRef.slice(sub.close + 1);
       const aliasStr = renderTokens(aliasToks, this.options);
       const aliasPart = aliasStr ? ' ' + aliasStr : '';
+      const openLine = pad(leading) + headStr + ' ' + (before ? before + ' ' : '') + '(';
       const lines = [
-        pad(leading) + headStr + ' (',
+        openLine,
         ...this.renderInner(inner, leading + this.options.indentSize),
       ];
       if (onIdx === -1) {
@@ -575,15 +580,18 @@ export class Layout {
   }
 
   private renderFromClause(clause: Clause, leading: number): string[] {
-    const sub = findSubquery(clause.body);
-    // only expand when the whole from body is a single parenthesized subquery
-    // (`from ( select ... ) alias`); anything else stays a list.
-    if (sub && sub.open === 0) {
+    // only expand when the whole from body is a single (possibly LATERAL-prefixed)
+    // subquery (`from ( select ... ) alias`, `from lateral ( select ... ) alias`);
+    // anything else stays a list.
+    const sub = findDerivedSubquery(clause.body);
+    if (sub) {
       const headStr = renderTokens(clause.head, this.options);
+      const before = renderTokens(clause.body.slice(0, sub.open), this.options); // '' or 'lateral'
       const inner = clause.body.slice(sub.open + 1, sub.close);
       const after = clause.body.slice(sub.close + 1);
       const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
-      return this.renderSubqueryBlock(pad(leading) + headStr + ' ', inner, leading, afterStr);
+      const prefix = pad(leading) + headStr + ' ' + (before ? before + ' ' : '');
+      return this.renderSubqueryBlock(prefix, inner, leading, afterStr);
     }
     return this.renderListClause(clause, leading);
   }
