@@ -73,10 +73,12 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   **under the owner** — the clause keyword for the first `where` condition, the `and`/`or` connector
   (`emitTerm`'s `expandSubquery`, Phase 10) for a later/ON condition, or the item column for a scalar
   subquery (`renderSubqueryBlock`/`findSubquery`/`renderInner`/`renderOn`/`itemSubquery`).
-  `findSubquery` lives in `segmenter.ts` (shared with `format.ts`). In a **multi-CTE `with`**
-  (`renderCteClause` loops `splitCommaList`), each CTE name after the first recedes to the `with`
-  column, the comma follows the previous `)`, every `)` aligns under `with`; falls back to the
-  one-liner if any CTE body isn't a parenthesized `select`/`with`. Nested subqueries recurse. Still
+  `findSubquery` lives in `segmenter.ts` (shared with `format.ts`). The **`with` preamble is
+  off-river**: it always sits at the **base column 0** (excluded from the river width `K`), so `with`
+  and the final `select` share column 0, CTE bodies indent to column 2, and every `)` aligns under
+  `with` at 0. In a **multi-CTE `with`** (`renderCteClause` loops `splitCommaList`), each CTE name
+  after the first recedes to the `with` column (0), the comma follows the previous `)`; falls back to
+  the one-liner if any CTE body isn't a parenthesized `select`/`with`. Nested subqueries recurse. Still
   inline: a function-wrapped subquery. A comment **inside an expanded** subquery reflows
   (`isCommentSafe` recurses, into each CTE and each condition-subquery too); a comment inside a
   non-expanded one still forces passthrough.

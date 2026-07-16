@@ -634,7 +634,10 @@ export class Layout {
       return lines;
     }
 
-    const K = clauses.reduce((m, c) => Math.max(m, c.firstWord.length), 0);
+    // The `with` (cte) preamble is not part of the river: it is a standalone
+    // command that sits at the base column (0), and its first word is excluded
+    // from the river width so it never pulls the other clauses right.
+    const K = clauses.reduce((m, c) => (c.kind === 'cte' ? m : Math.max(m, c.firstWord.length)), 0);
     const riverEnd = base + K;
     // clause-level standalone comments sit at the content column (just past the
     // river, where clause arguments and list items start); leading comments
@@ -643,7 +646,7 @@ export class Layout {
 
     for (let idx = 0; idx < clauses.length; idx++) {
       const clause = clauses[idx];
-      const leading = riverEnd - clause.firstWord.length;
+      const leading = clause.kind === 'cte' ? base : riverEnd - clause.firstWord.length;
       const col = idx === 0 ? base : commentCol;
       // standalone comments preceding this clause
       for (const c of clause.commentsBefore ?? []) lines.push(pad(col) + c);

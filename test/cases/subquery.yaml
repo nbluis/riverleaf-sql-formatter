@@ -12,12 +12,12 @@
      where x.total > 100
 - description: a single CTE body expands, closing ) aligned under with
   input: with recent as (select id from orders where created_at > now() - interval '7 days') select id from recent
-  expected: |2
-      with recent as (
-        select id
-          from orders
-         where created_at > now() - interval '7 days'
-      )
+  expected: |
+    with recent as (
+      select id
+        from orders
+       where created_at > now() - interval '7 days'
+    )
     select id
       from recent
 - description: where ... in ( subquery ) expands under the where keyword
@@ -212,48 +212,48 @@
     ), 0) as top from orders
 - description: multiple comma-separated CTEs each expand, names recede to the with column
   input: with a as (select id from orders), b as (select id from customers) select a.id from a join b on a.id = b.id
-  expected: |2
-      with a as (
-        select id
-          from orders
-      ),
-      b as (
-        select id
-          from customers
-      )
+  expected: |
+    with a as (
+      select id
+        from orders
+    ),
+    b as (
+      select id
+        from customers
+    )
     select a.id
       from a
       join b on a.id = b.id
 - description: 'three CTEs: each ) aligns under with, comma after each ) but the last'
   input: with a as (select id from orders), b as (select id from customers), c as (select id from products) select a.id from a
-  expected: |2
-      with a as (
-        select id
-          from orders
-      ),
-      b as (
-        select id
-          from customers
-      ),
-      c as (
-        select id
-          from products
-      )
+  expected: |
+    with a as (
+      select id
+        from orders
+    ),
+    b as (
+      select id
+        from customers
+    ),
+    c as (
+      select id
+        from products
+    )
     select a.id
       from a
 - description: multiple CTEs with inner where clauses expand recursively
   input: with a as (select id from orders where status_id = 1), b as (select customer_id from customers where active = true) select a.id from a join b on a.id = b.customer_id where a.id > 0
-  expected: |2
-      with a as (
-        select id
-          from orders
-         where status_id = 1
-      ),
-      b as (
-        select customer_id
-          from customers
-         where active = true
-      )
+  expected: |
+    with a as (
+      select id
+        from orders
+       where status_id = 1
+    ),
+    b as (
+      select customer_id
+        from customers
+       where active = true
+    )
     select a.id
       from a
       join b on a.id = b.customer_id
@@ -263,15 +263,15 @@
     with a as (select id
     -- first cte
     from orders), b as (select id from customers) select a.id from a
-  expected: |2
-      with a as (
-        select id
-               -- first cte
-          from orders
-      ),
-      b as (
-        select id
-          from customers
-      )
+  expected: |
+    with a as (
+      select id
+             -- first cte
+        from orders
+    ),
+    b as (
+      select id
+        from customers
+    )
     select a.id
       from a

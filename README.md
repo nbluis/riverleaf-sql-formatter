@@ -120,9 +120,11 @@ select table1.column1,
   `join` ON condition, a subquery as a `join` table (`join (select ...) alias on ...`), and a scalar
   subquery in the select list. The inner query is re-aligned one level in and the closing `)` aligns
   under the owner: the clause keyword for the first `where` condition, the `and`/`or` connector for a
-  later one (or ON condition), the item column for a scalar subquery. In a multi-CTE `with`, each CTE
-  name after the first recedes to the `with` column and the comma follows the previous `)`. A comment
-  inside any of these expanded subqueries is reflowed by the recursion.
+  later one (or ON condition), the item column for a scalar subquery. The `with` preamble is a
+  standalone command at the **left margin** (column 0), not aligned to the river: `with` and the
+  final `select` share column 0, CTE bodies indent one level in, and each `)` sits under `with`. In a
+  multi-CTE `with`, each CTE name after the first recedes to the `with` column and the comma follows
+  the previous `)`. A comment inside any of these expanded subqueries is reflowed by the recursion.
 - **`case ... end`** in the select list (or `group by` / `order by`, in a `where` / `having`
   condition, and in a `join` ON condition) expands with `when` / `else` / `end` aligned under
   `case`; anything after the `end` (e.g. `> 100`) rides the `end` line. A nested `case` in a branch

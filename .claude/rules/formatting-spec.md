@@ -41,12 +41,15 @@ no `maxWidth` — all removed. Two categories:
   - `GROUP`/`ORDER` only start a clause when followed by `BY` (else they're identifiers).
   - JOIN phrases are consumed whole (`left [outer] join`, `inner join`, `cross join`, ...); a
     `LEFT(` immediately followed by `(` is the function, not a join.
-- `K = max(firstWord.length over all clauses)` (dominated by `select`=6 in typical queries).
+- `K = max(firstWord.length over all clauses **except `cte`**)` (dominated by `select`=6 in typical
+  queries). The `with` (cte) preamble is **not part of the river** — it is a standalone command that
+  always sits at the base column (0), so its first word is excluded from `K` (it never pulls the
+  other clauses right) and its `leading` is `base`, not `riverEnd - 4`.
 - `riverEnd = base + K` (exclusive column where first words' right edges land).
-- A clause line starts at `leading = riverEnd - firstWord.length`. The head is rendered from there;
-  the body follows after one space. Example (base 0, K 6, riverEnd 6):
+- A clause line starts at `leading = riverEnd - firstWord.length` (except `cte`, at `base`). The head
+  is rendered from there; the body follows after one space. Example (base 0, K 6, riverEnd 6):
   `select`→0 leading, `from`→2, `where`→1, `and`→3, `order`→1 (then `by` flows), `left`→2 (then
-  `join` flows).
+  `join` flows), `with`→0 (base, off-river).
 - Operand/arg column for a clause = `leading + headStr.length + 1`.
 
 ## Clause kinds → renderers (`Layout`)
@@ -87,9 +90,10 @@ block is one level past the owner clause keyword and the closing `)` aligns **un
   (`sub.open === 0`); `ownerLeading` = `from`'s leading; `afterStr` = the alias.
 - `renderCteClause` (`cte` kind, `WITH`) — one or more comma-separated CTEs. `splitCommaList`
   splits the `with` body; each CTE must be `name as ( select|with ... )` (`findSubquery` matches its
-  interior). `ownerLeading` = `with`'s leading for **every** CTE, so each `)` aligns under `with`.
-  The first CTE's prefix carries the `with` head (`with a as (`); each subsequent CTE's prefix is
-  just `pad(leading) + "name as " ` — its name **recedes to the `with` column**. The trailing comma
+  interior). `ownerLeading` = `with`'s leading (= `base`, column 0 — the cte clause is off-river) for
+  **every** CTE, so each `)` aligns under `with` at the base margin. The first CTE's prefix carries
+  the `with` head (`with a as (`); each subsequent CTE's prefix is just `pad(leading) + "name as " `
+  — its name **recedes to the `with` column** (base 0). The trailing comma
   follows the previous `)` (it is that CTE's `afterStr`, dropped on the last). If any CTE body is not
   a parenthesized `select`/`with` (e.g. a `values` CTE), the whole clause falls back to
   `renderGenericClause` (the one-liner).
