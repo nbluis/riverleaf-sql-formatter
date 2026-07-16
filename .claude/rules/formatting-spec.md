@@ -130,13 +130,13 @@ takes precedence over the width wrap (it is already multi-line).
 begins, so the inner `when`/`else`/`end` align there. Anything after the inner `END` rides the inner
 `end` line (it is the inner case's `after`).
 
-**`case` in `where`/`having` (C3).** `emitTerm` takes an `expandCase` flag (threaded from
-`renderBoolClause` → `renderBoolRiver`/`renderRiverTail`; `renderOn` for a join passes it false).
-When set and the term is an atom that `parseCase` accepts, the condition expands: `case` at the
-operand column, `when`/`else`/`end` aligned there, and anything after `end` (e.g. `> 100`) on the
-`end` line. `renderBoolClause` detects such a term (`hasCase`) and forces the expression to break
-(never the inline path). `group by`/`order by` already expand a `case` item via `renderItemLines`.
-A `case` inside a `join` ON stays inline (`expandCase` false there).
+**`case` in `where`/`having`/`join` ON (C3 + A3).** `emitTerm` takes an `expandCase` flag (threaded
+from `renderBoolClause` → `renderBoolRiver`/`renderRiverTail`, and from `renderOn` — which passes it
+**true** since Phase 11/A3). When set and the term is an atom that `parseCase` accepts, the condition
+expands: `case` at the operand column, `when`/`else`/`end` aligned there, and anything after `end`
+(e.g. `> 100`, `= 1`) on the `end` line. `renderBoolClause` and `renderOn` detect such a term
+(`hasCase`) and force the expression to break (never the inline path) — including a single-condition
+ON. `group by`/`order by` already expand a `case` item via `renderItemLines`.
 
 ### Boolean expressions — RIVER vs BLOCK
 

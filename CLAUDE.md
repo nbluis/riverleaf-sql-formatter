@@ -75,11 +75,12 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   each `when`/`else` and the `end` aligned at the item column (`parseCase`/`renderCase`, routed by
   `renderItemLines`). A **nested `case`** in a `when`/`else` branch expands recursively at the
   column where the inner `case` begins (`renderCaseSegment`/`findNestedCase`). A `case` in a
-  **`where`/`having`** condition expands at the operand column, with anything after `end` (e.g.
-  `> 100`) on the `end` line (`emitTerm`'s `expandCase` flag, set for where/having but not join ON).
-  A `when ... then` that exceeds the width breaks **before** `then` (`when <cond>` / `then <result>`
-  on their own lines at the `case` column; `renderCaseSegment`/`findThen`; an `else` never wraps).
-  A `case` wrapped in a function or inside a `join` ON stays inline.
+  **`where`/`having`** or a **`join` ON** condition expands at the operand column, with anything
+  after `end` (e.g. `> 100`, `= 1`) on the `end` line (`emitTerm`'s `expandCase` flag, set for
+  where/having and — since Phase 11 — join ON via `renderOn`). A `when ... then` that exceeds the
+  width breaks **before** `then` (`when <cond>` / `then <result>` on their own lines at the `case`
+  column; `renderCaseSegment`/`findThen`; an `else` never wraps). A `case` wrapped in a function
+  stays inline.
 - Line comments: **inline** comments (trailing code on a line) stay attached to that line's last
   token — in lists (`ListItem.comment`) and on `where`/`having` conditions (`BoolTerm.comment`).
   **Standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on their own
@@ -145,8 +146,8 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 ## Open items / roadmap
 
 See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (a `case` or
-subquery wrapped in a function, a `case` inside a join ON, comments mid-token or inside a
-function-wrapped subquery, and DML lists that never wrap internally — the INSERT column list and a
-single wide `values` tuple). The aesthetic decisions are settled: D1 (nested-paren BLOCK vs RIVER →
+subquery wrapped in a function, comments mid-token or inside a function-wrapped subquery, and DML
+lists that never wrap internally — the INSERT column list and a single wide `values` tuple). The
+aesthetic decisions are settled: D1 (nested-paren BLOCK vs RIVER →
 both RIVER) and D2 (base-indent → **normalize to column 0**) are resolved; only D3 (explicit default
 `maxLineLength`) remains deferred.

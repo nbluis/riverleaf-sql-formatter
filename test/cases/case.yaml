@@ -81,3 +81,22 @@
            else 'zero-balance-inactive-placeholder-value'
            end as seg
       from customers
+- description: a case in a single join ON condition expands
+  input: select o.id from orders o join customers c on case when c.vip then 1 else 0 end = 1
+  expected: |
+    select o.id
+      from orders o
+      join customers c on case
+                          when c.vip then 1
+                          else 0
+                          end = 1
+- description: a case in a multi-condition join ON expands
+  input: select o.id from orders o join customers c on c.active = true and case when c.vip then 1 else 0 end = 1
+  expected: |
+    select o.id
+      from orders o
+      join customers c on c.active = true
+                      and case
+                          when c.vip then 1
+                          else 0
+                          end = 1

@@ -512,19 +512,20 @@ export class Layout {
     const onKw = caseKeyword('on', this.options);
     const headPart = beforeOn + ' ' + onKw;
     const terms = parseBoolExpr(onTokens);
-    // A subquery in an ON condition always expands (forces a break).
+    // A subquery or a `case` in an ON condition always expands (forces a break).
     const hasSubquery = terms.some((t) => t.node.kind === 'atom' && findSubquery(t.node.tokens) !== null);
+    const hasCase = terms.some((t) => t.node.kind === 'atom' && this.parseCase(t.node.tokens) !== null);
     // A single ON condition has nothing to align, so it stays inline — unless it
-    // contains a subquery to expand. Any join with two or more ON conditions
-    // always breaks (regardless of width) so the and/or connectors align under
-    // the "on".
-    if (terms.length === 1 && !this.nodeHasComments(terms[0].node) && !hasSubquery) {
+    // contains a subquery or `case` to expand. Any join with two or more ON
+    // conditions always breaks (regardless of width) so the and/or connectors
+    // align under the "on".
+    if (terms.length === 1 && !this.nodeHasComments(terms[0].node) && !hasSubquery && !hasCase) {
       const comment = terms[0].comment ? ' ' + terms[0].comment : '';
       return [pad(leading) + headPart + ' ' + this.renderInlineBool(terms) + comment];
     }
     const onRiverEnd = leading + headPart.length; // column right after "on"
     const firstLinePrefix = pad(leading) + headPart + ' ';
-    return this.renderBoolRiver(terms, onRiverEnd, firstLinePrefix, false, true);
+    return this.renderBoolRiver(terms, onRiverEnd, firstLinePrefix, true, true);
   }
 
   private renderGenericClause(clause: Clause, leading: number): string[] {

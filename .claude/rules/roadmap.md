@@ -62,8 +62,9 @@ one still renders inline or passes through unchanged — the "Known limitations"
   anything after `end` (e.g. `> 100`) on the `end` line (`emitTerm` with the `expandCase` flag).
   **Phase 8 (C2)**: a `when ... then` that exceeds the width breaks **before** `then`
   (`when <cond>` / `then <result>` on their own lines at the `case` column; `renderCaseSegment` +
-  `findThen`; an `else` never wraps). Still inline: a `case` wrapped in a function, and a `case`
-  inside a `join` ON.
+  `findThen`; an `else` never wraps). **Phase 11 (A3)**: a `case` in a **`join` ON** condition
+  expands too (`renderOn` passes `expandCase` true; `hasCase` forces the break, even single-ON).
+  Still inline: a `case` wrapped in a function.
 - **DML** — `insert` / `update` / `delete`. ✅ Done. Formats like a select: anchors join the river;
   `set`/`values` break one item per line (>1 item — so **multi-row `values` does break**, one tuple
   per line); `delete from` kept together; `insert into t (cols)` on one line. `insert ... select`

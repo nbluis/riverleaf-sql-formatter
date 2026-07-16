@@ -97,7 +97,11 @@ select o.id
 
 ---
 
-## Fase 11 — `case` dentro de um `join` ON (A3) 🟡 barato
+## Fase 11 — `case` dentro de um `join` ON (A3) ✅ CONCLUÍDA
+
+> ✅ Feito (2026-07-16). 138 testes (era 134). `renderOn` passa `expandCase = true` para o
+> `renderBoolRiver` e detecta `hasCase` para forçar o break (inclusive ON de condição única). O que
+> vem depois do `end` (ex.: `= 1`) fica na linha do `end`. Layout conferido contra o preview travado.
 
 Hoje `renderOn` passa `expandCase = false`. Trocar para `true` (ou threaded) para que um `case`
 numa condição de ON expanda na coluna do operando, igual a where/having (C3, fase 7). Alvo:
