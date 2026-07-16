@@ -74,8 +74,9 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   column where the inner `case` begins (`renderCaseSegment`/`findNestedCase`). A `case` in a
   **`where`/`having`** condition expands at the operand column, with anything after `end` (e.g.
   `> 100`) on the `end` line (`emitTerm`'s `expandCase` flag, set for where/having but not join ON).
-  Long `when ... then` not wrapped; a `case` wrapped in a function or inside a `join` ON stays
-  inline.
+  A `when ... then` that exceeds the width breaks **before** `then` (`when <cond>` / `then <result>`
+  on their own lines at the `case` column; `renderCaseSegment`/`findThen`; an `else` never wraps).
+  A `case` wrapped in a function or inside a `join` ON stays inline.
 - Line comments: **inline** comments (trailing code on a line) stay attached to that line's last
   token — in lists (`ListItem.comment`) and on `where`/`having` conditions (`BoolTerm.comment`).
   **Standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on their own

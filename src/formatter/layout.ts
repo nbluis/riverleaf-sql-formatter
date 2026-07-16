@@ -338,11 +338,41 @@ export class Layout {
    */
   private renderCaseSegment(seg: Token[], caseCol: number): string[] {
     const nested = this.findNestedCase(seg);
-    if (!nested) return [pad(caseCol) + renderTokens(seg, this.options)];
-    const before = renderTokens(seg.slice(0, nested.index), this.options);
-    const prefix = pad(caseCol) + before + ' ';
-    const innerLines = this.renderCase(nested.parsed, prefix.length);
-    return [prefix + innerLines[0], ...innerLines.slice(1)];
+    if (nested) {
+      const before = renderTokens(seg.slice(0, nested.index), this.options);
+      const prefix = pad(caseCol) + before + ' ';
+      const innerLines = this.renderCase(nested.parsed, prefix.length);
+      return [prefix + innerLines[0], ...innerLines.slice(1)];
+    }
+    const single = pad(caseCol) + renderTokens(seg, this.options);
+    // A long `when <cond> then <result>` breaks before THEN: `when <cond>` and
+    // `then <result>` land on separate lines, both at the case column. (An ELSE
+    // segment has no THEN, so it stays inline.)
+    if (!this.fits(single) && seg[0]?.type === 'keyword' && seg[0].upper === 'WHEN') {
+      const thenIdx = this.findThen(seg);
+      if (thenIdx !== -1) {
+        return [
+          pad(caseCol) + renderTokens(seg.slice(0, thenIdx), this.options),
+          pad(caseCol) + renderTokens(seg.slice(thenIdx), this.options),
+        ];
+      }
+    }
+    return [single];
+  }
+
+  /** Index of the top-level THEN in a WHEN segment (paren/case depth 0), or -1. */
+  private findThen(seg: Token[]): number {
+    let pDepth = 0;
+    let cDepth = 0;
+    for (let i = 1; i < seg.length; i++) {
+      const t = seg[i];
+      if (t.type === 'punct' && t.value === '(') pDepth++;
+      else if (t.type === 'punct' && t.value === ')') pDepth = Math.max(0, pDepth - 1);
+      else if (t.type === 'keyword' && t.upper === 'CASE') cDepth++;
+      else if (t.type === 'keyword' && t.upper === 'END') cDepth = Math.max(0, cDepth - 1);
+      else if (pDepth === 0 && cDepth === 0 && t.type === 'keyword' && t.upper === 'THEN') return i;
+    }
+    return -1;
   }
 
   /**

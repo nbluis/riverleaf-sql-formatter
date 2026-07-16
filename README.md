@@ -113,7 +113,8 @@ select table1.column1, table2.column2
 - **`case ... end`** in the select list (or `group by` / `order by`, and in a `where` / `having`
   condition) expands with `when` / `else` / `end` aligned under `case`; anything after the `end`
   (e.g. `> 100`) rides the `end` line. A nested `case` in a branch expands recursively at the
-  column where the inner `case` begins.
+  column where the inner `case` begins. A `when ... then` that exceeds the width breaks before
+  `then`, putting `when <cond>` and `then <result>` on their own lines at the `case` column.
 - **Maximum width** = the first value of `editor.rulers` (fallback 80), or the override in
   `riverleaf.maxLineLength`.
 
@@ -172,8 +173,7 @@ These narrower cases are not reflowed — they are rendered inline or kept exact
   without risk of commenting out code.
 - **Subqueries / CTEs** stay inline when they are: a subquery inside a multi-condition `where` other
   than the first condition, a subquery inside a `join` ON, or a subquery wrapped in a function call.
-- **`case`** stays inline when it is wrapped in a function call, or inside a `join` ON; a long
-  `when ... then` is not wrapped.
+- **`case`** stays inline when it is wrapped in a function call, or inside a `join` ON.
 
 ## License
 

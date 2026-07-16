@@ -62,3 +62,22 @@
               when status_id = 1 then 0
               else 1
               end
+- description: a long when ... then breaks before then, both at the case column
+  input: select case when customer_lifetime_value > 100000 and region_code = 'LATAM' then 'platinum-latam-priority-segment' else 'std' end as seg from customers
+  expected: |
+    select case
+           when customer_lifetime_value > 100000 and region_code = 'LATAM'
+           then 'platinum-latam-priority-segment'
+           else 'std'
+           end as seg
+      from customers
+- description: only the long when wraps; a short when and a fitting else stay inline
+  input: select case when total_amount > 100000 and status_code = 'ACTIVE' then 'high-value-active-account' when total_amount > 0 then 'ok' else 'zero-balance-inactive-placeholder-value' end as seg from customers
+  expected: |
+    select case
+           when total_amount > 100000 and status_code = 'ACTIVE'
+           then 'high-value-active-account'
+           when total_amount > 0 then 'ok'
+           else 'zero-balance-inactive-placeholder-value'
+           end as seg
+      from customers

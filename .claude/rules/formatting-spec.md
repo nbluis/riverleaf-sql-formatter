@@ -110,8 +110,13 @@ the minimum indent (the inner block never becomes the leftmost).
 [alias]` (first token `CASE`, matching `END` with case/end nesting, ≥1 `WHEN`/`ELSE` segment).
 `renderCase(c, caseCol)` emits `case [selector]` (line 0, no pad — the caller positions it), then
 each `WHEN`/`ELSE` segment (via `renderCaseSegment`) and the closing `END [alias]` at `caseCol`
-(= the item's column). So `case`/`when`/`else`/`end` share the item column. A long `when ... then
-...` is not wrapped (Phase 8).
+(= the item's column). So `case`/`when`/`else`/`end` share the item column.
+
+**Long `when ... then` (C2, Phase 8).** In `renderCaseSegment`, when a `WHEN` segment (no nested
+`case`) does not fit, it breaks **before** the top-level `THEN` (`findThen`, paren/case depth 0):
+`when <cond>` on one line and `then <result>` on the next, both at `caseCol`. An `ELSE` segment has
+no `THEN`, so it never wraps this way (a too-long `else` stays inline). A nested `case` in a branch
+takes precedence over the width wrap (it is already multi-line).
 
 **Nested `case` (recursive).** `renderCaseSegment(seg, caseCol)` uses `findNestedCase` to locate a
 `case ... end` at paren depth 0 inside the segment (skipping the segment's leading `WHEN`/`ELSE`; a

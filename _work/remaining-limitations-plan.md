@@ -39,8 +39,15 @@
     (`renderGenericClause`). `cteCommentsSafe` (format.ts) estendido: recorre em cada CTE quando
     todas expandem (comentário dentro reflui via a recursão; parte `name as`/pós-`)` deve ser
     comment-free). Layout travado (usuário 2026-07-15).
-- ⬜ **Fase 8 (C2)** — quebrar `when … then` longo. Próxima.
-- ⬜ **Fase 9 (D1 travado, D2 a decidir com preview, D3 fora)**.
+- ✅ **Fase 8 (C2) — CONCLUÍDA** (2026-07-16). 128 testes (era 124). Feito:
+  - **C2** um `when … then` que passa da largura quebra **antes do `then`**: `when <cond>` numa
+    linha e `then <result>` na seguinte, ambos na coluna do `case`. Em `renderCaseSegment`: se o
+    segmento não tem case aninhado, não cabe (`fits`) e é um `WHEN`, acha o `THEN` top-level
+    (`findThen`, paren/case depth 0) e quebra. `ELSE` nunca quebra (sem `THEN`; else longo fica
+    inline). Case aninhado num ramo tem precedência (já é multi-linha). Idempotente (tokens iguais
+    na releitura → mesma decisão de largura). Layout travado (usuário 2026-07-15).
+- ⬜ **Fase 9 (D1 travado, D2 a decidir com preview, D3 fora)**. Próxima. **PARAR antes de D2** e
+  apresentar preview das duas opções (preservar vs. normalizar base) ao usuário.
 >
 > Seleção do usuário (2026-07-15): resolver **A1, A2, A3, A4** (subqueries/CTEs), **C1, C2, C3**
 > (case), e **B1** vem de graça junto com as subqueries. **B2 fica como está** (passthrough é o
@@ -218,7 +225,7 @@ select id
 
 ---
 
-## Fase 8 — Quebrar `when … then …` longo (C2) 🟡 (layout travado)
+## Fase 8 — Quebrar `when … then …` longo (C2) ✅ CONCLUÍDA
 
 Quando `when <cond> then <result>` passa da largura, **quebrar antes do `then`**: `when <cond>` numa
 linha e `then <result>` na linha seguinte, ambos alinhados na coluna do case:

@@ -51,8 +51,10 @@ State as of the current session. Update this file as items are resolved.
   expands recursively at the column where the inner `case` begins (`renderCaseSegment`/
   `findNestedCase`); a `case` in a **`where`/`having`** condition expands at the operand column with
   anything after `end` (e.g. `> 100`) on the `end` line (`emitTerm` with the `expandCase` flag).
-  Still inline: a long `when ... then ...` (no wrap — Phase 8, C2), a `case` wrapped in a function,
-  and a `case` inside a `join` ON.
+  **Phase 8 (C2)**: a `when ... then` that exceeds the width breaks **before** `then`
+  (`when <cond>` / `then <result>` on their own lines at the `case` column; `renderCaseSegment` +
+  `findThen`; an `else` never wraps). Still inline: a `case` wrapped in a function, and a `case`
+  inside a `join` ON.
 - **DML** — `insert` / `update` / `delete`. ✅ Done. Formats like a select: anchors join the river;
   `set`/`values` break one item per line (>1 item); `delete from` kept together; `insert into
   t (cols)` on one line. `insert ... select` recomputes the river for the select. Reviewed golden
