@@ -5,7 +5,8 @@ test/**
 node_modules/**
 esbuild.js
 tsconfig.json
-.eslintrc.json
+eslint.config.js
+.github/**
 **/*.map
 **/*.ts
 .gitignore
