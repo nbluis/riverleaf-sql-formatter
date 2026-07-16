@@ -21,7 +21,10 @@ State as of the current session. Update this file as items are resolved.
 - **Default `maxLineLength` (D3).** Setting default is `null` → resolves to `editor.rulers[0]`, else
   80. User has considered pinning an explicit default; deferred (out of scope for now).
 
-## Not yet implemented (known limitations, documented in README)
+## Implemented features & their residual inline/passthrough sub-cases
+
+All four feature areas below are implemented (phases 1–8). What remains are the narrower sub-cases
+each one still renders inline or passes through unchanged — the "Known limitations" in the README.
 
 - **Line comments inside boolean expressions.** ✅ Done. Handled: comments in list clauses, around
   clauses (leading / between / trailing), **inline and standalone comments on `where`/`having`
@@ -60,10 +63,11 @@ State as of the current session. Update this file as items are resolved.
   `findThen`; an `else` never wraps). Still inline: a `case` wrapped in a function, and a `case`
   inside a `join` ON.
 - **DML** — `insert` / `update` / `delete`. ✅ Done. Formats like a select: anchors join the river;
-  `set`/`values` break one item per line (>1 item); `delete from` kept together; `insert into
-  t (cols)` on one line. `insert ... select` recomputes the river for the select. Reviewed golden
-  cases in `test/cases/dml.yaml`. Open: multi-row `values` and INSERT column lists never break onto
-  multiple lines even when very wide (kept single-line for now).
+  `set`/`values` break one item per line (>1 item — so **multi-row `values` does break**, one tuple
+  per line); `delete from` kept together; `insert into t (cols)` on one line. `insert ... select`
+  recomputes the river for the select. Reviewed golden cases in `test/cases/dml.yaml`. Residual
+  limitation: the **INSERT column list** `(col, col, ...)` and a **single wide `values` tuple** never
+  wrap internally, even past the width (kept single-line for now).
 
 ## When you pick one up
 

@@ -176,6 +176,9 @@ These narrower cases are not reflowed — they are rendered inline or kept exact
 - **Subqueries / CTEs** stay inline when they are: a subquery inside a multi-condition `where` other
   than the first condition, a subquery inside a `join` ON, or a subquery wrapped in a function call.
 - **`case`** stays inline when it is wrapped in a function call, or inside a `join` ON.
+- **DML lists** — a multi-row `values` breaks one tuple per line, but an `INSERT` column list
+  (`(col, col, ...)`) and a single very-wide `values` tuple are never wrapped internally, even past
+  the maximum width.
 
 ## License
 

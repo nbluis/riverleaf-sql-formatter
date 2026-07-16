@@ -144,7 +144,9 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 ## Open items / roadmap
 
 See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (a subquery in a
-non-first where condition or a join ON, a function-wrapped subquery, comments mid-token or inside a
-non-expanded subquery). The aesthetic decisions are settled: D1 (nested-paren BLOCK vs RIVER →
+non-first where condition or a join ON, a `case` or subquery wrapped in a function, comments
+mid-token or inside a non-expanded subquery, and DML lists that never wrap internally — the INSERT
+column list and a single wide `values` tuple). The aesthetic decisions are settled: D1 (nested-paren
+BLOCK vs RIVER →
 both RIVER) and D2 (base-indent → **normalize to column 0**) are resolved; only D3 (explicit default
 `maxLineLength`) remains deferred.
