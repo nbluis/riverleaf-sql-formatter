@@ -17,7 +17,7 @@ scenarios can be added without touching code — this is our regression guardrai
 ```yaml
 - description: what this checks            # shows up as the test name
   options:                                 # optional; merged over DEFAULT_OPTIONS
-    maxLineLength: 100                      #   (default 80 / lower / indentSize 2)
+    keywordCase: upper                      #   (defaults: keywordCase lower / indentSize 2)
   input: |
     <unformatted sql>
   expected: |

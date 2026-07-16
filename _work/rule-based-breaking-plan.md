@@ -230,6 +230,16 @@ runner já checa `format(format(x)) === format(x)` por caso. Revalidar todos.
   where 2 condições quebra), `postgres.yaml` (comentário na última condição quando o where quebra;
   +2 casos: where 1 condição inline, where só-grupo expande). `fits`/`maxWidth`/config ainda
   presentes até R3. 150 testes.
+- **R3 — remover wraps B2/C2 e a largura/config** ✅ (feito). Removidos: o wrap C2 em
+  `renderCaseSegment` + `findThen`; o B2 (`tupleNeedsWrap`, `isTuple`, `hasWideTuple`, o ramo de
+  tupla em `renderItemLines`) — `renderTupleBroken` fica (usado pela lista de colunas do insert).
+  Removidos `fits()`/`maxWidth` do `Layout` (construtor agora `new Layout(opts)`), e a config
+  `maxLineLength`: `FormatOptions`/`DEFAULT_OPTIONS` (`types.ts`), `resolveMaxLineLength`+leitura de
+  `editor.rulers` (`extension.ts`), `contributes.configuration.riverleaf.maxLineLength`
+  (`package.json`), o arg de largura em `format.ts`. Goldens: `case.yaml` (2 casos `when...then`
+  crescem), `dml.yaml` (tupla `values` cresce, single e multi-row). Docs varridos: README, CLAUDE.md,
+  formatting-spec.md (nova seção "Breaking model"), roadmap.md, testing.md. 150 testes; `tsc`/`lint`
+  limpos. Falta R4: remover `maxLineLength` dos options dos casos + re-package vsix.
 
 ## Ordem sugerida (fases, 1 commit cada)
 1. **Fase R1** — listas por contagem: `select`/`group by`/`order by`/`from` quebram >1 (D-a/D-b).

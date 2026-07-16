@@ -15,11 +15,16 @@ State as of the current session. Update this file as items are resolved.
   so the result still round trips (reformatting a column-0 query keeps it there). Inner subquery
   blocks are still indented one level in, recursively. Trade-off accepted: any intentional source
   indentation (SQL embedded in an indented block) is discarded.
+- **Rule-based breaking (2026-07-16).** ✅ Resolved. Breaking is by **rule (count), not by width**:
+  list clauses break one item per line when >1 item; `where`/`having`/`join` ON break when >1
+  condition; a boolean group always expands; everything at expression level (single item/condition,
+  function args, `in (...)`, a `values` tuple, a `when ... then`) grows on one line. `maxLineLength`,
+  `fits()`, `maxWidth`, the `riverleaf.maxLineLength` setting and the `editor.rulers` fallback were
+  all removed (phases R1–R3). This supersedes the former Phase 8 (C2) and Phase 12 (B2) width wraps.
 
 ## Decisions awaiting the user
 
-- **Default `maxLineLength` (D3).** Setting default is `null` → resolves to `editor.rulers[0]`, else
-  80. User has considered pinning an explicit default; deferred (out of scope for now).
+- *(none — D3, an explicit default `maxLineLength`, is moot: there is no line-width option anymore.)*
 
 ## Implemented features & their residual inline/passthrough sub-cases
 
@@ -60,19 +65,18 @@ one still renders inline or passes through unchanged — the "Known limitations"
   expands recursively at the column where the inner `case` begins (`renderCaseSegment`/
   `findNestedCase`); a `case` in a **`where`/`having`** condition expands at the operand column with
   anything after `end` (e.g. `> 100`) on the `end` line (`emitTerm` with the `expandCase` flag).
-  **Phase 8 (C2)**: a `when ... then` that exceeds the width breaks **before** `then`
-  (`when <cond>` / `then <result>` on their own lines at the `case` column; `renderCaseSegment` +
-  `findThen`; an `else` never wraps). **Phase 11 (A3)**: a `case` in a **`join` ON** condition
-  expands too (`renderOn` passes `expandCase` true; `hasCase` forces the break, even single-ON).
-  Still inline: a `case` wrapped in a function.
+  **Phase 11 (A3)**: a `case` in a **`join` ON** condition expands too (`renderOn` passes
+  `expandCase` true; `hasCase` forces the break, even single-ON). A `when ... then` grows on one line
+  and is never wrapped (the former Phase 8/C2 `findThen` width wrap was removed in R3, rule-based
+  breaking). Still inline: a `case` wrapped in a function.
 - **DML** — `insert` / `update` / `delete`. ✅ Done. Formats like a select: anchors join the river;
   `set`/`values` break one item per line (>1 item — so multi-row `values` breaks one tuple per line);
-  `delete from` kept together; `insert into t (cols)` on one line when it fits. `insert ... select`
-  recomputes the river for the select. **Phase 12 (B1/B2)**: a wide **INSERT column list** and a wide
-  **`values` tuple** now wrap — columns/values aligned one column past the `(`, trailing commas, `)`
-  on the last (`renderInsertClause` + `renderTupleBroken`/`tupleNeedsWrap`, `hasWideTuple` forces the
-  list to break even for a single tuple). Reviewed golden cases in `test/cases/dml.yaml`. Layout
-  locked with the user 2026-07-16 (columns under the first).
+  `delete from` kept together. `insert ... select` recomputes the river for the select. The
+  **INSERT column list** breaks by count (>1 column → one per line, aligned one column past the `(`,
+  trailing commas, `)` on the last, via `renderInsertClause` + `renderTupleBroken`; layout locked
+  with the user 2026-07-16, columns under the first). The interior of a `values` tuple is expression
+  level and **grows** on one line (the former Phase 12/B2 `tupleNeedsWrap`/`hasWideTuple` width wrap
+  was removed in R3). Reviewed golden cases in `test/cases/dml.yaml`.
 
 ## When you pick one up
 

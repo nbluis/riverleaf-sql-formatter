@@ -29,15 +29,12 @@ export interface Token {
 export type KeywordCase = 'lower' | 'upper' | 'preserve';
 
 export interface FormatOptions {
-  /** Max line width before breaking joins / conditions / select lists. */
-  maxLineLength: number;
   keywordCase: KeywordCase;
   /** Spaces per nesting level (parentheses / subqueries). */
   indentSize: number;
 }
 
 export const DEFAULT_OPTIONS: FormatOptions = {
-  maxLineLength: 80,
   keywordCase: 'lower',
   indentSize: 2,
 };

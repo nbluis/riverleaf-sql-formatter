@@ -34,11 +34,7 @@ function findOn(tokens: Token[]): number {
 }
 
 export class Layout {
-  constructor(private options: FormatOptions, private maxWidth: number) {}
-
-  private fits(line: string): boolean {
-    return line.length <= this.maxWidth;
-  }
+  constructor(private options: FormatOptions) {}
 
   // --- boolean expression: inline rendering ------------------------------
 
@@ -207,20 +203,16 @@ export class Layout {
     // the list to break
     const hasCase = items.some((it) => this.parseCase(it.tokens) !== null);
     const hasSubquery = items.some((it) => this.itemSubquery(it.tokens) !== null);
-    // a parenthesized tuple (a VALUES row) that overflows wraps internally, so it
-    // forces the list to break even when it is the only item (B2, removed in R3)
-    const hasWideTuple = items.some((it) => this.tupleNeedsWrap(it.tokens, operandCol));
     const inlineBody = rendered.join(', ');
     const full = pad(leading) + headStr + ' ' + inlineBody;
     // Break by rule, not by width: a list with more than one item always breaks
     // (one item per line). A single item stays inline (it just grows) unless it
-    // owns a comment or expands a `case`/subquery/wide tuple.
+    // owns a comment or expands a `case`/subquery.
     if (
       !hasComment &&
       !hasStandalone &&
       !hasCase &&
       !hasSubquery &&
-      !hasWideTuple &&
       items.length === 1
     ) {
       return [full];
@@ -272,29 +264,9 @@ export class Layout {
       const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
       return this.renderSubqueryBlock('', inner, caseCol, afterStr);
     }
-    // a wide VALUES tuple wraps: values aligned one column past the '(' (the item
-    // is placed at caseCol by the caller, so the values land at caseCol + 1).
-    if (this.tupleNeedsWrap(tokens, caseCol)) {
-      return this.renderTupleBroken(tokens, caseCol + 1);
-    }
+    // an expression-level item (including a VALUES tuple) is never broken by rule;
+    // it stays on one line and grows.
     return [renderTokens(tokens, this.options)];
-  }
-
-  /** A list item that is a parenthesized tuple `( ... )` (a VALUES row). */
-  private isTuple(tokens: Token[]): boolean {
-    return (
-      tokens.length >= 2 &&
-      tokens[0].type === 'punct' &&
-      tokens[0].value === '(' &&
-      matchParen(tokens, 0) === tokens.length - 1
-    );
-  }
-
-  /** A tuple placed at `col` overflows and has more than one element to wrap. */
-  private tupleNeedsWrap(tokens: Token[], col: number): boolean {
-    if (!this.isTuple(tokens)) return false;
-    if (this.fits(pad(col) + renderTokens(tokens, this.options))) return false;
-    return splitCommaList(tokens.slice(1, tokens.length - 1)).length > 1;
   }
 
   /**
@@ -397,7 +369,9 @@ export class Layout {
    * Renders one `when`/`else` segment at `caseCol`. If the segment's result is
    * itself a `case ... end` (a nested case at paren depth 0, e.g.
    * `when x then case ... end`), it expands recursively at the column where that
-   * inner `case` begins on the line; otherwise the segment is one line.
+   * inner `case` begins on the line; otherwise the segment is a single line that
+   * grows (a long `when ... then` is not wrapped — breaking is by rule, not by
+   * width).
    */
   private renderCaseSegment(seg: Token[], caseCol: number): string[] {
     const nested = this.findNestedCase(seg);
@@ -407,35 +381,7 @@ export class Layout {
       const innerLines = this.renderCase(nested.parsed, prefix.length);
       return [prefix + innerLines[0], ...innerLines.slice(1)];
     }
-    const single = pad(caseCol) + renderTokens(seg, this.options);
-    // A long `when <cond> then <result>` breaks before THEN: `when <cond>` and
-    // `then <result>` land on separate lines, both at the case column. (An ELSE
-    // segment has no THEN, so it stays inline.)
-    if (!this.fits(single) && seg[0]?.type === 'keyword' && seg[0].upper === 'WHEN') {
-      const thenIdx = this.findThen(seg);
-      if (thenIdx !== -1) {
-        return [
-          pad(caseCol) + renderTokens(seg.slice(0, thenIdx), this.options),
-          pad(caseCol) + renderTokens(seg.slice(thenIdx), this.options),
-        ];
-      }
-    }
-    return [single];
-  }
-
-  /** Index of the top-level THEN in a WHEN segment (paren/case depth 0), or -1. */
-  private findThen(seg: Token[]): number {
-    let pDepth = 0;
-    let cDepth = 0;
-    for (let i = 1; i < seg.length; i++) {
-      const t = seg[i];
-      if (t.type === 'punct' && t.value === '(') pDepth++;
-      else if (t.type === 'punct' && t.value === ')') pDepth = Math.max(0, pDepth - 1);
-      else if (t.type === 'keyword' && t.upper === 'CASE') cDepth++;
-      else if (t.type === 'keyword' && t.upper === 'END') cDepth = Math.max(0, cDepth - 1);
-      else if (pDepth === 0 && cDepth === 0 && t.type === 'keyword' && t.upper === 'THEN') return i;
-    }
-    return -1;
+    return [pad(caseCol) + renderTokens(seg, this.options)];
   }
 
   /**

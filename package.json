@@ -52,14 +52,6 @@
     "configuration": {
       "title": "Riverleaf SQL Formatter",
       "properties": {
-        "riverleaf.maxLineLength": {
-          "type": [
-            "number",
-            "null"
-          ],
-          "default": null,
-          "description": "Maximum line width. When null, uses the first value of editor.rulers (fallback 80)."
-        },
         "riverleaf.keywordCase": {
           "type": "string",
           "enum": [

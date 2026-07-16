@@ -30,7 +30,7 @@ export function format(sql: string, options: Partial<FormatOptions> = {}): strin
   const base = 0;
   const tokens = tokenize(sql);
   const statements = splitStatements(tokens);
-  const layout = new Layout(opts, opts.maxLineLength);
+  const layout = new Layout(opts);
 
   const blocks: string[] = [];
   for (const stmt of statements) {

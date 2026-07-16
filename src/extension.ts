@@ -1,27 +1,11 @@
 import * as vscode from 'vscode';
 import { format, FormatOptions } from './formatter/format';
 
-function resolveMaxLineLength(document: vscode.TextDocument): number {
-  const cfg = vscode.workspace.getConfiguration('riverleaf', document);
-  const explicit = cfg.get<number | null>('maxLineLength');
-  if (typeof explicit === 'number' && explicit > 0) return explicit;
-
-  const editorCfg = vscode.workspace.getConfiguration('editor', document);
-  const rulers = editorCfg.get<Array<number | { column?: number }>>('rulers');
-  if (Array.isArray(rulers) && rulers.length > 0) {
-    const first = rulers[0];
-    const col = typeof first === 'number' ? first : first?.column;
-    if (typeof col === 'number' && col > 0) return col;
-  }
-  return 80;
-}
-
 function resolveOptions(document: vscode.TextDocument): FormatOptions {
   const cfg = vscode.workspace.getConfiguration('riverleaf', document);
   const keywordCase = cfg.get<'lower' | 'upper' | 'preserve'>('keywordCase') ?? 'lower';
   const indentSize = cfg.get<number>('indentSize') ?? 2;
   return {
-    maxLineLength: resolveMaxLineLength(document),
     keywordCase,
     indentSize,
   };

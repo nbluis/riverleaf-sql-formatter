@@ -15,8 +15,8 @@ descriptions. The user converses in Portuguese; the codebase stays English.
 
 Pure formatting core (no `vscode` import), consumed by a thin extension layer.
 
-- `src/formatter/types.ts` — `Token`, `FormatOptions`, `DEFAULT_OPTIONS` (maxLineLength **80**,
-  keywordCase `lower`, indentSize `2`).
+- `src/formatter/types.ts` — `Token`, `FormatOptions`, `DEFAULT_OPTIONS` (keywordCase `lower`,
+  indentSize `2`). No line-width option: breaking is by rule, not by width.
 - `src/formatter/keywords.ts` — keyword sets: `CLAUSE_STARTERS`, `JOIN_STARTERS`,
   `BOOL_CONNECTORS`, `KEYWORD_FOLLOWERS`, `KEYWORDS`, `FUNCTION_KEYWORDS`.
 - `src/formatter/tokenizer.ts` — `tokenize(sql)`: lexer, drops whitespace, keeps comments/strings,
@@ -31,7 +31,7 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
 - `src/formatter/format.ts` — public `format(sql, options)`, base-indent detection, comment-safety
   gate + passthrough fallback.
 - `src/extension.ts` — registers document + range formatting providers; reads config from
-  `riverleaf.*` and `editor.rulers[0]` (fallback 80).
+  `riverleaf.*` (`keywordCase`, `indentSize`). No line-width config.
 
 ## Formatting rules (summary)
 
@@ -48,7 +48,7 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   `where`/`having` (and `join` ON) **break whenever there is more than one condition** (RIVER); a
   single condition stays inline. A parenthesized boolean group **always expands** (BLOCK) — it only
   exists with >1 inner term. Line length no longer participates in any breaking decision.
-- Joins with **more than one ON condition always break** (regardless of width); the `and`/`or`
+- Joins with **more than one ON condition always break** (by count); the `and`/`or`
   conditions align under `on`. A single-condition ON stays inline.
 - `where`/`on`: connectors (`and`/`or`) right-aligned to the river (RIVER mode).
 - Parenthesized boolean groups expand in BLOCK mode which, since D1 (locked 2026-07-15), also
@@ -62,9 +62,9 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   stays inline. `delete from` is kept together as one head. `insert into t (cols)` keeps a space
   before the column-list `(` (via `renderInsertClause`, since `renderTokens` would glue it as a
   call); the **column list breaks by count** (>1 column → one per line, aligned one column past the
-  `(`, trailing commas, `)` on the last, via `renderTupleBroken`). A **wide `values` tuple** still
-  wraps (Phase 12/B2, `tupleNeedsWrap`/`hasWideTuple`) — removed in R3, where a single tuple grows
-  instead.
+  `(`, trailing commas, `)` on the last, via `renderTupleBroken`). The **interior of a `values`
+  tuple is expression level** — it never breaks, it grows on one line (multi-row `values` still
+  breaks one tuple per line, by count).
 - **Subqueries / CTEs** expand recursively (always, for common shapes): `from (select ...) alias`,
   one or more comma-separated CTEs (`with a as (...), b as (...)`), a `where`/`having` condition
   subquery in **any** position, a subquery inside a **join ON** condition, a subquery as a **join
@@ -86,10 +86,9 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   column where the inner `case` begins (`renderCaseSegment`/`findNestedCase`). A `case` in a
   **`where`/`having`** or a **`join` ON** condition expands at the operand column, with anything
   after `end` (e.g. `> 100`, `= 1`) on the `end` line (`emitTerm`'s `expandCase` flag, set for
-  where/having and — since Phase 11 — join ON via `renderOn`). A `when ... then` that exceeds the
-  width breaks **before** `then` (`when <cond>` / `then <result>` on their own lines at the `case`
-  column; `renderCaseSegment`/`findThen`; an `else` never wraps). A `case` wrapped in a function
-  stays inline.
+  where/having and — since Phase 11 — join ON via `renderOn`). A `when ... then` is a single line
+  that **grows** however long — it is never wrapped (breaking is by rule, not by width). A `case`
+  wrapped in a function stays inline.
 - Line comments: **inline** comments (trailing code on a line) stay attached to that line's last
   token — in lists (`ListItem.comment`) and on `where`/`having` conditions (`BoolTerm.comment`).
   **Standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on their own
@@ -157,5 +156,6 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (a `case` or
 subquery wrapped in a function, and comments mid-token or inside a function-wrapped subquery). The
 aesthetic decisions are settled: D1 (nested-paren BLOCK vs RIVER →
-both RIVER) and D2 (base-indent → **normalize to column 0**) are resolved; only D3 (explicit default
-`maxLineLength`) remains deferred.
+both RIVER), D2 (base-indent → **normalize to column 0**), and the rule-based-breaking change
+(breaking is by count, not by width — `maxLineLength`/`fits`/width all removed, 2026-07-16) are all
+resolved. D3 (explicit default `maxLineLength`) is now moot — there is no line-width option.

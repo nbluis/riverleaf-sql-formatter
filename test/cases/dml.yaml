@@ -60,22 +60,18 @@
                            column_five,
                            column_six)
     values (1, 2, 3, 4, 5, 6)
-- description: a single wide VALUES tuple wraps, values under the first (B2)
+- description: a single VALUES tuple grows on one line (B2 removed — expression level never breaks)
   input: insert into t (a, b, c) values ('a long literal value here', 'another quite long literal', 'a third long literal too')
   expected: |
     insert into t (a,
                    b,
                    c)
-    values ('a long literal value here',
-            'another quite long literal',
-            'a third long literal too')
-- description: a wide tuple in a multi-row VALUES wraps internally
+    values ('a long literal value here', 'another quite long literal', 'a third long literal too')
+- description: multi-row VALUES breaks one tuple per line; each tuple grows on its line
   input: insert into t (a, b, c) values (1, 2, 3), ('a long literal value here', 'another quite long literal', 'a third long literal too')
   expected: |
     insert into t (a,
                    b,
                    c)
     values (1, 2, 3),
-           ('a long literal value here',
-            'another quite long literal',
-            'a third long literal too')
+           ('a long literal value here', 'another quite long literal', 'a third long literal too')

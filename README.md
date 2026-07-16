@@ -33,26 +33,26 @@ where previous_order.organization_id = current_order.organization_id and previou
 order by order_month desc limit 1
 ```
 
-After (width = 100):
+After:
 
 ```sql
-    select order_month as previous_order_month
-      from monthly_order_summaries previous_order
-      join customers on customers.customer_id = previous_order.customer_id
-      left join shipping_addresses on shipping_addresses.customer_id = customers.customer_id
-                                  and shipping_addresses.address_type = customers.default_address_type
-                                  and shipping_addresses.priority between 1 and 2
-                                  and (
-                                    shipping_addresses.region_id = customers.region_id
-                                    or shipping_addresses.country_code = customers.country_code
-                                  )
-     where previous_order.organization_id = current_order.organization_id
-       and previous_order.organization_id = 220
-       and previous_order.customer_id = current_order.customer_id
-       and previous_order.order_month < current_order.order_month
-       and previous_order.order_count > 0
-     order by order_month desc
-     limit 1
+select order_month as previous_order_month
+  from monthly_order_summaries previous_order
+  join customers on customers.customer_id = previous_order.customer_id
+  left join shipping_addresses on shipping_addresses.customer_id = customers.customer_id
+                              and shipping_addresses.address_type = customers.default_address_type
+                              and shipping_addresses.priority between 1 and 2
+                              and (
+                                shipping_addresses.region_id = customers.region_id
+                             or shipping_addresses.country_code = customers.country_code
+                              )
+ where previous_order.organization_id = current_order.organization_id
+   and previous_order.organization_id = 220
+   and previous_order.customer_id = current_order.customer_id
+   and previous_order.order_month < current_order.order_month
+   and previous_order.order_count > 0
+ order by order_month desc
+ limit 1
 ```
 
 A smaller one — `group by` / `having` / `order by`, from a single compact line:
@@ -64,7 +64,8 @@ select department_id, count(*) from employees group by department_id having coun
 becomes:
 
 ```sql
-select department_id, count(*)
+select department_id,
+       count(*)
   from employees
  group by department_id
 having count(*) > 5
@@ -74,7 +75,8 @@ having count(*) > 5
 A join with more than one ON condition always breaks, aligning `and`/`or` under `on`:
 
 ```sql
-select table1.column1, table2.column2
+select table1.column1,
+       table2.column2
   from table1
   join table2 on table2.id = table1.ref_id
              and table2.ref_id is null
@@ -86,14 +88,19 @@ select table1.column1, table2.column2
 - The **first word** of each clause (`select`, `from`, `join`, `left`, `where`, `and`,
   `order`, `limit`, ...) is right-aligned to a common river; arguments start right after.
 - **Keywords lowercased** by default; identifiers preserved.
+- **Breaking is by rule, not by width.** Line length never decides anything: a construct breaks
+  when its *structure* calls for it, and otherwise grows on one line however long. There is no
+  maximum-width setting.
+- A **list clause with more than one item breaks one item per line**, with trailing commas and the
+  columns aligned — `select`, `from` (with a comma), `group by`, `order by`, and the DML
+  `set` / `values` / `insert` column list. A single-item list stays inline.
+- **`where` / `having` break whenever there is more than one condition**, with the `and`/`or`
+  connectors aligned to the main river; a single condition stays inline. A parenthesized boolean
+  group always expands and aligns its own `and`/`or` connectors the same way — to the group's river,
+  one level in.
 - **JOINs with more than one ON condition always break**, aligning the `and`/`or`
-  conditions under the `on` — regardless of line width. A join with a single ON condition
-  stays inline (there is nothing to align).
-- In `where`/`having`, the `and`/`or` connectors align to the main river. An expanded
-  parenthesized group aligns its own `and`/`or` connectors the same way — to the group's
-  river, one level in.
-- A **SELECT with many columns** stays on one line if it fits; otherwise it breaks with
-  trailing commas, aligning the columns.
+  conditions under the `on`. A join with a single ON condition stays inline (there is nothing
+  to align).
 - **Line comments (`--`)** stay associated with the code around them. A comment that trails
   code on a line stays attached to that line (its last token) — including a comment on a `where`
   condition or inside a parenthesized group. A comment alone on its line stays alone: a leading
@@ -104,8 +111,9 @@ select table1.column1, table2.column2
   below the comment.
 - **INSERT / UPDATE / DELETE** format like a select: the anchors join the river, `set` and
   `values` break one item per line (when there is more than one), `delete from` stays together,
-  and `where` reuses the river. A wide `INSERT` column list, and a wide `values` tuple, wrap with
-  their columns / values aligned one column past the `(`.
+  and `where` reuses the river. An `INSERT` column list with more than one column breaks one per
+  line, aligned one column past the `(`. The values inside a `values` tuple stay on one line and
+  grow.
 - **Subqueries and CTEs** expand recursively — `from (select ...) alias`, one or more
   comma-separated CTEs (`with a as (...), b as (...)`), a `where`/`having` condition subquery in
   **any** position (`where ... in (select ...)`, and after `and`/`or` too), a subquery inside a
@@ -118,11 +126,8 @@ select table1.column1, table2.column2
 - **`case ... end`** in the select list (or `group by` / `order by`, in a `where` / `having`
   condition, and in a `join` ON condition) expands with `when` / `else` / `end` aligned under
   `case`; anything after the `end` (e.g. `> 100`) rides the `end` line. A nested `case` in a branch
-  expands recursively at the column where the inner `case` begins. A `when ... then` that exceeds the
-  width breaks before `then`, putting `when <cond>` and `then <result>` on their own lines at the
-  `case` column.
-- **Maximum width** = the first value of `editor.rulers` (fallback 80), or the override in
-  `riverleaf.maxLineLength`.
+  expands recursively at the column where the inner `case` begins. A `when ... then` stays on one
+  line and grows, however long.
 
 ## Usage
 
@@ -133,9 +138,10 @@ and use **Format Selection**. It also works with *format on save*.
 
 | Setting | Default | Description |
 | --- | --- | --- |
-| `riverleaf.maxLineLength` | `null` | Maximum width. When `null`, uses `editor.rulers[0]` (fallback 80). |
 | `riverleaf.keywordCase` | `lower` | `lower` / `upper` / `preserve`. |
 | `riverleaf.indentSize` | `2` | Spaces per nesting level (parentheses/subqueries). |
+
+There is no line-width / maximum-line-length setting: breaking is by rule, not by width.
 
 ## Development
 
@@ -156,13 +162,14 @@ existing file (or create a new one like `mysql.yaml`, `postgres_cte.yaml`, ...):
 
 ```yaml
 - description: what this checks
-  options:            # optional; defaults to maxLineLength 80, keywordCase lower, indentSize 2
-    maxLineLength: 100
+  options:            # optional; defaults to keywordCase lower, indentSize 2
+    keywordCase: upper
   input: |
-    select a,b from t
+    select first_name, last_name from customers
   expected: |
-    select a, b
-      from t
+    SELECT first_name,
+           last_name
+      FROM customers
 ```
 
 Each case is asserted two ways: `format(input, options) === expected`, and that formatting

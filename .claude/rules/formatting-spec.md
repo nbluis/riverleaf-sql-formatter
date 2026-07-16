@@ -20,6 +20,20 @@ character columns.
    (`originalSlice`). Else `Layout.formatStatement`.
 5. Join statements with a blank line; ensure a single trailing `\n`.
 
+## Breaking model — by rule, not by width (2026-07-16)
+
+Line length plays **no** part in any breaking decision. There is no `maxLineLength`, no `fits()`,
+no `maxWidth` — all removed. Two categories:
+
+- **Structural (count) breaking.** A list clause breaks one item per line whenever it has **more
+  than one item** (`select`, `from` with a comma, `group by`, `order by`, `set`, `values`, the
+  `insert` column list). A `where`/`having`/`join` ON breaks whenever it has **more than one
+  condition**; a parenthesized boolean group **always expands** (it only exists with >1 inner term).
+- **Expression level grows, never breaks.** A single item / single condition / function args / an
+  `in (...)` list / a `values` tuple interior / a `when ... then` all stay on one line and simply
+  grow, however long. The only per-item multi-line expansions are `case`, subqueries, and the
+  `insert` column list — all driven by structure, not width.
+
 ## The river
 
 - `segmentClauses` cuts the statement into `Clause`s at clause-starting keywords seen at paren
@@ -56,10 +70,9 @@ line). `renderInsertClause` renders `insert into t (cols)` but keeps a space bef
 with >1 column always breaks via `renderTupleBroken` (columns aligned one column past the `(`,
 trailing commas, `)` on the last), a single column stays inline. `set` and `values` are ordinary
 list clauses (no special flag): one assignment / tuple per line whenever there is more than one item,
-a single item inline. A **wide `values` tuple** still wraps (Phase 12/B2, removed in R3):
-`renderItemLines` breaks a tuple that overflows (`tupleNeedsWrap`) with its values aligned one column
-past the `(`; `hasWideTuple` forces the list to break even for a single tuple. `where` reuses the
-normal RIVER bool rendering.
+a single item inline. A `values` **tuple interior is expression level** — it never breaks, it grows
+on one line (multi-row `values` still breaks one tuple per line, by count). `where` reuses the normal
+RIVER bool rendering.
 
 ### Subqueries / CTEs (recursive)
 
@@ -124,11 +137,10 @@ base is always 0 (the outer widest clause head is the leftmost; the inner block 
 each `WHEN`/`ELSE` segment (via `renderCaseSegment`) and the closing `END [alias]` at `caseCol`
 (= the item's column). So `case`/`when`/`else`/`end` share the item column.
 
-**Long `when ... then` (C2, Phase 8).** In `renderCaseSegment`, when a `WHEN` segment (no nested
-`case`) does not fit, it breaks **before** the top-level `THEN` (`findThen`, paren/case depth 0):
-`when <cond>` on one line and `then <result>` on the next, both at `caseCol`. An `ELSE` segment has
-no `THEN`, so it never wraps this way (a too-long `else` stays inline). A nested `case` in a branch
-takes precedence over the width wrap (it is already multi-line).
+**Long `when ... then`.** A `when ... then <result>` (and an `else`) is expression level — it stays
+on a single line and **grows**, however long. It is never wrapped (breaking is by rule, not by
+width; the former C2 `findThen` wrap was removed in R3). Only a **nested `case`** in a branch makes
+a segment multi-line (see below).
 
 **Nested `case` (recursive).** `renderCaseSegment(seg, caseCol)` uses `findNestedCase` to locate a
 `case ... end` at paren depth 0 inside the segment (skipping the segment's leading `WHEN`/`ELSE`; a
@@ -159,7 +171,7 @@ split point (`pendingBetween` counter in `splitTerms`).
   - `where`: `connEnd = riverEnd`.
   - `join`: `connEnd = onRiverEnd = leading + len("<head> <tableref> on")` — a **secondary river**
     at the column right after `on`. First ON term stays on the join line. A join with two or more
-    ON conditions **always breaks** (regardless of width); a single-condition ON stays inline
+    ON conditions **always breaks** (by count); a single-condition ON stays inline
     (nothing to align).
 - **BLOCK mode** (`renderBoolBlock`, used inside an expanded parenthesized group): connectors are
   **right-aligned** (RIVER, same as the top level, D1). Operands align at `blockIndent`; each
@@ -216,7 +228,7 @@ call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KE
     `having` (RIVER mode), `processRawTerms` (via `parseBoolExpr`) extracts an inline comment
     trailing a top-level term into `BoolTerm.comment`, rendered at end of that term's line. A
     comment on an intermediate term forces the expression to break; a comment on the last term
-    (or a single term) can stay inline when it fits.
+    rides its line, and a comment on a single (inline) condition stays with it.
   - **Standalone comments between `where`/`having` conditions**: `processRawTerms` lifts a
     standalone comment (trailing a term, or leading the next after its connector) into the
     following `BoolTerm.commentsBefore`, rendered on its own line at the operand column
