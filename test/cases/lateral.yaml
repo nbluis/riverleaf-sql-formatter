@@ -3,52 +3,52 @@
 # from-list item. `lateral` is a keyword (kept apart from its '(' — not glued as
 # a function call).
 - description: a left join lateral (subquery) expands, alias + single ON on the ) line
-  input: select p.id from planet p left join lateral(select max(mass) as top from moon m where m.planet_id = p.id) as last on true
+  input: select p.id from planets p left join lateral(select max(mass) as top from moons m where m.planet_id = p.id) as last on true
   expected: |
     select p.id
-      from planet p
+      from planets p
       left join lateral (
         select max(mass) as top
-          from moon m
+          from moons m
          where m.planet_id = p.id
       ) as last on true
 - description: a cross join lateral (subquery) expands
-  input: select p.id from planet p cross join lateral(select sum(mass) as total from moon m where m.planet_id = p.id) x
+  input: select p.id from planets p cross join lateral(select sum(mass) as total from moons m where m.planet_id = p.id) x
   expected: |
     select p.id
-      from planet p
+      from planets p
      cross join lateral (
        select sum(mass) as total
-         from moon m
+         from moons m
         where m.planet_id = p.id
      ) x
 - description: a from lateral (subquery) alias expands, closing ) under from
-  input: select x.a from lateral(select id as a from planet where planet.star_id = 1) x
+  input: select x.a from lateral(select id as a from planets where planets.star_id = 1) x
   expected: |
     select x.a
       from lateral (
         select id as a
-          from planet
-         where planet.star_id = 1
+          from planets
+         where planets.star_id = 1
       ) x
 - description: a lateral item in a from list expands at the item column
-  input: select star.a, x.b from star, lateral(select id as b from planet where planet.star_id = star.id) x
+  input: select stars.a, x.b from stars, lateral(select id as b from planets where planets.star_id = stars.id) x
   expected: |
-    select star.a,
+    select stars.a,
            x.b
-      from star,
+      from stars,
            lateral (
              select id as b
-               from planet
-              where planet.star_id = star.id
+               from planets
+              where planets.star_id = stars.id
            ) x
 - description: a join lateral (subquery) with a multi-condition ON keeps the ON river
-  input: select p.id from planet p join lateral(select id from moon) x on x.id = p.id and x.id > 0
+  input: select p.id from planets p join lateral(select id from moons) x on x.id = p.id and x.id > 0
   expected: |
     select p.id
-      from planet p
+      from planets p
       join lateral (
         select id
-          from moon
+          from moons
       ) x on x.id = p.id
          and x.id > 0

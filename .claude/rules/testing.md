@@ -46,7 +46,7 @@ test ensures it never silently changes.
 ## Naming / dummy data
 
 **Use the astronomy dictionary** — `.claude/rules/example-dictionary.md`. Every table, column, alias,
-and literal in a case comes from there (`planet`, `star`, `mission`, `mass`, `observed_at`, aliases
+and literal in a case comes from there (`planets`, `stars`, `missions`, `mass`, `observed_at`, aliases
 `p`/`s`/`ms`, values like `'confirmed'`/`'terrestrial'`). Rewrite any real query onto dictionary names
 by role, keeping the structure identical. No real business tables from the user's domain, and no
 off-theme placeholders. The dictionary's short aliases (`p`, `s`, `m`, ...) are intentional and

@@ -23,7 +23,7 @@ string (literals), matching how SQL is actually written.
 - **Reuse the canonical alias** for a table (see Aliases) so `p.mass`, `ms.status`, `obs.observed_at`
   look the same across every example.
 - **Prefer the first name in a list** as the default; reach for the others when an example needs a
-  second/third distinct object of the same kind (e.g. two joined tables → `planet` + `star`).
+  second/third distinct object of the same kind (e.g. two joined tables → `planets` + `stars`).
 - **Pad to the length you need.** River alignment is about column widths, so when an example must
   exercise a wide clause head or a long column, pick a longer dictionary word (`constellation`,
   `orbital_period`, `apparent_magnitude`) rather than inventing a name.
@@ -33,41 +33,42 @@ string (literals), matching how SQL is actually written.
 
 ```yaml
 tables:
-  # Primary entities — the "nouns" a query is about. planet is the default main
-  # table; star is the default second/joined table.
+  # Primary entities — the "nouns" a query is about. Table names are PLURAL
+  # (planets, stars, ...); only the identifier columns (star_id, planet_id) stay
+  # singular. planets is the default main table; stars is the default second/joined table.
   primary:
-    - planet          # default main entity
-    - star            # default joined entity
-    - galaxy          # default grouping / parent entity
-    - moon            # default child rows (belong to a planet)
-    - satellite
-    - asteroid
-    - comet
-    - spacecraft
-    - mission         # default entity with a status + dates
-    - astronaut       # default "person" entity
-    - station
-    - observatory
-    - observation     # default detail / child rows of a mission
-    - constellation   # a long name, for wide-head examples
-    - nebula
-    - telescope
+    - planets         # default main entity
+    - stars           # default joined entity
+    - galaxies        # default grouping / parent entity
+    - moons           # default child rows (belong to a planet)
+    - satellites
+    - asteroids
+    - comets
+    - spacecraft      # invariant plural
+    - missions        # default entity with a status + dates
+    - astronauts      # default "person" entity
+    - stations
+    - observatories
+    - observations    # default detail / child rows of a mission
+    - constellations  # a long name, for wide-head examples
+    - nebulae
+    - telescopes
 
-  # Junction / many-to-many tables (naming: <a>_<b>, singular, alphabetical-ish).
+  # Junction / many-to-many tables (naming: <a>_<b>s, second noun pluralized).
   junction:
-    - star_planet
-    - planet_moon
-    - mission_astronaut
+    - star_planets
+    - planet_moons
+    - mission_astronauts
     - mission_spacecraft
-    - observatory_telescope
+    - observatory_telescopes
 
   # Lookup / type / status tables (small reference tables joined for a label).
   lookup:
-    - planet_type
-    - star_type
-    - mission_type
-    - mission_status
-    - orbit_type
+    - planet_types
+    - star_types
+    - mission_types
+    - mission_statuses
+    - orbit_types
 
   # Time-bucketed summary / rollup tables — a per-period aggregate keyed by an
   # entity plus a period.
@@ -79,8 +80,8 @@ tables:
 
   # Staging / scratch input tables.
   staging:
-    - observation_staging
-    - planet_import
+    - observation_stagings
+    - planet_imports
 ```
 
 ## Columns
@@ -189,22 +190,22 @@ override the general "no single-letter alias" note in `testing.md`.
 
 ```yaml
 aliases:
-  galaxy: g
-  star: s
-  planet: p
-  moon: m
-  satellite: sat
-  asteroid: a
-  comet: c
+  galaxies: g
+  stars: s
+  planets: p
+  moons: m
+  satellites: sat
+  asteroids: a
+  comets: c
   spacecraft: sc
-  mission: ms
-  astronaut: ast
-  station: st
-  observatory: oby     # 'obs' is reserved for observation
-  observation: obs
-  constellation: con
-  nebula: neb
-  telescope: tel
+  missions: ms
+  astronauts: ast
+  stations: st
+  observatories: oby     # 'obs' is reserved for observations
+  observations: obs
+  constellations: con
+  nebulae: neb
+  telescopes: tel
 ```
 
 ## Views & materialized views
@@ -312,5 +313,5 @@ values:
 ```
 
 If a query has more objects of one kind than a list covers, keep going down the relevant list
-(e.g. a third joined table → `moon`; a fourth measure → `temperature`). When nothing fits, add the
+(e.g. a third joined table → `moons`; a fourth measure → `temperature`). When nothing fits, add the
 new name to this file rather than inventing an off-theme one.

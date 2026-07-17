@@ -27,8 +27,8 @@ Before:
 
 ```sql
 select observed_month as previous_observed_month from monthly_observation_summaries previous_summary
-join star on star.star_id = previous_summary.star_id
-left join planet on planet.star_id = star.star_id and planet.type = star.default_type and planet.apparent_magnitude between 1 and 2 and (planet.constellation_id = star.constellation_id or planet.catalog_number = star.catalog_number)
+join stars on stars.star_id = previous_summary.star_id
+left join planets on planets.star_id = stars.star_id and planets.type = stars.default_type and planets.apparent_magnitude between 1 and 2 and (planets.constellation_id = stars.constellation_id or planets.catalog_number = stars.catalog_number)
 where previous_summary.galaxy_id = current_summary.galaxy_id and previous_summary.galaxy_id = 220 and previous_summary.star_id = current_summary.star_id and previous_summary.observed_month < current_summary.observed_month and previous_summary.observation_count > 0
 order by observed_month desc limit 1
 ```
@@ -38,14 +38,14 @@ After:
 ```sql
 select observed_month as previous_observed_month
   from monthly_observation_summaries previous_summary
-  join star on star.star_id = previous_summary.star_id
-  left join planet on planet.star_id = star.star_id
-                  and planet.type = star.default_type
-                  and planet.apparent_magnitude between 1 and 2
-                  and (
-                    planet.constellation_id = star.constellation_id
-                 or planet.catalog_number = star.catalog_number
-                  )
+  join stars on stars.star_id = previous_summary.star_id
+  left join planets on planets.star_id = stars.star_id
+                   and planets.type = stars.default_type
+                   and planets.apparent_magnitude between 1 and 2
+                   and (
+                     planets.constellation_id = stars.constellation_id
+                  or planets.catalog_number = stars.catalog_number
+                   )
  where previous_summary.galaxy_id = current_summary.galaxy_id
    and previous_summary.galaxy_id = 220
    and previous_summary.star_id = current_summary.star_id
@@ -58,7 +58,7 @@ select observed_month as previous_observed_month
 A smaller one — `group by` / `having` / `order by`, from a single compact line:
 
 ```sql
-select station_id, count(*) from astronaut group by station_id having count(*) > 5 order by station_id
+select station_id, count(*) from astronauts group by station_id having count(*) > 5 order by station_id
 ```
 
 becomes:
@@ -66,7 +66,7 @@ becomes:
 ```sql
 select station_id,
        count(*)
-  from astronaut
+  from astronauts
  group by station_id
 having count(*) > 5
  order by station_id
@@ -75,11 +75,11 @@ having count(*) > 5
 A join with more than one ON condition always breaks, aligning `and`/`or` under `on`:
 
 ```sql
-select planet.mass,
-       star.radius
-  from planet
-  join star on star.id = planet.star_id
-           and star.parent_id is null
+select planets.mass,
+       stars.radius
+  from planets
+  join stars on stars.id = planets.star_id
+            and stars.parent_id is null
 ```
 
 ## Rules
@@ -169,11 +169,11 @@ existing file (or create a new one like `mysql.yaml`, `postgres_cte.yaml`, ...):
   options:            # optional; defaults to keywordCase lower, indentSize 2
     keywordCase: upper
   input: |
-    select name, designation from star
+    select name, designation from stars
   expected: |
     SELECT name,
            designation
-      FROM star
+      FROM stars
 ```
 
 Each case is asserted two ways: `format(input, options) === expected`, and that formatting

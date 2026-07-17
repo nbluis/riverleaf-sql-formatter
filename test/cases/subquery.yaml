@@ -1,63 +1,63 @@
 - description: from ( subquery ) alias expands, closing ) aligned under from
-  input: select x.id, x.total from (select id, sum(mass) as total from planet group by id) x where x.total > 100
+  input: select x.id, x.total from (select id, sum(mass) as total from planets group by id) x where x.total > 100
   expected: |
     select x.id,
            x.total
       from (
         select id,
                sum(mass) as total
-          from planet
+          from planets
          group by id
       ) x
      where x.total > 100
 - description: a single CTE body expands, closing ) aligned under with
-  input: with recent as (select id from planet where created_at > now() - interval '7 days') select id from recent
+  input: with recent as (select id from planets where created_at > now() - interval '7 days') select id from recent
   expected: |
     with recent as (
       select id
-        from planet
+        from planets
        where created_at > now() - interval '7 days'
     )
     select id
       from recent
 - description: where ... in ( subquery ) expands under the where keyword
-  input: select id from planet where star_id in (select star_id from nearby_stars where is_active = true)
+  input: select id from planets where star_id in (select star_id from nearby_stars where is_active = true)
   expected: |
     select id
-      from planet
+      from planets
      where star_id in (
        select star_id
          from nearby_stars
         where is_active = true
      )
 - description: nested subqueries expand recursively
-  input: select t.id from (select id from (select id from planet where status_id = 1) inner_q where id > 0) t
+  input: select t.id from (select id from (select id from planets where status_id = 1) inner_q where id > 0) t
   expected: |
     select t.id
       from (
         select id
           from (
             select id
-              from planet
+              from planets
              where status_id = 1
           ) inner_q
          where id > 0
       ) t
 - description: a subquery containing a multi-condition join keeps the ON river
-  input: select x.id from (select p.id from planet p join star s on s.id = p.star_id and s.is_active = true) x
+  input: select x.id from (select p.id from planets p join stars s on s.id = p.star_id and s.is_active = true) x
   expected: |
     select x.id
       from (
         select p.id
-          from planet p
-          join star s on s.id = p.star_id
-                     and s.is_active = true
+          from planets p
+          join stars s on s.id = p.star_id
+                      and s.is_active = true
       ) x
 - description: a subquery in the first of several where conditions expands, rest below
-  input: select id from planet where star_id in (select star_id from nearby_stars where is_active = true) and status_id = 1
+  input: select id from planets where star_id in (select star_id from nearby_stars where is_active = true) and status_id = 1
   expected: |
     select id
-      from planet
+      from planets
      where star_id in (
        select star_id
          from nearby_stars
@@ -65,10 +65,10 @@
      )
        and status_id = 1
 - description: a subquery in a non-first where condition expands, ) under the connector
-  input: select id from planet where status_id = 1 and star_id in (select star_id from nearby_stars where is_active = true)
+  input: select id from planets where status_id = 1 and star_id in (select star_id from nearby_stars where is_active = true)
   expected: |
     select id
-      from planet
+      from planets
      where status_id = 1
        and star_id in (
          select star_id
@@ -76,45 +76,45 @@
           where is_active = true
        )
 - description: a subquery in a multi-condition join ON expands, ) under the connector
-  input: select p.id from planet p join star s on s.id = p.star_id and s.id in (select id from nearby_stars)
+  input: select p.id from planets p join stars s on s.id = p.star_id and s.id in (select id from nearby_stars)
   expected: |
     select p.id
-      from planet p
-      join star s on s.id = p.star_id
-                 and s.id in (
-                   select id
-                     from nearby_stars
-                 )
+      from planets p
+      join stars s on s.id = p.star_id
+                  and s.id in (
+                    select id
+                      from nearby_stars
+                  )
 - description: a scalar subquery in the select list expands at the item column
-  input: select id, (select count(*) from moon m where m.planet_id = planet.id) as moon_count from planet
+  input: select id, (select count(*) from moons m where m.planet_id = planets.id) as moon_count from planets
   expected: |
     select id,
            (
              select count(*)
-               from moon m
-              where m.planet_id = planet.id
+               from moons m
+              where m.planet_id = planets.id
            ) as moon_count
-      from planet
+      from planets
 - description: a subquery wrapped in a function in the select list stays inline
-  input: select id, coalesce((select max(mass) from moon m where m.planet_id = planet.id), 0) as top from planet
+  input: select id, coalesce((select max(mass) from moons m where m.planet_id = planets.id), 0) as top from planets
   expected: |
     select id,
-           coalesce((select max(mass) from moon m where m.planet_id = planet.id), 0) as top
-      from planet
+           coalesce((select max(mass) from moons m where m.planet_id = planets.id), 0) as top
+      from planets
 - description: a subquery as a join table expands, alias and single ON on the ) line
-  input: select p.id from planet p join (select star_id from nearby_stars) ns on ns.star_id = p.star_id
+  input: select p.id from planets p join (select star_id from nearby_stars) ns on ns.star_id = p.star_id
   expected: |
     select p.id
-      from planet p
+      from planets p
       join (
         select star_id
           from nearby_stars
       ) ns on ns.star_id = p.star_id
 - description: a join-table subquery with a multi-condition ON keeps the ON river on the ) line
-  input: select p.id from planet p join (select star_id from nearby_stars) ns on ns.star_id = p.star_id and ns.type = p.type
+  input: select p.id from planets p join (select star_id from nearby_stars) ns on ns.star_id = p.star_id and ns.type = p.type
   expected: |
     select p.id
-      from planet p
+      from planets p
       join (
         select star_id
           from nearby_stars
@@ -125,25 +125,25 @@
     select x.id from (
       select id
       -- note inside
-      from planet
+      from planets
     ) x
   expected: |
     select x.id
       from (
         select id
                -- note inside
-          from planet
+          from planets
       ) x
 - description: a comment inside a where-subquery (first condition) reflows recursively
   input: |
-    select id from planet where star_id in (
+    select id from planets where star_id in (
       select star_id
       -- only the nearby ones
       from nearby_stars
     ) and status_id = 1
   expected: |
     select id
-      from planet
+      from planets
      where star_id in (
        select star_id
               -- only the nearby ones
@@ -152,14 +152,14 @@
        and status_id = 1
 - description: a comment inside a join-table subquery reflows recursively
   input: |
-    select p.id from planet p join (
+    select p.id from planets p join (
       select star_id
       -- nearby only
       from nearby_stars
     ) v on ns.star_id = p.star_id
   expected: |
     select p.id
-      from planet p
+      from planets p
       join (
         select star_id
                -- nearby only
@@ -170,27 +170,27 @@
     select id, (
       select count(*)
       -- count of moons
-      from moon m where m.planet_id = planet.id
-    ) as moon_count from planet
+      from moons m where m.planet_id = planets.id
+    ) as moon_count from planets
   expected: |
     select id,
            (
              select count(*)
                     -- count of moons
-               from moon m
-              where m.planet_id = planet.id
+               from moons m
+              where m.planet_id = planets.id
            ) as moon_count
-      from planet
+      from planets
 - description: a comment inside a non-first where-subquery now reflows
   input: |-
-    select id from planet where status_id = 1 and star_id in (
+    select id from planets where status_id = 1 and star_id in (
       select star_id
       -- must not vanish
       from nearby_stars
     )
   expected: |
     select id
-      from planet
+      from planets
      where status_id = 1
        and star_id in (
          select star_id
@@ -202,56 +202,56 @@
     select id, coalesce((
       select max(mass)
       -- careful
-      from moon m where m.planet_id = planet.id
-    ), 0) as top from planet
+      from moons m where m.planet_id = planets.id
+    ), 0) as top from planets
   expected: |
     select id, coalesce((
       select max(mass)
       -- careful
-      from moon m where m.planet_id = planet.id
-    ), 0) as top from planet
+      from moons m where m.planet_id = planets.id
+    ), 0) as top from planets
 - description: multiple comma-separated CTEs each expand, names recede to the with column
-  input: with a as (select id from planet), b as (select id from star) select a.id from a join b on a.id = b.id
+  input: with a as (select id from planets), b as (select id from stars) select a.id from a join b on a.id = b.id
   expected: |
     with a as (
       select id
-        from planet
+        from planets
     ),
     b as (
       select id
-        from star
+        from stars
     )
     select a.id
       from a
       join b on a.id = b.id
 - description: 'three CTEs: each ) aligns under with, comma after each ) but the last'
-  input: with a as (select id from planet), b as (select id from star), c as (select id from galaxy) select a.id from a
+  input: with a as (select id from planets), b as (select id from stars), c as (select id from galaxies) select a.id from a
   expected: |
     with a as (
       select id
-        from planet
+        from planets
     ),
     b as (
       select id
-        from star
+        from stars
     ),
     c as (
       select id
-        from galaxy
+        from galaxies
     )
     select a.id
       from a
 - description: multiple CTEs with inner where clauses expand recursively
-  input: with a as (select id from planet where status_id = 1), b as (select star_id from star where is_active = true) select a.id from a join b on a.id = b.star_id where a.id > 0
+  input: with a as (select id from planets where status_id = 1), b as (select star_id from stars where is_active = true) select a.id from a join b on a.id = b.star_id where a.id > 0
   expected: |
     with a as (
       select id
-        from planet
+        from planets
        where status_id = 1
     ),
     b as (
       select star_id
-        from star
+        from stars
        where is_active = true
     )
     select a.id
@@ -262,16 +262,16 @@
   input: |-
     with a as (select id
     -- first cte
-    from planet), b as (select id from star) select a.id from a
+    from planets), b as (select id from stars) select a.id from a
   expected: |
     with a as (
       select id
              -- first cte
-        from planet
+        from planets
     ),
     b as (
       select id
-        from star
+        from stars
     )
     select a.id
       from a

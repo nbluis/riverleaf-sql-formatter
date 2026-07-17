@@ -2,76 +2,76 @@
 # the DML anchors (insert / update / delete / set / values) join the river; SET
 # and VALUES are lists that break one item per line; WHERE reuses the river.
 - description: update sets one assignment per line, where reuses the river
-  input: update planet set status_id = 2, updated_at = now() where id = 42 and status_id = 1
+  input: update planets set status_id = 2, updated_at = now() where id = 42 and status_id = 1
   expected: |
-    update planet
+    update planets
        set status_id = 2,
            updated_at = now()
      where id = 42
        and status_id = 1
 - description: update with a single assignment stays on the set line
-  input: update planet set status_id = 2 where id = 42
+  input: update planets set status_id = 2 where id = 42
   expected: |
-    update planet
+    update planets
        set status_id = 2
      where id = 42
 - description: insert with multiple value tuples breaks one tuple per line
-  input: insert into planet (star_id, mass) values (42, 100), (43, 250), (44, 90)
+  input: insert into planets (star_id, mass) values (42, 100), (43, 250), (44, 90)
   expected: |
-    insert into planet (star_id,
-                        mass)
+    insert into planets (star_id,
+                         mass)
     values (42, 100),
            (43, 250),
            (44, 90)
 - description: insert with a single value tuple stays on the values line
-  input: insert into planet (star_id, mass) values (42, 100)
+  input: insert into planets (star_id, mass) values (42, 100)
   expected: |
-    insert into planet (star_id,
-                        mass)
+    insert into planets (star_id,
+                         mass)
     values (42, 100)
 - description: delete keeps "delete from" together and aligns where under the river
-  input: delete from planet where status_id = 0
+  input: delete from planets where status_id = 0
   expected: |
-    delete from planet
+    delete from planets
      where status_id = 0
 - description: insert ... select recomputes the river across the select body
-  input: insert into planet (star_id, mass) select star_id, mass from planet_import where is_confirmed = true
+  input: insert into planets (star_id, mass) select star_id, mass from planet_imports where is_confirmed = true
   expected: |
-    insert into planet (star_id,
-                        mass)
+    insert into planets (star_id,
+                         mass)
     select star_id,
            mass
-      from planet_import
+      from planet_imports
      where is_confirmed = true
 - description: returning joins the river (widest clause), so the shorter heads align under it
-  input: update planet set status_id = 2 where id = 42 returning id, status_id
+  input: update planets set status_id = 2 where id = 42 returning id, status_id
   expected: |2
-       update planet
+       update planets
           set status_id = 2
         where id = 42
     returning id, status_id
 - description: a wide INSERT column list wraps, columns under the first (B1)
-  input: insert into observation (galaxy_id, star_id, planet_id, mass, radius, distance) values (1,2,3,4,5,6)
+  input: insert into observations (galaxy_id, star_id, planet_id, mass, radius, distance) values (1,2,3,4,5,6)
   expected: |
-    insert into observation (galaxy_id,
-                             star_id,
-                             planet_id,
-                             mass,
-                             radius,
-                             distance)
+    insert into observations (galaxy_id,
+                              star_id,
+                              planet_id,
+                              mass,
+                              radius,
+                              distance)
     values (1, 2, 3, 4, 5, 6)
 - description: a single VALUES tuple grows on one line (B2 removed — expression level never breaks)
-  input: insert into moon (name, designation, notes) values ('a long designation value here', 'another quite long designation', 'a third long designation too')
+  input: insert into moons (name, designation, notes) values ('a long designation value here', 'another quite long designation', 'a third long designation too')
   expected: |
-    insert into moon (name,
-                      designation,
-                      notes)
+    insert into moons (name,
+                       designation,
+                       notes)
     values ('a long designation value here', 'another quite long designation', 'a third long designation too')
 - description: multi-row VALUES breaks one tuple per line; each tuple grows on its line
-  input: insert into moon (name, designation, notes) values (1, 2, 3), ('a long designation value here', 'another quite long designation', 'a third long designation too')
+  input: insert into moons (name, designation, notes) values (1, 2, 3), ('a long designation value here', 'another quite long designation', 'a third long designation too')
   expected: |
-    insert into moon (name,
-                      designation,
-                      notes)
+    insert into moons (name,
+                       designation,
+                       notes)
     values (1, 2, 3),
            ('a long designation value here', 'another quite long designation', 'a third long designation too')
