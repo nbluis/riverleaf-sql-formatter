@@ -88,6 +88,11 @@ Data-driven: `test/cases/*.yaml` hold scenarios, `test/cases.test.ts` loads **ev
 Add scenarios by editing/creating a yaml — **no code changes**. Details and the "generate
 `expected` from the formatter, never hand-count spaces" workflow: **`.claude/rules/testing.md`**.
 
+Plus a property test, `test/comment-invariants.test.ts`: fuzzes comments into every token position
+and asserts the layout↔comment-safety-gate agreement (no code commented out, no comment dropped,
+idempotent). It's formatting-agnostic — extend its corpus when touching comment handling, don't
+snapshot. See `.claude/rules/testing.md`.
+
 **Every example uses the astronomy dictionary.** All example SQL (test-case `input`/`expected`,
 README/doc snippets) is written with names from **`.claude/rules/example-dictionary.md`** — real
 queries are rewritten onto those tables/columns/aliases/literals so examples stay isomorphic and

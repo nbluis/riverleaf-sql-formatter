@@ -563,7 +563,9 @@ export class Layout {
     const hasGroup = terms.some((t) => t.node.kind === 'group');
     const hasCase = terms.some((t) => t.node.kind === 'atom' && this.hasCase(t.node.tokens));
     const hasSubquery = terms.some((t) => t.node.kind === 'atom' && this.condHasSubquery(t.node.tokens));
-    if (terms.length === 1 && !hasGroup && !hasCase && !hasSubquery) {
+    // A single condition stays inline — but not if it carries a standalone
+    // comment above it, which only the RIVER path can place (else it is dropped).
+    if (terms.length === 1 && !hasGroup && !hasCase && !hasSubquery && !terms[0].commentsBefore?.length) {
       const lastComment = terms[0].comment ? ' ' + terms[0].comment : '';
       return [pad(leading) + headStr + ' ' + this.renderInlineBool(terms) + lastComment];
     }
@@ -627,7 +629,14 @@ export class Layout {
     // is a group or contains a subquery or `case` to expand. Any join with two or
     // more ON conditions always breaks (regardless of width) so the and/or
     // connectors align under the "on".
-    if (terms.length === 1 && !hasGroup && !this.nodeHasComments(terms[0].node) && !hasSubquery && !hasCase) {
+    if (
+      terms.length === 1 &&
+      !hasGroup &&
+      !this.nodeHasComments(terms[0].node) &&
+      !terms[0].commentsBefore?.length &&
+      !hasSubquery &&
+      !hasCase
+    ) {
       const comment = terms[0].comment ? ' ' + terms[0].comment : '';
       return [pad(leading) + headPart + ' ' + this.renderInlineBool(terms) + comment];
     }

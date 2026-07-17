@@ -300,10 +300,12 @@ export function segmentClauses(tokens: Token[]): { clauses: Clause[]; trailingCo
     }
 
     if (!pending) {
-      // Before any clause: a standalone line comment is a leading comment of the
-      // first clause (carried forward); anything else starts a preamble (e.g.
-      // WITH ...) rendered as a generic clause.
-      if (tok.type === 'lineComment' && tok.newlineBefore) {
+      // Before any clause: a line comment is a leading comment of the first clause
+      // (carried forward). This holds whether it is standalone or trails on the
+      // same line — e.g. a comment right after a `;` (`... ; -- note`), which must
+      // glue under the previous statement the same way on every pass (idempotent),
+      // not become a generic clause. Anything else starts a preamble (e.g. WITH).
+      if (tok.type === 'lineComment') {
         carry.push(tok.value);
         i++;
         continue;
@@ -537,15 +539,21 @@ export function splitListItems(body: Token[]): ListItem[] {
 
     // leading line comments precede this item in the source
     while (item.tokens.length > 0 && item.tokens[0].type === 'lineComment') {
-      const c = item.tokens.shift()!;
+      const c = item.tokens[0];
       if (c.newlineBefore) {
         // standalone: keep it on its own line before this item
         (item.commentsBefore ??= []).push(c.value);
+        item.tokens.shift();
       } else if (k > 0) {
         // inline: it trailed the previous item's comma on the same line
         items[k - 1].comment = [items[k - 1].comment, c.value].filter(Boolean).join(' ');
+        item.tokens.shift();
       } else {
-        item.unsafe = true; // inline comment before the very first item
+        // inline comment before the very first item — cannot place it. Leave it
+        // embedded (do not drop it) and mark unsafe, so the safety gate passes the
+        // statement through unchanged instead of silently deleting the comment.
+        item.unsafe = true;
+        break;
       }
     }
 

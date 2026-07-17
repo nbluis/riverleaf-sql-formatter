@@ -190,3 +190,33 @@
     select star_id
       from planets;
     -- done
+- description: an inline comment on the same line as the final semicolon glues (idempotent)
+  input: |
+    select star_id from planets where mass > 10; -- done
+  expected: |
+    select star_id
+      from planets
+     where mass > 10;
+    -- done
+- description: a standalone comment before a single where condition drops to the operand column
+  input: |
+    select id from planets where
+    -- only heavy planets
+    mass > 10
+  expected: |
+    select id
+      from planets
+     where
+           -- only heavy planets
+           mass > 10
+- description: a standalone comment before a single join ON condition drops to the ON river
+  input: |
+    select p.id from planets p join stars s on
+    -- match host star
+    s.id = p.star_id
+  expected: |
+    select p.id
+      from planets p
+      join stars s on
+                      -- match host star
+                      s.id = p.star_id

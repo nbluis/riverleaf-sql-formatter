@@ -23,6 +23,28 @@ scenarios can be added without touching code — this is our regression guardrai
   1. `format(input, options) === expected`
   2. idempotency: `format(expected, options) === expected` (opt out with `idempotent: false`).
 
+## Comment-safety invariants (`test/comment-invariants.test.ts`)
+
+A second, **property-based** test guards the one coupling most prone to silent breakage: the
+comment-reflow layout (`layout.ts`) and the comment-safety gate (`format.ts`) must stay in agreement
+— if the gate lets a statement format but the layout can't place a comment, code gets commented out
+(a token is swallowed) or a comment is dropped. It builds a corpus by injecting a standalone line
+comment, an inline line comment, and a block comment at **every token boundary** of a set of base
+queries (astronomy dictionary), plus hand-picked nested/multi-comment shapes, under both keyword
+cases, and asserts three **formatting-agnostic** invariants on each:
+
+1. **No code token is swallowed or invented** — `format` preserves the code-token stream (keywords
+   compared case-insensitively), so nothing gets commented out.
+2. **No comment is dropped** — every line/block comment text survives (as a multiset).
+3. **Idempotent** — `format(format(x)) === format(x)`.
+
+Because it checks invariants, not exact output, it never needs updating when formatting legitimately
+changes — it only fails on real corruption/loss. When adding or changing comment handling, extend
+`BASE_QUERIES` / `HAND_PICKED` rather than snapshotting output. (This net was added after it caught
+real bugs: dropped comments in a single-condition `where`/`having`/ON with a standalone comment
+above it, a dropped inline comment before the first list item, and a non-idempotent inline comment
+after `;`.)
+
 ## Case schema
 
 ```yaml
