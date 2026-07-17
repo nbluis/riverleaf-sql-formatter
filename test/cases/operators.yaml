@@ -1,0 +1,147 @@
+# Multi-character operators. The tokenizer lexes an operator as the maximal
+# contiguous run of PostgreSQL operator characters (+ - * / < > = ~ ! @ # % ^ & |
+# ?), so JSONB / regex / array / bit-shift operators survive as a single token
+# and are never sliced apart (@> was corrupted to "@ >" before). Binary operators
+# get one space on each side; ::, ->, ->> stay glued (no space). These cases lock
+# the fix and re-affirm the operators that already worked.
+
+# --- JSONB containment ---------------------------------------------------------
+- description: JSONB containment @> stays a single operator
+  input: |
+    select id from observation where metadata @> '{"confirmed": true}'
+  expected: |
+    select id
+      from observation
+     where metadata @> '{"confirmed": true}'
+
+- description: JSONB contained-by <@ stays a single operator
+  input: |
+    select id from observation where metadata <@ '{"confirmed": true}'
+  expected: |
+    select id
+      from observation
+     where metadata <@ '{"confirmed": true}'
+
+# --- JSONB path ----------------------------------------------------------------
+- description: JSONB path #> stays a single operator
+  input: |
+    select data #> '{position,ra}' from observation
+  expected: |
+    select data #> '{position,ra}'
+      from observation
+
+- description: JSONB path-as-text #>> stays a single operator
+  input: |
+    select data #>> '{position,ra}' as right_ascension from observation
+  expected: |
+    select data #>> '{position,ra}' as right_ascension
+      from observation
+
+# --- JSONB existence -----------------------------------------------------------
+- description: JSONB key existence ? stays a single operator
+  input: |
+    select id from observation where metadata ? 'confirmed'
+  expected: |
+    select id
+      from observation
+     where metadata ? 'confirmed'
+
+- description: JSONB any-key existence ?| stays a single operator
+  input: |
+    select id from observation where metadata ?| array['transit', 'eclipse']
+  expected: |
+    select id
+      from observation
+     where metadata ?| array['transit', 'eclipse']
+
+- description: JSONB all-key existence ?& stays a single operator
+  input: |
+    select id from observation where metadata ?& array['transit', 'eclipse']
+  expected: |
+    select id
+      from observation
+     where metadata ?& array['transit', 'eclipse']
+
+# --- Regex match ---------------------------------------------------------------
+- description: case-sensitive regex ~ stays a single operator
+  input: |
+    select name from star where spectral_class ~ '^g'
+  expected: |
+    select name
+      from star
+     where spectral_class ~ '^g'
+
+- description: case-insensitive regex ~* stays a single operator
+  input: |
+    select name from star where spectral_class ~* '^g'
+  expected: |
+    select name
+      from star
+     where spectral_class ~* '^g'
+
+- description: negated regex !~ stays a single operator
+  input: |
+    select name from star where spectral_class !~ '^g'
+  expected: |
+    select name
+      from star
+     where spectral_class !~ '^g'
+
+- description: negated case-insensitive regex !~* stays a single operator
+  input: |
+    select name from star where spectral_class !~* '^g'
+  expected: |
+    select name
+      from star
+     where spectral_class !~* '^g'
+
+# --- Array overlap -------------------------------------------------------------
+- description: array overlap && stays a single operator
+  input: |
+    select id from observation where tags && array['transit', 'eclipse']
+  expected: |
+    select id
+      from observation
+     where tags && array['transit', 'eclipse']
+
+# --- Bit shift -----------------------------------------------------------------
+- description: bit-shift << and >> stay single operators
+  input: |
+    select 1 << 4 as low, 256 >> 2 as high
+  expected: |
+    select 1 << 4 as low,
+           256 >> 2 as high
+
+# --- Already-ok operators (regression guard) -----------------------------------
+- description: "cast :: stays glued (no surrounding space)"
+  input: |
+    select mass::numeric from planet
+  expected: |
+    select mass::numeric
+      from planet
+
+- description: json arrows -> and ->> stay glued
+  input: |
+    select data->'position' as pos, data->>'name' as label from observation
+  expected: |
+    select data->'position' as pos,
+           data->>'name' as label
+      from observation
+
+- description: string concat || keeps binary spacing
+  input: |
+    select given_name || family_name as full_name from astronauts
+  expected: |
+    select given_name || family_name as full_name
+      from astronauts
+
+- description: comparison operators >= <= <> != keep binary spacing
+  input: |
+    select id from planet where mass >= 1 and radius <= 2 and mass <> 3 and radius != 4
+  expected: |
+    select id
+      from planet
+     where mass >= 1
+       and radius <= 2
+       and mass <> 3
+       and radius != 4

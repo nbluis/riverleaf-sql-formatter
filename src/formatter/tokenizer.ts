@@ -1,45 +1,34 @@
 import { Token } from './types';
 import { isKeyword } from './keywords';
 
-const MULTI_CHAR_OPERATORS = [
-  '->>',
-  '->',
-  '<=',
-  '>=',
-  '<>',
-  '!=',
-  '||',
-  '::',
-  ':=',
-  '=>',
-];
-
-const SINGLE_CHAR_OPERATORS = new Set([
-  '=',
-  '<',
-  '>',
-  '+',
-  '-',
-  '*',
-  '/',
-  '%',
-  '^',
-  '~',
-  '&',
-  '|',
-  '@',
-  '#',
-  '!',
+// PostgreSQL operator characters. An operator token is the maximal contiguous
+// run of these (maximal munch), so any multi-char operator — built-in or
+// user-defined, JSONB (@>, <@, #>, #>>, ?, ?|, ?&, @@, @?), regex (~, ~*, !~,
+// !~*), array (&&), bit-shift (<<, >>), and the classics (<=, >=, <>, !=, ||,
+// ->, ->>, =>) — survives as one token instead of being sliced apart. ':' is
+// deliberately excluded (it is not a PG operator char); the special ':'-led
+// tokens :: and := are recognized explicitly before the munch.
+const OPERATOR_CHARS = new Set([
+  '+', '-', '*', '/', '<', '>', '=', '~', '!', '@', '#', '%', '^', '&', '|', '?',
 ]);
+
+// Chars that make a trailing +/- part of a multi-char operator (PG lexical rule):
+// an operator that ends in + or - is only valid as a unit if it contains one of
+// these; otherwise the trailing +/- are separate tokens (so `x=-1` lexes as
+// `= - 1`, not `=- 1`).
+const OPERATOR_SPECIAL = /[~!@#%^&|?]/;
 
 const PUNCT = new Set(['(', ')', ',', ';', '.', '[', ']']);
 
+// '@' and '#' are PG operator characters, not identifier characters, so they are
+// not part of a word (they were, which sliced @>/#> apart). '$' stays for
+// positional params ($1) and dollar-suffixed identifiers.
 function isWordStart(ch: string): boolean {
-  return /[A-Za-z_@#$]/.test(ch);
+  return /[A-Za-z_$]/.test(ch);
 }
 
 function isWordPart(ch: string): boolean {
-  return /[A-Za-z0-9_@#$]/.test(ch);
+  return /[A-Za-z0-9_$]/.test(ch);
 }
 
 function isDigit(ch: string): boolean {
@@ -164,17 +153,11 @@ export function tokenize(sql: string): Token[] {
       continue;
     }
 
-    // multi-char operators
-    let matchedOp = '';
-    for (const op of MULTI_CHAR_OPERATORS) {
-      if (sql.startsWith(op, i)) {
-        matchedOp = op;
-        break;
-      }
-    }
-    if (matchedOp) {
-      push('operator', matchedOp, i);
-      i += matchedOp.length;
+    // ':'-led operators (':' is not a PG operator char, so handle :: and :=
+    // explicitly; a lone ':' falls through to the fallback).
+    if (ch === ':' && (sql[i + 1] === ':' || sql[i + 1] === '=')) {
+      push('operator', sql.slice(i, i + 2), i);
+      i += 2;
       continue;
     }
 
@@ -185,10 +168,20 @@ export function tokenize(sql: string): Token[] {
       continue;
     }
 
-    // single-char operators
-    if (SINGLE_CHAR_OPERATORS.has(ch)) {
-      push('operator', ch, i);
-      i++;
+    // operators: maximal munch over the PG operator-char set
+    if (OPERATOR_CHARS.has(ch)) {
+      let j = i + 1;
+      while (j < n && OPERATOR_CHARS.has(sql[j])) j++;
+      let op = sql.slice(i, j);
+      // PG rule: a multi-char operator ending in +/- must contain a special
+      // char; otherwise strip the trailing +/- (they lex as their own tokens).
+      if (op.length > 1 && !OPERATOR_SPECIAL.test(op)) {
+        let k = op.length;
+        while (k > 1 && (op[k - 1] === '+' || op[k - 1] === '-')) k--;
+        op = op.slice(0, k);
+      }
+      push('operator', op, i);
+      i += op.length;
       continue;
     }
 

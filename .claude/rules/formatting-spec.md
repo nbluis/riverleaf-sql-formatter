@@ -238,12 +238,31 @@ top-level where/on style. The closing `)` stays where it was (`ownerLineStart`) 
 replaced the earlier BLOCK style (connectors left-aligned at `blockIndent`), which was internally
 inconsistent with the top level; the golden example was updated to match.
 
+## Operator lexing (`tokenizer.ts`)
+
+Operators are lexed by **maximal munch** over the PG operator-char set
+(`+ - * / < > = ~ ! @ # % ^ & | ?`): an operator token is the longest contiguous run of those
+chars, so any multi-char operator — built-in, user-defined, JSONB (`@>`, `<@`, `#>`, `#>>`, `?`,
+`?|`, `?&`, `@@`, `@?`), regex (`~`, `~*`, `!~`, `!~*`), array (`&&`), bit-shift (`<<`, `>>`), and
+the classics (`<=`, `>=`, `<>`, `!=`, `||`, `->`, `->>`, `=>`) — survives as one token instead of
+being sliced into single chars (which then got a space wedged inside them, e.g. `@ >`). Notes:
+- `@` and `#` are **operator** chars, not identifier chars (they were in the word set, which is
+  what sliced `@>`/`#>` apart). `$` stays an identifier char (positional params `$1`).
+- `:` is **not** a PG operator char, so `::` and `:=` are recognized explicitly *before* the munch;
+  a lone `:` falls through to the fallback.
+- PG's trailing-`+`/`-` rule: a multi-char operator ending in `+`/`-` is only a unit if it contains
+  one of `~ ! @ # % ^ & | ?`; otherwise the trailing `+`/`-` split off (`x=-1` → `= - 1`, not
+  `=- 1`). No further semantic validation — the operator text is preserved as written (never
+  corrupt).
+
 ## Token spacing (`render.ts` `needsSpace`)
 
 No space: before `, ; ) ] .`; after `( [ .`; around `::`, `->`, `->>`; before `(` when it's a
 call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KEYWORDS` like
 `coalesce`/`cast`). Keywords like `in`/`values`/`on`/`exists`/`select`/`lateral` keep a space before
-`(` — so `lateral ( select ... )` is a derived table, not a `lateral(...)` function call.
+`(` — so `lateral ( select ... )` is a derived table, not a `lateral(...)` function call. Every
+other `operator` token (`@>`, `&&`, `~*`, `<<`, `?|`, `>=`, `||`, …) gets the default binary
+spacing — one space on each side (`data @> '{}'`); only `::`/`->`/`->>` are the glued exceptions.
 
 ## Comments
 

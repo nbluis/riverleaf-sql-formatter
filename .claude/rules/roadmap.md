@@ -18,7 +18,11 @@ mid-expression** (inside a single list item or boolean condition, not at a bound
 subquery that expands) forces passthrough, so a line join can never comment out code.
 
 Larger tracked effort: **PostgreSQL coverage gaps** — see `_work/postgres-coverage-gaps-plan.md`
-(multi-character operators sliced by the tokenizer, keywords cut as anchors, untested features).
+(keywords cut as anchors, untested features). **Phase 1 done (A1, 2026-07-17):** the tokenizer now
+lexes operators by maximal munch, so multi-char PG operators (JSONB `@>`/`#>>`/`?|`, regex `~*`/`!~`,
+array `&&`, bit-shift `<<`/`>>`) are no longer sliced apart — locked by `test/cases/operators.yaml`.
+Remaining: Phase 2 (`IS DISTINCT FROM` / `FOR UPDATE` / `WITH ORDINALITY`), Phase 3 (`ON CONFLICT`),
+Phase 4 (golden coverage for working features), Phase 5 (set-ops river decision), Phase 6 (`MERGE`).
 
 ## When you pick one up
 

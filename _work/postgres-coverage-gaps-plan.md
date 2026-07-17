@@ -55,7 +55,7 @@ verdes.
 
 | # | Construto | Hoje | Classe | Fase |
 |---|-----------|------|--------|------|
-| A1 | Operadores multi-char PG (`@>`,`<@`,`#>`,`#>>`,`?`,`?|`,`?&`,`@@`,`~*`,`!~`,`&&`,`<<`,`>>`) | **corrompe** (`@ >`, `# > >`, `& &`) | corrupção | **1** |
+| A1 | Operadores multi-char PG (`@>`,`<@`,`#>`,`#>>`,`?`,`?|`,`?&`,`@@`,`~*`,`!~`,`&&`,`<<`,`>>`) | ✅ **resolvido** (maximal-munch, Fase 1) | corrupção | **1** ✅ |
 | A2 | `IS [NOT] DISTINCT FROM` | **corrompe** (`FROM` vira cláusula) | corrupção | **2** |
 | A3 | `FOR UPDATE`/`FOR SHARE`/`FOR NO KEY UPDATE` (+`OF`/`NOWAIT`/`SKIP LOCKED`) | **corrompe** (`UPDATE` vira DML) | corrupção | **2** |
 | A4 | `INSERT ... ON CONFLICT ... DO UPDATE/NOTHING` | **corrompe** (`conflict(id)` glued, `UPDATE` split) | corrupção | **3** |
@@ -83,7 +83,16 @@ há caso YAML (regressão poderia passar despercebida).
 
 ---
 
-## Fase 1 — Lexer de operadores por maximal-munch (A1) 🔴 prioridade máxima
+## Fase 1 — Lexer de operadores por maximal-munch (A1) 🔴 prioridade máxima ✅ CONCLUÍDA (2026-07-17)
+
+> **Feito.** `tokenizer.ts` agora faz maximal-munch sobre o conjunto de chars de operador do PG
+> (`+ - * / < > = ~ ! @ # % ^ & | ?`); `@`/`#` saíram do conjunto de chars de identificador (eram a
+> causa de `@>`→`@ >`); `::`/`:=` são reconhecidos antes do munch; regra PG do `+`/`-` final aplicada
+> (`x=-1` → `= - 1`, não `=- 1`). `render.ts` não mudou (o espaçamento binário padrão já cobre os
+> novos operadores; só `::`/`->`/`->>` continuam colados). Travado por `test/cases/operators.yaml`
+> (17 casos: containment/path/existência/regex/array/bit + regressão dos que já funcionavam). Suíte
+> 215 verde, `tsc`/`lint` limpos. Nota: o espaçamento do menos **unário** (`= - 1`) é pré-existente,
+> não é corrupção e ficou fora do escopo.
 
 **Problema.** O tokenizer só conhece uma lista fixa de operadores multi-char. O PostgreSQL permite
 operadores compostos de qualquer sequência dos caracteres `+ - * / < > = ~ ! @ # % ^ & | ` ?`

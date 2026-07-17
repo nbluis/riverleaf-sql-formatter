@@ -17,6 +17,9 @@ scenarios can be added without touching code — this is our regression guardrai
   - `subquery.yaml` — subqueries (non-CTE): from / where / join ON / join-table / scalar / function-wrapped.
   - `cte.yaml` — `with` common table expressions (single, multiple, inner where, comment inside).
   - `lateral.yaml` — `LATERAL` derived tables.
+  - `operators.yaml` — multi-char operators lexed by maximal munch (JSONB `@>`/`<@`/`#>`/`#>>`/
+    `?`/`?|`/`?&`, regex `~`/`~*`/`!~`/`!~*`, array `&&`, bit-shift `<<`/`>>`) plus the classics
+    (`::`/`->`/`->>`/`||`/`<>`/`>=`) as a regression guard.
   - A future dialect-specific quirk goes in `dialect_<name>.yaml` (the runner reads flat, non-recursively).
 - `test/cases.test.ts` — the runner. It reads **every** `*.yaml`/`*.yml` in `test/cases/` and, per
   entry, asserts:

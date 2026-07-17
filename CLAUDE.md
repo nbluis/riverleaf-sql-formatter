@@ -21,6 +21,9 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
   `BOOL_CONNECTORS`, `KEYWORD_FOLLOWERS`, `KEYWORDS`, `FUNCTION_KEYWORDS`.
 - `src/formatter/tokenizer.ts` — `tokenize(sql)`: lexer, drops whitespace, keeps comments/strings,
   records `start`/`end` offsets and `newlineBefore` (used to tell standalone vs inline comments).
+  Operators are lexed by **maximal munch** over the PG operator-char set, so multi-char operators
+  (`@>`, `#>>`, `~*`, `&&`, `<<`, …) stay one token (`@`/`#` are operator chars, not identifier
+  chars); `::`/`:=` are recognized explicitly before the munch.
 - `src/formatter/render.ts` — `renderTokens` (canonical single-line spacing), keyword casing.
 - `src/formatter/segmenter.ts` — `splitStatements`, `segmentClauses`, `parseBoolExpr`
   (`BoolTerm`/`BoolNode`), `splitCommaList`, `splitListItems` (extracts inline trailing comments +
