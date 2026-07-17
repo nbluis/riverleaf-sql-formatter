@@ -395,6 +395,26 @@ Each case is asserted two ways: `format(input, options) === expected`, and that 
 `expected` again is stable (idempotent — add `idempotent: false` to opt out). No code
 changes needed to grow the suite; this is our guardrail against regressions.
 
+## Contributing
+
+Contributions are welcome — especially real-world SQL that Riverleaf mangles.
+
+- **Formatting bug, or a construct you want formatted a certain way?**
+  [Open a formatting issue](https://github.com/nbluis/riverleaf-sql-formatter/issues/new/choose)
+  with the **input SQL** and the **output you expect**. That input/expected pair is exactly what
+  becomes a regression test.
+- **Anything else** (feature idea, question, docs) → the *Other issue* template.
+- **Pull requests** are test-first: add a YAML case under `test/cases/*.yaml` that captures the
+  behavior (see [Adding formatting cases](#adding-formatting-cases)), then make it pass. Before
+  opening the PR, make sure `npm test` and `npm run lint` are green and formatting stays idempotent.
+
+Two house rules for anything committed to the repo:
+
+- **Everything is in English** — code, comments, docs, and test descriptions.
+- **Examples use the astronomy dictionary** — tables like `planets` / `stars` / `missions`, aliases
+  `p` / `s` / `ms`, and so on, so no real data ever leaks into an example. Rewrite any real query
+  onto those names, keeping its structure identical.
+
 ## Known limitations
 
 These narrower cases are not reflowed — they are rendered inline or kept exactly as written

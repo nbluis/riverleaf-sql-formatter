@@ -1,0 +1,65 @@
+name: Formatting bug or request
+description: SQL that Riverleaf formats wrong, or a construct you want formatted a certain way.
+labels: [formatting]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Riverleaf! The **input** and **expected output** you give below
+        are exactly what becomes a regression test — please fill both in.
+
+        Tip: examples in this repo use an astronomy vocabulary (`planets`, `stars`, `missions`, …)
+        so no real data leaks in. Feel free to rewrite your query onto neutral names before pasting.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Is this a bug or a request?
+      options:
+        - Bug — the output is wrong or corrupted
+        - Request — I want this construct formatted a certain way
+    validations:
+      required: true
+  - type: textarea
+    id: input
+    attributes:
+      label: Input SQL
+      description: The SQL you format (as written, before formatting).
+      render: sql
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected output
+      description: How you expect Riverleaf to format it.
+      render: sql
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual output
+      description: For a bug, paste what Riverleaf currently produces. Leave blank for a request.
+      render: sql
+    validations:
+      required: false
+  - type: textarea
+    id: options
+    attributes:
+      label: Settings & versions
+      description: >
+        Any non-default settings (`riverleaf.keywordCase`, `riverleaf.indentSize`), plus the
+        extension version and your VS Code version, if relevant.
+      placeholder: |
+        keywordCase: lower (default)
+        indentSize: 2 (default)
+        Riverleaf 0.0.1 · VS Code 1.x
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I searched existing issues and this isn't a duplicate.
+          required: true
