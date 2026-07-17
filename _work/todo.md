@@ -19,6 +19,7 @@
 
 ## Formatter
 
-- [ ] **Lacunas de cobertura PostgreSQL (round 3)** — ver `_work/postgres-coverage-gaps-plan.md`
-      (operadores multi-caractere fatiados pelo tokenizer, keywords cortadas como âncoras,
-      ~16 features sem teste).
+- [x] **Lacunas de cobertura PostgreSQL (round 3)** — CONCLUÍDO (2026-07-17). Operadores multi-char
+      (maximal-munch), keywords que não ancoram (`IS DISTINCT FROM`, `FOR UPDATE`, `WITH ORDINALITY`,
+      `ON CONFLICT`), `MERGE`, e goldens de todas as features que já funcionavam (set-ops decididos
+      no rio). Suíte 181 → 341 casos. Detalhes no histórico do git (o plano foi removido do `_work/`).

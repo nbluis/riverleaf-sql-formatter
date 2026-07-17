@@ -17,9 +17,9 @@ The only remaining inline/passthrough case is by design, not an open item: a **l
 mid-expression** (inside a single list item or boolean condition, not at a boundary and not inside a
 subquery that expands) forces passthrough, so a line join can never comment out code.
 
-**PostgreSQL coverage gaps — DONE (all phases, 2026-07-17).** The tracked effort in
-`_work/postgres-coverage-gaps-plan.md` is complete; the per-phase details are captured in that plan
-and in git. Summary:
+**PostgreSQL coverage gaps — DONE (all phases, 2026-07-17).** This tracked effort is complete; the
+per-phase details live in git history (the working plan under `_work/` was removed once finished).
+Summary:
 - **Phase 1 (A1):** operators lexed by maximal munch — multi-char PG operators (JSONB `@>`/`#>>`/`?|`,
   regex `~*`/`!~`, array `&&`, bit-shift `<<`/`>>`) no longer sliced apart (`operators.yaml`).
 - **Phase 2 (A2/A3/A5):** continuation keywords no longer mis-anchor — `IS [NOT] DISTINCT FROM`,
