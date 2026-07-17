@@ -34,10 +34,10 @@ to your own conventions.
 
 <br>
 
-<table>
+<table width="100%">
 <tr>
-<th align="left">You write this…</th>
-<th align="left">…and get this</th>
+<th align="left" width="50%">You write this…</th>
+<th align="left" width="50%">…and get this</th>
 </tr>
 <tr>
 <td valign="top">
@@ -110,8 +110,8 @@ Each rule below is one idea, shown with the smallest example that makes it click
 
 **Spaces only, never tabs. Keywords are lowercased; identifiers are left untouched.**
 
-<table>
-<tr><th align="left">In</th><th align="left">Out</th></tr>
+<table width="100%">
+<tr><th align="left" width="50%">In</th><th align="left" width="50%">Out</th></tr>
 <tr>
 <td valign="top">
 
@@ -135,8 +135,8 @@ select Name
 A single-item list stays inline. (Applies to `select`, `from`, `group by`, `order by`, and the
 DML `set` / `values` / `insert` column list.)
 
-<table>
-<tr><th align="left">In</th><th align="left">Out</th></tr>
+<table width="100%">
+<tr><th align="left" width="50%">In</th><th align="left" width="50%">Out</th></tr>
 <tr>
 <td valign="top">
 
@@ -161,8 +161,8 @@ select id,
 **`where` / `having` break when there is more than one condition**, with `and` / `or` aligned to
 the river. A single condition stays inline.
 
-<table>
-<tr><th align="left">In</th><th align="left">Out</th></tr>
+<table width="100%">
+<tr><th align="left" width="50%">In</th><th align="left" width="50%">Out</th></tr>
 <tr>
 <td valign="top">
 
@@ -187,8 +187,8 @@ select name
 
 **A parenthesized boolean group always expands**, aligning its own `and` / `or` one level in.
 
-<table>
-<tr><th align="left">In</th><th align="left">Out</th></tr>
+<table width="100%">
+<tr><th align="left" width="50%">In</th><th align="left" width="50%">Out</th></tr>
 <tr>
 <td valign="top">
 
@@ -218,8 +218,8 @@ select name
 **A join with more than one ON condition breaks**, aligning `and` / `or` under `on`. A single-ON
 join stays inline.
 
-<table>
-<tr><th align="left">In</th><th align="left">Out</th></tr>
+<table width="100%">
+<tr><th align="left" width="50%">In</th><th align="left" width="50%">Out</th></tr>
 <tr>
 <td valign="top">
 
@@ -246,8 +246,8 @@ select p.mass
 **Subqueries and CTEs expand recursively** — the inner query is re-aligned one level in and its
 `)` sits under the owner. The `with` preamble stays at the left margin, off the river.
 
-<table>
-<tr><th align="left">In</th><th align="left">Out</th></tr>
+<table width="100%">
+<tr><th align="left" width="50%">In</th><th align="left" width="50%">Out</th></tr>
 <tr>
 <td valign="top">
 
@@ -276,8 +276,8 @@ select id
 **`case … end` expands** — `when` / `else` / `end` align under `case`; anything after `end` rides
 its line. Nested `case`s expand recursively.
 
-<table>
-<tr><th align="left">In</th><th align="left">Out</th></tr>
+<table width="100%">
+<tr><th align="left" width="50%">In</th><th align="left" width="50%">Out</th></tr>
 <tr>
 <td valign="top">
 
@@ -307,8 +307,8 @@ select name,
 **`insert` / `update` / `delete` format like a `select`** — the anchors join the river, and the
 same list and `where` rules apply.
 
-<table>
-<tr><th align="left">In</th><th align="left">Out</th></tr>
+<table width="100%">
+<tr><th align="left" width="50%">In</th><th align="left" width="50%">Out</th></tr>
 <tr>
 <td valign="top">
 
@@ -335,8 +335,8 @@ update planets
 keeps its own line. (Comments that can't be moved safely are left exactly as written — see
 [Known limitations](#known-limitations).)
 
-<table>
-<tr><th align="left">In</th><th align="left">Out</th></tr>
+<table width="100%">
+<tr><th align="left" width="50%">In</th><th align="left" width="50%">Out</th></tr>
 <tr>
 <td valign="top">
 
@@ -361,8 +361,8 @@ select mass, -- in solar masses
 **Breaking is by rule, not by width.** There is no maximum line length; a single item or condition
 grows on one line however long it gets, and only *structure* ever forces a break.
 
-<table>
-<tr><th align="left">In</th><th align="left">Out</th></tr>
+<table width="100%">
+<tr><th align="left" width="50%">In</th><th align="left" width="50%">Out</th></tr>
 <tr>
 <td valign="top">
 
