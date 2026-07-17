@@ -410,13 +410,6 @@ Contributions are welcome — especially real-world SQL that Riverleaf mangles.
   behavior (see [Adding formatting cases](#adding-formatting-cases)), then make it pass. Before
   opening the PR, make sure `npm test` and `npm run lint` are green and formatting stays idempotent.
 
-Two house rules for anything committed to the repo:
-
-- **Everything is in English** — code, comments, docs, and test descriptions.
-- **Examples use the astronomy dictionary** — tables like `planets` / `stars` / `missions`, aliases
-  `p` / `s` / `ms`, and so on, so no real data ever leaks into an example. Rewrite any real query
-  onto those names, keeping its structure identical.
-
 ## License
 
 [MIT](LICENSE)
