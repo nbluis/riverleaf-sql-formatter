@@ -69,6 +69,53 @@ export function findDerivedSubquery(tokens: Token[]): { open: number; close: num
   return null;
 }
 
+/**
+ * First '(' at ANY paren depth whose interior begins a subquery (SELECT / WITH).
+ * Unlike `findSubquery` (top level only), this reaches a subquery nested inside a
+ * function call (`coalesce((select ...), 0)`) or a larger expression, so the
+ * layout can expand it. Callers that only want a whole-reference derived subquery
+ * use `findDerivedSubquery`; callers that only want a top-level one use
+ * `findSubquery`.
+ */
+export function findAnyDepthSubquery(tokens: Token[]): { open: number; close: number } | null {
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.type === 'punct' && t.value === '(') {
+      const next = tokens[i + 1];
+      if (next?.type === 'keyword' && (next.upper === 'SELECT' || next.upper === 'WITH')) {
+        const close = matchParen(tokens, i);
+        if (close !== -1) return { open: i, close };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * First subquery '(' nested at paren depth ≥ 1 — i.e. wrapped inside another
+ * '(' — such as the subquery inside a function call (`coalesce((select ...), 0)`)
+ * or a parenthesized expression. This is the "function-wrapped" case the layout
+ * now expands; a top-level subquery in a bare expression (`1 + (select ...)`,
+ * depth 0) is intentionally excluded so it keeps its prior inline behavior.
+ */
+export function findWrappedSubquery(tokens: Token[]): { open: number; close: number } | null {
+  let depth = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t.type === 'punct' && t.value === '(') {
+      const next = tokens[i + 1];
+      if (depth >= 1 && next?.type === 'keyword' && (next.upper === 'SELECT' || next.upper === 'WITH')) {
+        const close = matchParen(tokens, i);
+        if (close !== -1) return { open: i, close };
+      }
+      depth++;
+    } else if (t.type === 'punct' && t.value === ')') {
+      depth = Math.max(0, depth - 1);
+    }
+  }
+  return null;
+}
+
 /** First top-level '(' whose interior begins a subquery (SELECT / WITH). */
 export function findSubquery(tokens: Token[]): { open: number; close: number } | null {
   let depth = 0;

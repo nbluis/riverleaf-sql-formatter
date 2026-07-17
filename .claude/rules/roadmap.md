@@ -8,13 +8,14 @@ in git — this file tracks only what is still **open**.
 ## Open items
 
 Every feature area is implemented (alignment, list breaking, `where`/`having`, joins,
-subqueries/CTEs, `LATERAL`, `case`, DML, comments). What remains are the narrower sub-cases still
-rendered inline or passed through unchanged — the README's "Known limitations":
+subqueries/CTEs, `LATERAL`, `case`, DML, comments). A **subquery** or a **`case`** wrapped in a
+function call (e.g. `coalesce((select ...), 0)`) now **expands** too — in select/group-by/order-by
+items, `where`/`having` conditions, and `join` ON — with the subquery's `)` under the item/operand
+column and the rest of the wrapping expression riding the closing line (D3, 2026-07-17).
 
-- A **subquery** or a **`case`** wrapped in a function call (e.g. `coalesce((select ...), 0)`) stays
-  inline instead of expanding.
-- A **line comment** mid-token, or inside a subquery that is *not* expanded (function-wrapped),
-  forces passthrough (the statement is emitted unchanged) so code is never commented out.
+The only remaining inline/passthrough case is by design, not an open item: a **line comment
+mid-expression** (inside a single list item or boolean condition, not at a boundary and not inside a
+subquery that expands) forces passthrough, so a line join can never comment out code.
 
 Larger tracked effort: **PostgreSQL coverage gaps** — see `_work/postgres-coverage-gaps-plan.md`
 (multi-character operators sliced by the tokenizer, keywords cut as anchors, untested features).

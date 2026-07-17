@@ -7,6 +7,8 @@ import {
   boolCommentsReflowable,
   findSubquery,
   findDerivedSubquery,
+  findAnyDepthSubquery,
+  findWrappedSubquery,
   segmentClauses,
   Clause,
   Statement,
@@ -107,15 +109,17 @@ function innerCommentsSafe(inner: Token[]): boolean {
   return clausesCommentsSafe(segmentClauses(inner).clauses);
 }
 
-/** select / group by / order by list: a comment inside an expanded scalar
- * subquery item is checked recursively; anything else must be at a boundary. */
+/** select / group by / order by list: a comment inside an expanded subquery item
+ * — a bare/lateral derived subquery, or one wrapped in a function call
+ * (`coalesce((select -- c ...), 0)`) — is checked recursively; the rest of the
+ * item must be comment-free, and anything else must be at a boundary. */
 function listCommentsSafe(body: Token[]): boolean {
   for (const item of splitListItems(body)) {
     if (!item.unsafe) continue;
-    const sub = findSubquery(item.tokens);
+    const sub = findDerivedSubquery(item.tokens) ?? findWrappedSubquery(item.tokens);
     if (
       sub &&
-      sub.open === 0 &&
+      !hasLineComment(item.tokens.slice(0, sub.open)) &&
       !hasLineComment(item.tokens.slice(sub.close + 1)) &&
       innerCommentsSafe(item.tokens.slice(sub.open + 1, sub.close))
     ) {
@@ -168,19 +172,20 @@ function boolExprCommentsSafe(body: Token[]): boolean {
   return boolCommentsReflowable(blankAllSubqueries(body)) && subqueryInteriorsSafe(body);
 }
 
-/** Blanks the interior of every top-level subquery in `body`. */
+/** Blanks the interior of every subquery in `body` (at any depth, so a
+ * function-wrapped one — which the layout also expands — is blanked too). */
 function blankAllSubqueries(body: Token[]): Token[] {
   let toks = body;
-  for (let sub = findSubquery(toks); sub; sub = findSubquery(toks)) {
+  for (let sub = findAnyDepthSubquery(toks); sub; sub = findAnyDepthSubquery(toks)) {
     toks = [...toks.slice(0, sub.open + 1), ...toks.slice(sub.close)];
   }
   return toks;
 }
 
-/** Every top-level subquery interior in `body` is itself comment-safe. */
+/** Every subquery interior in `body` (at any depth) is itself comment-safe. */
 function subqueryInteriorsSafe(body: Token[]): boolean {
   let toks = body;
-  for (let sub = findSubquery(toks); sub; sub = findSubquery(toks)) {
+  for (let sub = findAnyDepthSubquery(toks); sub; sub = findAnyDepthSubquery(toks)) {
     if (!innerCommentsSafe(toks.slice(sub.open + 1, sub.close))) return false;
     toks = [...toks.slice(0, sub.open + 1), ...toks.slice(sub.close)];
   }

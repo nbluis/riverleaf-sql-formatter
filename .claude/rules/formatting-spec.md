@@ -86,6 +86,11 @@ from / join / from-list hooks: it returns that subquery only when it **is** the 
 either the `(` is the first token, **or** it is preceded solely by the `LATERAL` keyword
 (`lateral ( select ... ) alias` — a derived-table modifier, not a function call). It returns null for
 a function-wrapped subquery (`coalesce((select ...), 0)`, whose `(` is preceded by a function name).
+`findWrappedSubquery(tokens)` (exported) returns the first subquery `(` nested at **paren depth ≥ 1**
+— the function-wrapped case (`coalesce((select ...), 0)`) or any parenthesized-expression subquery
+— and is null for a bare top-level one (`1 + (select ...)`, depth 0, which keeps its inline
+behavior). `findAnyDepthSubquery(tokens)` (exported) is the union: the first subquery at **any**
+depth, used by the comment-safety gate (which must recurse into every subquery the layout expands).
 `renderSubqueryBlock(prefix, inner, ownerLeading, afterStr)` emits `prefix(`, then the inner tokens
 formatted recursively via `renderInner` (`segmentClauses` → a `Statement` → `formatStatement`) at
 `innerBase = ownerLeading + indentSize`, then `pad(ownerLeading) + ') ' + afterStr`. So the inner
@@ -122,9 +127,31 @@ block is one level past the owner clause keyword and the closing `)` aligns **un
 - `renderItemLines` — a from/select/group-by/order-by list item that **is** a derived subquery
   (`( select ... ) [alias]` or a from-list `lateral ( select ... ) alias`, `itemSubquery` =
   `findDerivedSubquery`); the `lateral` prefix rides the `(` line; `ownerLeading` = the item column;
-  `afterStr` = the part after `)` (e.g. `as item_count`). A subquery merely wrapped in a function
-  (`coalesce((select ...), 0)`) is not expanded. A subquery item forces the list to break, like a
-  `case`.
+  `afterStr` = the part after `)` (e.g. `as item_count`). A subquery item forces the list to break,
+  like a `case`.
+
+### Function-wrapped subqueries / cases (D3, 2026-07-17)
+
+A subquery or a `case` **wrapped in a function call** — nested at paren depth ≥ 1, e.g.
+`coalesce((select ...), 0)` or `coalesce(case ... end, 0)` — also expands, in
+select/group-by/order-by items (`renderItemLines`), `where`/`having` conditions and `join` ON
+(`emitTerm`, via the `expandSubquery` / `expandCase` flags). Two shared helpers glue the surrounding
+text with exact token spacing (from `spaceBetween`, exported from `render.ts`):
+- `renderPrefix(tokens, idx)` — the on-line text of `tokens[0..idx)` before the construct at `idx`,
+  joined so `coalesce(` glues to the inner `(` with no space but `x in` keeps its space.
+- `renderAfter(closeTok, after)` — the text after the construct's closing token (`)` of a subquery,
+  `end` of a case), joined so `), 0)` / `end, 'x')` have no space before the comma.
+
+Wrapped **subquery**: `findWrappedSubquery` locates it; the inner block expands via
+`renderSubqueryBlock(renderPrefix(...), inner, ownerLeading, renderAfter(...))`, so the `)` aligns
+under the **item column** (items) or the **operand/connector column** (`lineStart`, conditions), and
+the rest of the wrapping expression (`), 0) as top`, `), 0) > 5`) rides the `)` line. Wrapped
+**case**: `findWrappedCase` (paren depth ≥ 1, so a top-level `case` in a bare expression such as
+`prder by case ...` is **not** matched) locates it; `renderCase` runs at `renderPrefix(...).length`
+so `case`/`when`/`else`/`end` align under the `case`, and the rest rides the `end` line (`end, 'x')`).
+`hasCase` / `itemHasSubquery` (items) / `condHasSubquery` (conditions) include the wrapped forms so a
+single item / single condition / single ON is forced to break and expand.
+
 Recursion recomputes the inner river and handles nesting. `formatStatement` builds the inner
 statement with `semicolon: false`. A subquery containing a line comment expands too: `isCommentSafe`
 recurses into every subquery it expands (see Comments), so the recursion places the comment; a
@@ -276,11 +303,14 @@ call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KE
     must be one that is actually expanded (from body / any CTE / **any** where/having condition /
     join ON condition / join table / a select-list item that **is** the subquery).
     `whereCommentsSafe` and the ON branch of `joinCommentsSafe` share `boolExprCommentsSafe`, which
-    blanks **every** top-level subquery interior (`blankAllSubqueries`), requires the remainder to be
-    `boolCommentsReflowable`, and checks each subquery interior recursively (`subqueryInteriorsSafe`).
+    blanks **every** subquery interior at **any depth** (`blankAllSubqueries`, so a function-wrapped
+    one is covered), requires the remainder to be `boolCommentsReflowable`, and checks each subquery
+    interior recursively (`subqueryInteriorsSafe`, also any-depth).
   - `isCommentSafe(statement)`: for list clauses, false if any item is `unsafe` (a line comment
-    strictly *inside* an item — not at a boundary) *unless* the item is an expanded scalar subquery
-    whose interior recurses safe; for `where`/`having`, `boolExprCommentsSafe` (every comment at a
+    strictly *inside* an item — not at a boundary) *unless* the item expands a subquery — a
+    bare/lateral derived one (`findDerivedSubquery`) or a function-wrapped one
+    (`findWrappedSubquery`) — whose interior recurses safe and whose surrounding text is comment-free;
+    for `where`/`having`, `boolExprCommentsSafe` (every comment at a
     top-level term boundary — inline-trailing, standalone-between-terms, standalone-before-first, or
     inside a reflowable wrapped group — **or** inside any condition's expanded subquery, checked
     recursively); for `from`, recurse into the expanded subquery (else list rule); for `cte`, split
@@ -290,8 +320,10 @@ call/subscript (prev is word/string/number/`)`/`]`, or a keyword in `FUNCTION_KE
     safe) and the ON expression `boolExprCommentsSafe`; for generic/set ops, false if a line comment
     is not the last body token. If unsafe → the whole statement is emitted unchanged (passthrough) so
     SQL is never commented-out by line joins.
-- Still passthrough: a comment mid-token (inside a single condition/item), or inside a subquery that
-  is **not** expanded (a function-wrapped subquery).
+- Still passthrough: a comment mid-expression (inside a single condition/item, not at a boundary and
+  not inside a subquery that expands). A function-wrapped subquery now expands, so a comment inside it
+  reflows; a comment inside a subquery the layout does *not* expand (a bare depth-0 expression
+  subquery in a select item, `1 + (select -- c ...)`) still forces passthrough.
 
 ## Invariants to keep
 

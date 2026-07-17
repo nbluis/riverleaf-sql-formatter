@@ -1,5 +1,5 @@
 import { Token, FormatOptions } from './types';
-import { renderTokens, caseKeyword } from './render';
+import { renderTokens, caseKeyword, spaceBetween } from './render';
 import {
   Clause,
   Statement,
@@ -11,6 +11,8 @@ import {
   segmentClauses,
   findSubquery,
   findDerivedSubquery,
+  findAnyDepthSubquery,
+  findWrappedSubquery,
   matchParen,
 } from './segmenter';
 
@@ -161,6 +163,18 @@ export class Layout {
         for (let i = 1; i < caseLines.length; i++) lines.push(caseLines[i]);
         return;
       }
+      // a `case ... end` wrapped in a function call (`coalesce(case ... end) > 0`):
+      // the `case` rides after the wrapping prefix, its branches align under it,
+      // and the rest of the wrapping expression rides the `end` line.
+      const wc = expandCase ? this.findWrappedCase(node.tokens) : null;
+      if (wc) {
+        const beforeStr = this.renderPrefix(node.tokens, wc.index);
+        const caseLines = this.renderCase(wc.parsed, prefix.length + beforeStr.length);
+        caseLines[caseLines.length - 1] += suffix;
+        lines.push(prefix + beforeStr + caseLines[0]);
+        for (let i = 1; i < caseLines.length; i++) lines.push(caseLines[i]);
+        return;
+      }
       // a subquery inside a condition (`... in ( select ... )`) expands with the
       // closing ')' under the line's first word (the connector, via lineStart)
       // and the inner block one level in from it.
@@ -171,6 +185,19 @@ export class Layout {
         const after = node.tokens.slice(sub.close + 1);
         const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
         const blockPrefix = prefix + (before ? before + ' ' : '');
+        const blockLines = this.renderSubqueryBlock(blockPrefix, inner, lineStart, afterStr);
+        blockLines[blockLines.length - 1] += suffix;
+        lines.push(...blockLines);
+        return;
+      }
+      // a subquery wrapped in a function call (`coalesce((select ...), 0) > 5`):
+      // the inner block indents one level from the connector/operand, its ')'
+      // aligns under the line start, and the rest of the expression rides it.
+      const wsub = expandSubquery ? findWrappedSubquery(node.tokens) : null;
+      if (wsub) {
+        const blockPrefix = prefix + this.renderPrefix(node.tokens, wsub.open);
+        const inner = node.tokens.slice(wsub.open + 1, wsub.close);
+        const afterStr = this.renderAfter(node.tokens[wsub.close], node.tokens.slice(wsub.close + 1));
         const blockLines = this.renderSubqueryBlock(blockPrefix, inner, lineStart, afterStr);
         blockLines[blockLines.length - 1] += suffix;
         lines.push(...blockLines);
@@ -200,10 +227,10 @@ export class Layout {
     const rendered = items.map((it) => renderTokens(it.tokens, this.options));
     const hasComment = items.some((it) => it.comment);
     const hasStandalone = items.some((it) => it.commentsBefore?.length);
-    // a `case ... end` or a scalar subquery item always expands, so it forces
-    // the list to break
-    const hasCase = items.some((it) => this.parseCase(it.tokens) !== null);
-    const hasSubquery = items.some((it) => this.itemSubquery(it.tokens) !== null);
+    // a `case ... end` or a subquery item (bare or wrapped in a function) always
+    // expands, so it forces the list to break
+    const hasCase = items.some((it) => this.hasCase(it.tokens));
+    const hasSubquery = items.some((it) => this.itemHasSubquery(it.tokens));
     const inlineBody = rendered.join(', ');
     const full = pad(leading) + headStr + ' ' + inlineBody;
     // Break by rule, not by width: a list with more than one item always breaks
@@ -258,6 +285,15 @@ export class Layout {
   private renderItemLines(tokens: Token[], caseCol: number): string[] {
     const c = this.parseCase(tokens);
     if (c) return this.renderCase(c, caseCol);
+    // a `case ... end` wrapped in a function call (`coalesce(case ... end, 0)`):
+    // the `case`/`when`/`else`/`end` align under the `case`, and the rest of the
+    // wrapping expression rides the `end` line.
+    const wc = this.findWrappedCase(tokens);
+    if (wc) {
+      const prefix = this.renderPrefix(tokens, wc.index);
+      const caseLines = this.renderCase(wc.parsed, caseCol + prefix.length);
+      return [prefix + caseLines[0], ...caseLines.slice(1)];
+    }
     const sub = this.itemSubquery(tokens);
     if (sub) {
       const before = renderTokens(tokens.slice(0, sub.open), this.options); // '' or 'lateral'
@@ -265,6 +301,16 @@ export class Layout {
       const after = tokens.slice(sub.close + 1);
       const afterStr = after.length ? ' ' + renderTokens(after, this.options) : '';
       return this.renderSubqueryBlock(before ? before + ' ' : '', inner, caseCol, afterStr);
+    }
+    // a subquery wrapped in a function call (`coalesce((select ...), 0) as top`):
+    // the inner block indents one level past the item column, its ')' aligns under
+    // the item column, and the rest of the expression rides the ')' line.
+    const wsub = findWrappedSubquery(tokens);
+    if (wsub) {
+      const prefix = this.renderPrefix(tokens, wsub.open);
+      const inner = tokens.slice(wsub.open + 1, wsub.close);
+      const afterStr = this.renderAfter(tokens[wsub.close], tokens.slice(wsub.close + 1));
+      return this.renderSubqueryBlock(prefix, inner, caseCol, afterStr);
     }
     // an expression-level item (including a VALUES tuple) is never broken by rule;
     // it stays on one line and grows.
@@ -291,10 +337,83 @@ export class Layout {
    * A list item that IS a (possibly LATERAL-prefixed) subquery —
    * `( select|with ... ) [alias]` or `lateral ( select ... ) alias` — so it
    * expands. A subquery merely wrapped in a function (`coalesce((select ...), 0)`)
-   * is not (its '(' is preceded by the function name, not empty/LATERAL).
+   * is handled separately by `findAnyDepthSubquery` (see `renderItemLines`).
    */
   private itemSubquery(tokens: Token[]): { open: number; close: number } | null {
     return findDerivedSubquery(tokens);
+  }
+
+  // --- wrapped constructs (subquery / case inside a function call) -------
+
+  /**
+   * Renders `tokens[0..idx)` as the on-line text that precedes an expanded
+   * construct beginning at `idx`, joined with the exact spacing that would sit
+   * between `tokens[idx-1]` and `tokens[idx]` (so `coalesce(` glues to `(` with no
+   * space, but `x in` keeps its space before `(`). Empty when there is no prefix.
+   */
+  private renderPrefix(tokens: Token[], idx: number): string {
+    if (idx <= 0) return '';
+    const before = renderTokens(tokens.slice(0, idx), this.options);
+    if (!before) return '';
+    return before + (spaceBetween(tokens[idx - 1], tokens[idx]) ? ' ' : '');
+  }
+
+  /**
+   * Renders the tokens that follow an expanded construct's closing token
+   * (`)` of a subquery, or `end` of a case) on the same line, joined with the
+   * exact spacing that would sit between `closeTok` and the first `after` token
+   * (so `end, 'x')` has no space before the comma, but `end as top` keeps one).
+   */
+  private renderAfter(closeTok: Token, after: Token[]): string {
+    if (after.length === 0) return '';
+    return (spaceBetween(closeTok, after[0]) ? ' ' : '') + renderTokens(after, this.options);
+  }
+
+  /**
+   * Finds a `case ... end` wrapped in a function call (nested at paren depth ≥ 1,
+   * e.g. `coalesce(case ... end, 0)`). Returns the first such `case` (at index
+   * ≥ 1) whose slice parses as a complete case, plus that parse. A `case` at the
+   * top level is either the un-wrapped path (`parseCase` on token 0) or, if it
+   * sits after other top-level tokens, left inline (matching prior behavior).
+   */
+  private findWrappedCase(
+    tokens: Token[],
+  ): {
+    index: number;
+    parsed: { selector: Token[]; segments: Token[][]; end: Token; after: Token[] };
+  } | null {
+    let depth = 0;
+    for (let i = 0; i < tokens.length; i++) {
+      const t = tokens[i];
+      if (t.type === 'punct' && t.value === '(') depth++;
+      else if (t.type === 'punct' && t.value === ')') depth = Math.max(0, depth - 1);
+      else if (depth >= 1 && t.type === 'keyword' && t.upper === 'CASE') {
+        const parsed = this.parseCase(tokens.slice(i));
+        if (parsed) return { index: i, parsed };
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Whether a list item contains a subquery the layout will expand: a bare/lateral
+   * derived subquery (the whole reference) or one wrapped in a function call.
+   */
+  private itemHasSubquery(tokens: Token[]): boolean {
+    return findDerivedSubquery(tokens) !== null || findWrappedSubquery(tokens) !== null;
+  }
+
+  /**
+   * Whether a where/having/ON condition atom contains a subquery the layout will
+   * expand: a top-level one (`x in ( select ... )`) or a function-wrapped one.
+   */
+  private condHasSubquery(tokens: Token[]): boolean {
+    return findAnyDepthSubquery(tokens) !== null;
+  }
+
+  /** Whether the tokens contain a `case ... end` the layout will expand. */
+  private hasCase(tokens: Token[]): boolean {
+    return this.parseCase(tokens) !== null || this.findWrappedCase(tokens) !== null;
   }
 
   /**
@@ -304,7 +423,7 @@ export class Layout {
    */
   private parseCase(
     tokens: Token[],
-  ): { selector: Token[]; segments: Token[][]; after: Token[] } | null {
+  ): { selector: Token[]; segments: Token[][]; end: Token; after: Token[] } | null {
     if (tokens[0]?.type !== 'keyword' || tokens[0].upper !== 'CASE') return null;
     // matching END (case/end nest)
     let depth = 0;
@@ -322,6 +441,7 @@ export class Layout {
     }
     if (endIdx === -1) return null;
     const body = tokens.slice(1, endIdx);
+    const end = tokens[endIdx];
     const after = tokens.slice(endIdx + 1);
     // split body into a leading selector + WHEN/ELSE segments, skipping nested
     // case/paren depth so only this case's branches split.
@@ -345,7 +465,7 @@ export class Layout {
       else cur.push(t);
     }
     if (segments.length === 0) return null;
-    return { selector, segments, after };
+    return { selector, segments, end, after };
   }
 
   /**
@@ -354,7 +474,7 @@ export class Layout {
    * the caller positions it.
    */
   private renderCase(
-    c: { selector: Token[]; segments: Token[][]; after: Token[] },
+    c: { selector: Token[]; segments: Token[][]; end: Token; after: Token[] },
     caseCol: number,
   ): string[] {
     const head =
@@ -362,7 +482,9 @@ export class Layout {
       (c.selector.length ? ' ' + renderTokens(c.selector, this.options) : '');
     const lines = [head];
     for (const seg of c.segments) lines.push(...this.renderCaseSegment(seg, caseCol));
-    const afterStr = c.after.length ? ' ' + renderTokens(c.after, this.options) : '';
+    // Whatever follows `end` (an alias, or the rest of a wrapping expression like
+    // `, 'x')`) rides the `end` line, joined with the exact token spacing.
+    const afterStr = this.renderAfter(c.end, c.after);
     lines.push(pad(caseCol) + caseKeyword('end', this.options) + afterStr);
     return lines;
   }
@@ -393,7 +515,10 @@ export class Layout {
    */
   private findNestedCase(
     seg: Token[],
-  ): { index: number; parsed: { selector: Token[]; segments: Token[][]; after: Token[] } } | null {
+  ): {
+    index: number;
+    parsed: { selector: Token[]; segments: Token[][]; end: Token; after: Token[] };
+  } | null {
     let pDepth = 0;
     for (let i = 1; i < seg.length; i++) {
       const t = seg[i];
@@ -436,8 +561,8 @@ export class Layout {
     // it is a group (always expands, since a group has >1 inner term), or an atom
     // that expands a `case`/subquery.
     const hasGroup = terms.some((t) => t.node.kind === 'group');
-    const hasCase = terms.some((t) => t.node.kind === 'atom' && this.parseCase(t.node.tokens) !== null);
-    const hasSubquery = terms.some((t) => t.node.kind === 'atom' && findSubquery(t.node.tokens) !== null);
+    const hasCase = terms.some((t) => t.node.kind === 'atom' && this.hasCase(t.node.tokens));
+    const hasSubquery = terms.some((t) => t.node.kind === 'atom' && this.condHasSubquery(t.node.tokens));
     if (terms.length === 1 && !hasGroup && !hasCase && !hasSubquery) {
       const lastComment = terms[0].comment ? ' ' + terms[0].comment : '';
       return [pad(leading) + headStr + ' ' + this.renderInlineBool(terms) + lastComment];
@@ -496,8 +621,8 @@ export class Layout {
     const terms = parseBoolExpr(onTokens);
     // A group / subquery / `case` in an ON condition always expands (forces a break).
     const hasGroup = terms.some((t) => t.node.kind === 'group');
-    const hasSubquery = terms.some((t) => t.node.kind === 'atom' && findSubquery(t.node.tokens) !== null);
-    const hasCase = terms.some((t) => t.node.kind === 'atom' && this.parseCase(t.node.tokens) !== null);
+    const hasSubquery = terms.some((t) => t.node.kind === 'atom' && this.condHasSubquery(t.node.tokens));
+    const hasCase = terms.some((t) => t.node.kind === 'atom' && this.hasCase(t.node.tokens));
     // A single ON condition has nothing to align, so it stays inline — unless it
     // is a group or contains a subquery or `case` to expand. Any join with two or
     // more ON conditions always breaks (regardless of width) so the and/or

@@ -65,17 +65,22 @@ touching `layout.ts`/`segmenter.ts`.
   `LATERAL` derived table expands the same way in every position. The inner query is re-aligned one
   level in and the closing `)` aligns under its owner (the clause keyword, the `and`/`or` connector,
   or the item column). The `with` preamble sits off-river at column 0; in a multi-CTE `with`, each
-  later CTE name recedes to the `with` column. Still inline: a subquery wrapped in a function call.
+  later CTE name recedes to the `with` column. A subquery **wrapped in a function call**
+  (`coalesce((select ...), 0)`) also expands (its `)` under the item/operand column, the rest of the
+  wrapping expression riding the `)` line); a bare depth-0 expression subquery (`1 + (select ...)`)
+  stays inline.
 - **`case ... end`** expands in a select/group-by/order-by list item, in a `where`/`having`
   condition, and in a `join` ON — `case`/`when`/`else`/`end` share a column, and anything after
   `end` rides the `end` line. Nested `case`s expand recursively. A `when ... then` grows on one line
-  and is never wrapped. Still inline: a `case` wrapped in a function call.
+  and is never wrapped. A `case` **wrapped in a function call** (`coalesce(case ... end, 0)`) also
+  expands — `case`/`when`/`else`/`end` align under the `case`, the rest riding the `end` line.
 - **Line comments.** Inline comments (trailing code) stay attached to that line's last token.
   Standalone comments (alone on a line) stay on their own line — leading ones at the base margin, the
   rest at the content column (`riverEnd + 1`) — and reflow inside expanded paren groups, before the
-  first `where` condition, inside a `join` ON, and inside any expanded subquery. Passthrough (the
-  statement is emitted unchanged) applies only to a comment mid-token or inside a non-expanded
-  (function-wrapped) subquery.
+  first `where` condition, inside a `join` ON, and inside any expanded subquery (including a
+  function-wrapped one). Passthrough (the statement is emitted unchanged) applies only to a comment
+  mid-expression — inside a single item/condition, not at a boundary and not inside a subquery that
+  expands.
 
 ## Tests — read before adding coverage
 
@@ -134,7 +139,8 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 ## Open items / roadmap
 
 The aesthetic and breaking-model decisions are settled (breaking is by count, not width; output
-normalizes to column 0; there is no line-width option). What's left are the narrower sub-cases still
-rendered inline or passed through unchanged — a `case` or subquery wrapped in a function call, and
-comments mid-token or inside a function-wrapped subquery. See **`.claude/rules/roadmap.md`** and the
-README's "Known limitations".
+normalizes to column 0; there is no line-width option). A `case` or subquery **wrapped in a function
+call** now expands too (D3). The only remaining passthrough is by design: a comment mid-expression
+(inside a single item/condition, not at a boundary and not inside a subquery that expands), so a
+line join can never comment out code. See **`.claude/rules/roadmap.md`** and the README's "Known
+limitations".

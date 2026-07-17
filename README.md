@@ -229,7 +229,10 @@ select p.mass
 </table>
 
 **Subqueries and CTEs expand recursively** — the inner query is re-aligned one level in and its
-`)` sits under the owner. The `with` preamble stays at the left margin, off the river.
+`)` sits under the owner. This also applies to a subquery or a `case` wrapped in a function call
+(`coalesce((select ...), 0)`): the inner block expands, its `)` aligns under the item/operand
+column, and the rest of the wrapping expression rides the closing line. The `with` preamble stays at
+the left margin, off the river.
 
 <table>
 <tr><th align="left" width="840">IN</th></tr>
@@ -417,15 +420,12 @@ Two house rules for anything committed to the repo:
 
 ## Known limitations
 
-These narrower cases are not reflowed — they are rendered inline or kept exactly as written
-(never corrupted):
+This narrower case is not reflowed — the statement is kept exactly as written (never corrupted):
 
 - **Comments** are kept as-is (the whole statement is passed through unchanged) when a line comment
-  sits mid-token, or inside a subquery that is *not* expanded (see below), where it cannot be moved
-  without risk of commenting out code.
-- **Subqueries / CTEs** stay inline only when the subquery is wrapped in a function call
-  (`coalesce((select ...), 0)`).
-- **`case`** stays inline only when it is wrapped in a function call.
+  sits mid-expression — inside a single list item or boolean condition, not at a list/boolean
+  boundary and not inside a subquery that expands — where it cannot be moved without risk of
+  commenting out code.
 
 ## License
 

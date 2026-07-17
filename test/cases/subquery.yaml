@@ -1,7 +1,7 @@
 # Subqueries (non-CTE): from ( ... ) alias, a where condition subquery in any
 # position, a join ON subquery, a join-table subquery, a scalar subquery in the
-# select list, a function-wrapped subquery (stays inline), and comments inside
-# each expanded subquery. CTEs live in cte.yaml.
+# select list, a function-wrapped subquery (expands, D3), a bare depth-0 expression
+# subquery (stays inline), and comments inside each expanded subquery. CTEs live in cte.yaml.
 - description: from ( subquery ) alias expands, closing ) aligned under from
   input: select x.id, x.total from (select id, sum(mass) as total from planets group by id) x where x.total > 100
   expected: |
@@ -89,11 +89,40 @@
               where m.planet_id = planets.id
            ) as moon_count
       from planets
-- description: a subquery wrapped in a function in the select list stays inline
+- description: a subquery wrapped in a function in the select list expands, ) under the item column
   input: select id, coalesce((select max(mass) from moons m where m.planet_id = planets.id), 0) as top from planets
   expected: |
     select id,
-           coalesce((select max(mass) from moons m where m.planet_id = planets.id), 0) as top
+           coalesce((
+             select max(mass)
+               from moons m
+              where m.planet_id = planets.id
+           ), 0) as top
+      from planets
+- description: a function-wrapped subquery in a where condition expands, ) under the operand column
+  input: select id from planets where coalesce((select max(mass) from moons m where m.planet_id = planets.id), 0) > 5
+  expected: |
+    select id
+      from planets
+     where coalesce((
+             select max(mass)
+               from moons m
+              where m.planet_id = planets.id
+           ), 0) > 5
+- description: a function-wrapped subquery in a join ON expands, ) under the operand column
+  input: select p.id from planets p join stars s on s.id = coalesce((select star_id from nearby_stars where is_active = true), 0)
+  expected: |
+    select p.id
+      from planets p
+      join stars s on s.id = coalesce((
+                        select star_id
+                          from nearby_stars
+                         where is_active = true
+                      ), 0)
+- description: a subquery in a bare top-level expression (1 + (select ...)) stays inline
+  input: select 1 + (select count(*) from moons) as x from planets
+  expected: |
+    select 1 + (select count(*) from moons) as x
       from planets
 - description: a subquery as a join table expands, alias and single ON on the ) line
   input: select p.id from planets p join (select star_id from nearby_stars) ns on ns.star_id = p.star_id
@@ -191,7 +220,7 @@
                 -- must not vanish
            from nearby_stars
        )
-- description: a comment inside a function-wrapped subquery passes through intact
+- description: a comment inside a function-wrapped subquery reflows as the subquery expands
   input: |
     select id, coalesce((
       select max(mass)
@@ -199,8 +228,11 @@
       from moons m where m.planet_id = planets.id
     ), 0) as top from planets
   expected: |
-    select id, coalesce((
-      select max(mass)
-      -- careful
-      from moons m where m.planet_id = planets.id
-    ), 0) as top from planets
+    select id,
+           coalesce((
+             select max(mass)
+                    -- careful
+               from moons m
+              where m.planet_id = planets.id
+           ), 0) as top
+      from planets

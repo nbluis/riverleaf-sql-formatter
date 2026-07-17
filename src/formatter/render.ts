@@ -21,8 +21,14 @@ export function tokenText(tok: Token, options: FormatOptions): string {
 
 /**
  * Decides whether there should be a space between `prev` and `cur`.
- * Canonical spacing rules for SQL on a single line.
+ * Canonical spacing rules for SQL on a single line. Exported so the layout can
+ * join a rendered prefix/continuation onto an expanded construct with the exact
+ * same spacing (e.g. `coalesce(` before `(`, or `end` before `, 'x')`).
  */
+export function spaceBetween(prev: Token, cur: Token): boolean {
+  return needsSpace(prev, cur);
+}
+
 function needsSpace(prev: Token, cur: Token): boolean {
   // no space before , ; ) ] .
   if (cur.type === 'punct' && (cur.value === ',' || cur.value === ';' || cur.value === ')' || cur.value === ']' || cur.value === '.')) {
