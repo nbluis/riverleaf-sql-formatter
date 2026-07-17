@@ -2,76 +2,76 @@
 # the DML anchors (insert / update / delete / set / values) join the river; SET
 # and VALUES are lists that break one item per line; WHERE reuses the river.
 - description: update sets one assignment per line, where reuses the river
-  input: update orders set status_id = 2, updated_at = now() where id = 42 and status_id = 1
+  input: update planet set status_id = 2, updated_at = now() where id = 42 and status_id = 1
   expected: |
-    update orders
+    update planet
        set status_id = 2,
            updated_at = now()
      where id = 42
        and status_id = 1
 - description: update with a single assignment stays on the set line
-  input: update orders set status_id = 2 where id = 42
+  input: update planet set status_id = 2 where id = 42
   expected: |
-    update orders
+    update planet
        set status_id = 2
      where id = 42
 - description: insert with multiple value tuples breaks one tuple per line
-  input: insert into orders (customer_id, total_amount) values (42, 100), (43, 250), (44, 90)
+  input: insert into planet (star_id, mass) values (42, 100), (43, 250), (44, 90)
   expected: |
-    insert into orders (customer_id,
-                        total_amount)
+    insert into planet (star_id,
+                        mass)
     values (42, 100),
            (43, 250),
            (44, 90)
 - description: insert with a single value tuple stays on the values line
-  input: insert into orders (customer_id, total_amount) values (42, 100)
+  input: insert into planet (star_id, mass) values (42, 100)
   expected: |
-    insert into orders (customer_id,
-                        total_amount)
+    insert into planet (star_id,
+                        mass)
     values (42, 100)
 - description: delete keeps "delete from" together and aligns where under the river
-  input: delete from orders where status_id = 0
+  input: delete from planet where status_id = 0
   expected: |
-    delete from orders
+    delete from planet
      where status_id = 0
 - description: insert ... select recomputes the river across the select body
-  input: insert into orders (customer_id, total_amount) select customer_id, total_amount from staging_orders where valid = true
+  input: insert into planet (star_id, mass) select star_id, mass from planet_import where is_confirmed = true
   expected: |
-    insert into orders (customer_id,
-                        total_amount)
-    select customer_id,
-           total_amount
-      from staging_orders
-     where valid = true
+    insert into planet (star_id,
+                        mass)
+    select star_id,
+           mass
+      from planet_import
+     where is_confirmed = true
 - description: returning joins the river (widest clause), so the shorter heads align under it
-  input: update orders set status_id = 2 where id = 42 returning id, status_id
+  input: update planet set status_id = 2 where id = 42 returning id, status_id
   expected: |2
-       update orders
+       update planet
           set status_id = 2
         where id = 42
     returning id, status_id
 - description: a wide INSERT column list wraps, columns under the first (B1)
-  input: insert into big_table (column_one, column_two, column_three, column_four, column_five, column_six) values (1,2,3,4,5,6)
+  input: insert into observation (galaxy_id, star_id, planet_id, mass, radius, distance) values (1,2,3,4,5,6)
   expected: |
-    insert into big_table (column_one,
-                           column_two,
-                           column_three,
-                           column_four,
-                           column_five,
-                           column_six)
+    insert into observation (galaxy_id,
+                             star_id,
+                             planet_id,
+                             mass,
+                             radius,
+                             distance)
     values (1, 2, 3, 4, 5, 6)
 - description: a single VALUES tuple grows on one line (B2 removed — expression level never breaks)
-  input: insert into t (a, b, c) values ('a long literal value here', 'another quite long literal', 'a third long literal too')
+  input: insert into moon (name, designation, notes) values ('a long designation value here', 'another quite long designation', 'a third long designation too')
   expected: |
-    insert into t (a,
-                   b,
-                   c)
-    values ('a long literal value here', 'another quite long literal', 'a third long literal too')
+    insert into moon (name,
+                      designation,
+                      notes)
+    values ('a long designation value here', 'another quite long designation', 'a third long designation too')
 - description: multi-row VALUES breaks one tuple per line; each tuple grows on its line
-  input: insert into t (a, b, c) values (1, 2, 3), ('a long literal value here', 'another quite long literal', 'a third long literal too')
+  input: insert into moon (name, designation, notes) values (1, 2, 3), ('a long designation value here', 'another quite long designation', 'a third long designation too')
   expected: |
-    insert into t (a,
-                   b,
-                   c)
+    insert into moon (name,
+                      designation,
+                      notes)
     values (1, 2, 3),
-           ('a long literal value here', 'another quite long literal', 'a third long literal too')
+           ('a long designation value here', 'another quite long designation', 'a third long designation too')

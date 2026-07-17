@@ -3,321 +3,321 @@
 # *.yaml file in this directory and asserts format(input, options) === expected.
 - description: river alignment with a broken join (nested OR group) and a multi-condition where
   input: |2
-        select order_month as previous_order_month
-        from monthly_order_summaries previous_order
-        join customers on customers.customer_id = previous_order.customer_id
-        left join shipping_addresses on shipping_addresses.customer_id = customers.customer_id and shipping_addresses.address_type = customers.default_address_type and shipping_addresses.priority between 1 and 2 and (shipping_addresses.region_id = customers.region_id or shipping_addresses.country_code = customers.country_code)
-        where previous_order.organization_id = current_order.organization_id and previous_order.organization_id = 220 and previous_order.customer_id = current_order.customer_id and previous_order.order_month < current_order.order_month and previous_order.order_count > 0
-        order by order_month desc
+        select observed_month as previous_observed_month
+        from monthly_observation_summaries previous_summary
+        join star on star.star_id = previous_summary.star_id
+        left join planet on planet.star_id = star.star_id and planet.type = star.default_type and planet.apparent_magnitude between 1 and 2 and (planet.constellation_id = star.constellation_id or planet.catalog_number = star.catalog_number)
+        where previous_summary.galaxy_id = current_summary.galaxy_id and previous_summary.galaxy_id = 220 and previous_summary.star_id = current_summary.star_id and previous_summary.observed_month < current_summary.observed_month and previous_summary.observation_count > 0
+        order by observed_month desc
         limit 1
   expected: |
-    select order_month as previous_order_month
-      from monthly_order_summaries previous_order
-      join customers on customers.customer_id = previous_order.customer_id
-      left join shipping_addresses on shipping_addresses.customer_id = customers.customer_id
-                                  and shipping_addresses.address_type = customers.default_address_type
-                                  and shipping_addresses.priority between 1 and 2
-                                  and (
-                                    shipping_addresses.region_id = customers.region_id
-                                 or shipping_addresses.country_code = customers.country_code
-                                  )
-     where previous_order.organization_id = current_order.organization_id
-       and previous_order.organization_id = 220
-       and previous_order.customer_id = current_order.customer_id
-       and previous_order.order_month < current_order.order_month
-       and previous_order.order_count > 0
-     order by order_month desc
+    select observed_month as previous_observed_month
+      from monthly_observation_summaries previous_summary
+      join star on star.star_id = previous_summary.star_id
+      left join planet on planet.star_id = star.star_id
+                      and planet.type = star.default_type
+                      and planet.apparent_magnitude between 1 and 2
+                      and (
+                        planet.constellation_id = star.constellation_id
+                     or planet.catalog_number = star.catalog_number
+                      )
+     where previous_summary.galaxy_id = current_summary.galaxy_id
+       and previous_summary.galaxy_id = 220
+       and previous_summary.star_id = current_summary.star_id
+       and previous_summary.observed_month < current_summary.observed_month
+       and previous_summary.observation_count > 0
+     order by observed_month desc
      limit 1
 - description: an expanded OR group aligns its connectors to the group river (RIVER, D1)
-  input: select order_id from orders where (status_id = 1 or status_id = 2 or status_id = 3) and total_amount > 0
+  input: select id from planet where (status_id = 1 or status_id = 2 or status_id = 3) and mass > 0
   expected: |
-    select order_id
-      from orders
+    select id
+      from planet
      where (
              status_id = 1
           or status_id = 2
           or status_id = 3
            )
-       and total_amount > 0
+       and mass > 0
 - description: a multi-column select breaks one column per line
-  input: select first_name, last_name, email from customers
+  input: select name, designation, catalog_number from star
   expected: |
-    select first_name,
-           last_name,
-           email
-      from customers
+    select name,
+           designation,
+           catalog_number
+      from star
 - description: a single-column select stays inline (nothing to break)
-  input: select first_name from customers
+  input: select name from star
   expected: |
-    select first_name
-      from customers
+    select name
+      from star
 - description: a from list with more than one table breaks one per line
-  input: select order_id from orders o, customers c
+  input: select id from planet p, star s
   expected: |
-    select order_id
-      from orders o,
-           customers c
+    select id
+      from planet p,
+           star s
 - description: a three-column select breaks with trailing commas
-  input: select product_name, unit_price, quantity from order_items
+  input: select name, mass, radius from moon
   expected: |
-    select product_name,
-           unit_price,
-           quantity
-      from order_items
+    select name,
+           mass,
+           radius
+      from moon
 - description: keywords lowercased, identifiers preserved
-  input: SELECT CustomerName FROM Clients
+  input: SELECT StarName FROM Stars
   expected: |
-    select CustomerName
-      from Clients
+    select StarName
+      from Stars
 - description: a single-condition join stays inline (nothing to align)
-  input: select order_id from orders join customers on customers.id = orders.customer_id
+  input: select id from planet join star on star.id = planet.star_id
   expected: |
-    select order_id
-      from orders
-      join customers on customers.id = orders.customer_id
+    select id
+      from planet
+      join star on star.id = planet.star_id
 - description: a multi-condition join always breaks, aligning and/or under on (even when it fits)
-  input: select table1.column1, table2.column2 from table1 join table2 on table2.id = table1.ref_id and table2.ref_id is null
+  input: select planet.mass, star.radius from table1 join table2 on star.id = planet.star_id and star.parent_id is null
   expected: |
-    select table1.column1,
-           table2.column2
+    select planet.mass,
+           star.radius
       from table1
-      join table2 on table2.id = table1.ref_id
-                 and table2.ref_id is null
+      join table2 on star.id = planet.star_id
+                 and star.parent_id is null
 - description: no space before ( in function calls
-  input: select coalesce(nickname, full_name), count(*) from users where status_id in (1, 2, 3)
+  input: select coalesce(call_sign, given_name), count(*) from astronaut where status_id in (1, 2, 3)
   expected: |
-    select coalesce(nickname, full_name),
+    select coalesce(call_sign, given_name),
            count(*)
-      from users
+      from astronaut
      where status_id in (1, 2, 3)
 - description: line comment after a select column is kept as an end-of-line comment while the rest is formatted
   input: |-
-    select customer_id, -- primary key
-           total_amount
-      from orders
+    select star_id, -- primary key
+           mass
+      from planet
   expected: |
-    select customer_id, -- primary key
-           total_amount
-      from orders
+    select star_id, -- primary key
+           mass
+      from planet
 - description: trailing line comment is kept
-  input: select balance from accounts -- snapshot
+  input: select mass from star -- snapshot
   expected: |
-    select balance
-      from accounts -- snapshot
+    select mass
+      from star -- snapshot
 - description: trailing line comment on a where condition is kept
-  input: select order_id from orders where status_id = 1 -- only paid orders
+  input: select id from planet where status_id = 1 -- only active planets
   expected: |
-    select order_id
-      from orders
-     where status_id = 1 -- only paid orders
+    select id
+      from planet
+     where status_id = 1 -- only active planets
 - description: an inline comment in the middle of a where breaks and stays on its condition line
   input: |
-    select order_id from orders where status_id = 1 -- filter
-    and total_amount > 0
+    select id from planet where status_id = 1 -- filter
+    and mass > 0
   expected: |
-    select order_id
-      from orders
+    select id
+      from planet
      where status_id = 1 -- filter
-       and total_amount > 0
+       and mass > 0
 - description: an inline comment on the last where condition rides its line when the where breaks
-  input: select order_id from orders where status_id = 1 and total_amount > 0 -- note
+  input: select id from planet where status_id = 1 and mass > 0 -- note
   expected: |
-    select order_id
-      from orders
+    select id
+      from planet
      where status_id = 1
-       and total_amount > 0 -- note
+       and mass > 0 -- note
 - description: a where with a single condition stays inline
-  input: select order_id from orders where status_id = 1
+  input: select id from planet where status_id = 1
   expected: |
-    select order_id
-      from orders
+    select id
+      from planet
      where status_id = 1
 - description: a where that is a single parenthesized group always expands (D-c)
-  input: select order_id from orders where (status_id = 1 or status_id = 2)
+  input: select id from planet where (status_id = 1 or status_id = 2)
   expected: |
-    select order_id
-      from orders
+    select id
+      from planet
      where (
              status_id = 1
           or status_id = 2
            )
 - description: a standalone comment between where conditions sits at the content column
   input: |
-    select order_id from orders
+    select id from planet
     where status_id = 1
     -- standalone note
-    and total_amount > 0
+    and mass > 0
   expected: |
-    select order_id
-      from orders
+    select id
+      from planet
      where status_id = 1
            -- standalone note
-       and total_amount > 0
+       and mass > 0
 - description: a standalone comment inside a parenthesized group reflows in BLOCK mode
   input: |
-    select order_id from orders
+    select id from planet
     where (status_id = 1
     -- inside the group
     or status_id = 2)
-    and total_amount > 0
+    and mass > 0
   expected: |
-    select order_id
-      from orders
+    select id
+      from planet
      where (
              status_id = 1
              -- inside the group
           or status_id = 2
            )
-       and total_amount > 0
+       and mass > 0
 - description: an inline comment on a condition inside a parenthesized group is kept
   input: |
-    select order_id from orders
+    select id from planet
     where (status_id = 1
     or status_id = 2 -- second option
     )
-    and total_amount > 0
+    and mass > 0
   expected: |
-    select order_id
-      from orders
+    select id
+      from planet
      where (
              status_id = 1
           or status_id = 2 -- second option
            )
-       and total_amount > 0
+       and mass > 0
 - description: a leading standalone comment inside a parenthesized group is kept
   input: |
-    select order_id from orders
+    select id from planet
     where (
     -- head of group
     status_id = 1
     or status_id = 2)
-    and total_amount > 0
+    and mass > 0
   expected: |
-    select order_id
-      from orders
+    select id
+      from planet
      where (
              -- head of group
              status_id = 1
           or status_id = 2
            )
-       and total_amount > 0
+       and mass > 0
 - description: a standalone comment before the first where condition keeps where alone (option b)
   input: |
-    select order_id from orders
+    select id from planet
     where
     -- standalone note before first
     status_id = 1
-    and total_amount > 0
+    and mass > 0
   expected: |
-    select order_id
-      from orders
+    select id
+      from planet
      where
            -- standalone note before first
            status_id = 1
-       and total_amount > 0
+       and mass > 0
 - description: a standalone comment between join ON conditions reflows under the on river
   input: |
-    select order_id from orders o
-    join customers c on c.id = o.customer_id
+    select id from planet p
+    join star s on s.id = p.star_id
     -- note between on conditions
-    and c.active = true
+    and s.is_active = true
   expected: |
-    select order_id
-      from orders o
-      join customers c on c.id = o.customer_id
-                          -- note between on conditions
-                      and c.active = true
+    select id
+      from planet p
+      join star s on s.id = p.star_id
+                     -- note between on conditions
+                 and s.is_active = true
 - description: multiple statements separated by a blank line
-  input: select current_date; select order_id from orders
+  input: select current_date; select id from planet
   expected: |
     select current_date;
 
-    select order_id
-      from orders
+    select id
+      from planet
 - description: group by / having / order by alignment
-  input: select department_id, count(*) from employees group by department_id having count(*) > 5 order by department_id
+  input: select station_id, count(*) from astronaut group by station_id having count(*) > 5 order by station_id
   expected: |
-    select department_id,
+    select station_id,
            count(*)
-      from employees
-     group by department_id
+      from astronaut
+     group by station_id
     having count(*) > 5
-     order by department_id
+     order by station_id
 - description: a leading line comment stays on its own line and does not pollute the river
   input: |
     -- comment
-    select orders.closed_at as order_date, orders.closed_at as date, orders.salon_id
-      from orders
+    select planet.discovered_at as discovered_date, planet.discovered_at as date, planet.galaxy_id
+      from planet
   expected: |
     -- comment
-    select orders.closed_at as order_date,
-           orders.closed_at as date,
-           orders.salon_id
-      from orders
+    select planet.discovered_at as discovered_date,
+           planet.discovered_at as date,
+           planet.galaxy_id
+      from planet
 - description: an inline comment on the last select column is kept while the list breaks
   input: |
-    select orders.closed_at as order_date, orders.closed_at as date, orders.salon_id -- last token comment
-      from orders
+    select planet.discovered_at as discovered_date, planet.discovered_at as date, planet.galaxy_id -- last token comment
+      from planet
   expected: |
-    select orders.closed_at as order_date,
-           orders.closed_at as date,
-           orders.salon_id -- last token comment
-      from orders
+    select planet.discovered_at as discovered_date,
+           planet.discovered_at as date,
+           planet.galaxy_id -- last token comment
+      from planet
 - description: a standalone comment between list items and a trailing statement comment sit at the content column
   input: |
-    select orders.closed_at as order_date, orders.closed_at as date,
+    select planet.discovered_at as discovered_date, planet.discovered_at as date,
            -- line with comment
-           orders.salon_id
-      from orders
+           planet.galaxy_id
+      from planet
     -- line with comment
   expected: |
-    select orders.closed_at as order_date,
-           orders.closed_at as date,
+    select planet.discovered_at as discovered_date,
+           planet.discovered_at as date,
            -- line with comment
-           orders.salon_id
-      from orders
+           planet.galaxy_id
+      from planet
            -- line with comment
 - description: a standalone comment between clauses sits at the content column
   input: |
-    select customer_id from orders
-    -- only paid orders
+    select star_id from planet
+    -- only active planets
     where status_id = 1
   expected: |
-    select customer_id
-      from orders
-           -- only paid orders
+    select star_id
+      from planet
+           -- only active planets
      where status_id = 1
 - description: a line comment after the final semicolon glues under the statement
   input: |
-    select customer_id from orders;
+    select star_id from planet;
     -- done
   expected: |
-    select customer_id
-      from orders;
+    select star_id
+      from planet;
     -- done
 - description: each statement keeps its own leading comment, separated by a blank line
   input: |
     -- first query
-    select order_id from orders;
+    select id from planet;
     -- second query
-    select customer_id from customers
+    select star_id from star
   expected: |
     -- first query
-    select order_id
-      from orders;
+    select id
+      from planet;
 
     -- second query
-    select customer_id
-      from customers
+    select star_id
+      from star
 - description: an indented query is normalized to column 0 (D2)
   input: |2
-        select order_id, total_amount
-        from orders
+        select id, mass
+        from planet
         where status_id = 1
-        order by total_amount desc
+        order by mass desc
   expected: |
-    select order_id,
-           total_amount
-      from orders
+    select id,
+           mass
+      from planet
      where status_id = 1
-     order by total_amount desc
+     order by mass desc

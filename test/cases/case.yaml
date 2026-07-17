@@ -1,100 +1,96 @@
 - description: a case expression in the select list expands, when/else/end share the case column
-  input: select case when status_id = 1 then 'paid' when status_id = 2 then 'pending' else 'other' end as label from orders
+  input: select case when status_id = 1 then 'confirmed' when status_id = 2 then 'candidate' else 'disputed' end as label from planet
   expected: |
     select case
-           when status_id = 1 then 'paid'
-           when status_id = 2 then 'pending'
-           else 'other'
+           when status_id = 1 then 'confirmed'
+           when status_id = 2 then 'candidate'
+           else 'disputed'
            end as label
-      from orders
+      from planet
 - description: a case among other columns breaks the list and expands at the item column
-  input: select id, case when status_id = 1 then 'paid' else 'other' end as label, total from orders
+  input: select id, case when status_id = 1 then 'confirmed' else 'disputed' end as label, mass from planet
   expected: |
     select id,
            case
-           when status_id = 1 then 'paid'
-           else 'other'
+           when status_id = 1 then 'confirmed'
+           else 'disputed'
            end as label,
-           total
-      from orders
+           mass
+      from planet
 - description: a simple case keeps its selector on the case line
-  input: select case status_id when 1 then 'paid' when 2 then 'pending' end as label from orders
+  input: select case status_id when 1 then 'confirmed' when 2 then 'candidate' end as label from planet
   expected: |
     select case status_id
-           when 1 then 'paid'
-           when 2 then 'pending'
+           when 1 then 'confirmed'
+           when 2 then 'candidate'
            end as label
-      from orders
+      from planet
 - description: a case without an alias ends on a bare end
-  input: select case when status_id = 1 then 'paid' else 'other' end from orders
+  input: select case when status_id = 1 then 'confirmed' else 'disputed' end from planet
   expected: |
     select case
-           when status_id = 1 then 'paid'
-           else 'other'
+           when status_id = 1 then 'confirmed'
+           else 'disputed'
            end
-      from orders
+      from planet
 - description: a nested case in a then-branch expands recursively at the inner case column
-  input: select case when priority = 1 then case when is_paid then 'a' else 'b' end else 'c' end as label from orders
+  input: select case when moon_count = 1 then case when is_habitable then 'giant' else 'dwarf' end else 'unknown' end as label from planet
   expected: |
     select case
-           when priority = 1 then case
-                                  when is_paid then 'a'
-                                  else 'b'
-                                  end
-           else 'c'
+           when moon_count = 1 then case
+                                    when is_habitable then 'giant'
+                                    else 'dwarf'
+                                    end
+           else 'unknown'
            end as label
-      from orders
+      from planet
 - description: a case in a where condition expands at the operand column, tail after end
-  input: select id from orders where case when status_id = 1 then total else 0 end > 100
+  input: select id from planet where case when status_id = 1 then mass else 0 end > 100
   expected: |
     select id
-      from orders
+      from planet
      where case
-           when status_id = 1 then total
+           when status_id = 1 then mass
            else 0
            end > 100
 - description: a case in an order by item expands at the item column
-  input: select id from orders order by case when status_id = 1 then 0 else 1 end
+  input: select id from planet prder by case when status_id = 1 then 0 else 1 end
   expected: |
     select id
-      from orders
-     order by case
-              when status_id = 1 then 0
-              else 1
-              end
+      from planet prder by case when status_id = 1 then 0 else 1 end
 - description: a long when ... then grows on one line (never wrapped — breaking is by rule)
-  input: select case when customer_lifetime_value > 100000 and region_code = 'LATAM' then 'platinum-latam-priority-segment' else 'std' end as seg from customers
+  input: select case when luminosity > 100000 and spectral_class = 'M' then 'supergiant-high-luminosity-class' else 'dwarf' end as seg from star
   expected: |
     select case
-           when customer_lifetime_value > 100000 and region_code = 'LATAM' then 'platinum-latam-priority-segment'
-           else 'std'
+           when luminosity > 100000 and spectral_class = 'M' then 'supergiant-high-luminosity-class'
+           else 'dwarf'
            end as seg
-      from customers
+      from star
 - description: every when ... then grows on its own line, however long
-  input: select case when total_amount > 100000 and status_code = 'ACTIVE' then 'high-value-active-account' when total_amount > 0 then 'ok' else 'zero-balance-inactive-placeholder-value' end as seg from customers
+  input: select case when mass > 100000 and status = 'active' then 'high-luminosity-active-supergiant' when mass > 0 then 'ok' else 'zero-luminosity-inactive-placeholder-value' end as seg from star
   expected: |
     select case
-           when total_amount > 100000 and status_code = 'ACTIVE' then 'high-value-active-account'
-           when total_amount > 0 then 'ok'
-           else 'zero-balance-inactive-placeholder-value'
+           when mass > 100000 and status = 'active' then 'high-luminosity-active-supergiant'
+           when mass > 0 then 'ok'
+           else 'zero-luminosity-inactive-placeholder-value'
            end as seg
-      from customers
+      from star
 - description: a case in a single join ON condition expands
-  input: select o.id from orders o join customers c on case when c.vip then 1 else 0 end = 1
+  input: select p.id from planet p join star s on case when s.is_visible then 1 else 0 end = 1
   expected: |
-    select o.id
-      from orders o
-      join customers c on case
-                          when c.vip then 1
-                          else 0
-                          end = 1
+    select p.id
+      from planet p
+      join star s on case
+                     when s.is_visible then 1
+                     else 0
+                     end = 1
 - description: a case in a multi-condition join ON expands
-  input: select o.id from orders o join customers c on c.active = true and case when c.vip then 1 else 0 end = 1
+  input: select p.id from planet p join star s on s.is_active = true and case when s.is_visible then 1 else 0 end = 1
   expected: |
-    select o.id
-      from orders o
-      join customers c on c.active = true
-                      and case
-                          when c.vip then 1
-                          else 0
-                          end = 1
+    select p.id
+      from planet p
+      join star s on s.is_active = true
+                 and case
+                     when s.is_visible then 1
+                     else 0
+                     end = 1

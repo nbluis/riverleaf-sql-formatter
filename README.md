@@ -26,60 +26,60 @@ to your own conventions. If you want a different look, this probably isn't the t
 Before:
 
 ```sql
-select order_month as previous_order_month from monthly_order_summaries previous_order
-join customers on customers.customer_id = previous_order.customer_id
-left join shipping_addresses on shipping_addresses.customer_id = customers.customer_id and shipping_addresses.address_type = customers.default_address_type and shipping_addresses.priority between 1 and 2 and (shipping_addresses.region_id = customers.region_id or shipping_addresses.country_code = customers.country_code)
-where previous_order.organization_id = current_order.organization_id and previous_order.organization_id = 220 and previous_order.customer_id = current_order.customer_id and previous_order.order_month < current_order.order_month and previous_order.order_count > 0
-order by order_month desc limit 1
+select observed_month as previous_observed_month from monthly_observation_summaries previous_summary
+join star on star.star_id = previous_summary.star_id
+left join planet on planet.star_id = star.star_id and planet.type = star.default_type and planet.apparent_magnitude between 1 and 2 and (planet.constellation_id = star.constellation_id or planet.catalog_number = star.catalog_number)
+where previous_summary.galaxy_id = current_summary.galaxy_id and previous_summary.galaxy_id = 220 and previous_summary.star_id = current_summary.star_id and previous_summary.observed_month < current_summary.observed_month and previous_summary.observation_count > 0
+order by observed_month desc limit 1
 ```
 
 After:
 
 ```sql
-select order_month as previous_order_month
-  from monthly_order_summaries previous_order
-  join customers on customers.customer_id = previous_order.customer_id
-  left join shipping_addresses on shipping_addresses.customer_id = customers.customer_id
-                              and shipping_addresses.address_type = customers.default_address_type
-                              and shipping_addresses.priority between 1 and 2
-                              and (
-                                shipping_addresses.region_id = customers.region_id
-                             or shipping_addresses.country_code = customers.country_code
-                              )
- where previous_order.organization_id = current_order.organization_id
-   and previous_order.organization_id = 220
-   and previous_order.customer_id = current_order.customer_id
-   and previous_order.order_month < current_order.order_month
-   and previous_order.order_count > 0
- order by order_month desc
+select observed_month as previous_observed_month
+  from monthly_observation_summaries previous_summary
+  join star on star.star_id = previous_summary.star_id
+  left join planet on planet.star_id = star.star_id
+                  and planet.type = star.default_type
+                  and planet.apparent_magnitude between 1 and 2
+                  and (
+                    planet.constellation_id = star.constellation_id
+                 or planet.catalog_number = star.catalog_number
+                  )
+ where previous_summary.galaxy_id = current_summary.galaxy_id
+   and previous_summary.galaxy_id = 220
+   and previous_summary.star_id = current_summary.star_id
+   and previous_summary.observed_month < current_summary.observed_month
+   and previous_summary.observation_count > 0
+ order by observed_month desc
  limit 1
 ```
 
 A smaller one — `group by` / `having` / `order by`, from a single compact line:
 
 ```sql
-select department_id, count(*) from employees group by department_id having count(*) > 5 order by department_id
+select station_id, count(*) from astronaut group by station_id having count(*) > 5 order by station_id
 ```
 
 becomes:
 
 ```sql
-select department_id,
+select station_id,
        count(*)
-  from employees
- group by department_id
+  from astronaut
+ group by station_id
 having count(*) > 5
- order by department_id
+ order by station_id
 ```
 
 A join with more than one ON condition always breaks, aligning `and`/`or` under `on`:
 
 ```sql
-select table1.column1,
-       table2.column2
-  from table1
-  join table2 on table2.id = table1.ref_id
-             and table2.ref_id is null
+select planet.mass,
+       star.radius
+  from planet
+  join star on star.id = planet.star_id
+           and star.parent_id is null
 ```
 
 ## Rules
@@ -169,11 +169,11 @@ existing file (or create a new one like `mysql.yaml`, `postgres_cte.yaml`, ...):
   options:            # optional; defaults to keywordCase lower, indentSize 2
     keywordCase: upper
   input: |
-    select first_name, last_name from customers
+    select name, designation from star
   expected: |
-    SELECT first_name,
-           last_name
-      FROM customers
+    SELECT name,
+           designation
+      FROM star
 ```
 
 Each case is asserted two ways: `format(input, options) === expected`, and that formatting

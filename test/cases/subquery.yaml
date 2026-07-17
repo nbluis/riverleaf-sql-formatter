@@ -1,277 +1,277 @@
 - description: from ( subquery ) alias expands, closing ) aligned under from
-  input: select x.id, x.total from (select id, sum(amount) as total from orders group by id) x where x.total > 100
+  input: select x.id, x.total from (select id, sum(mass) as total from planet group by id) x where x.total > 100
   expected: |
     select x.id,
            x.total
       from (
         select id,
-               sum(amount) as total
-          from orders
+               sum(mass) as total
+          from planet
          group by id
       ) x
      where x.total > 100
 - description: a single CTE body expands, closing ) aligned under with
-  input: with recent as (select id from orders where created_at > now() - interval '7 days') select id from recent
+  input: with recent as (select id from planet where created_at > now() - interval '7 days') select id from recent
   expected: |
     with recent as (
       select id
-        from orders
+        from planet
        where created_at > now() - interval '7 days'
     )
     select id
       from recent
 - description: where ... in ( subquery ) expands under the where keyword
-  input: select id from orders where customer_id in (select customer_id from vip_customers where active = true)
+  input: select id from planet where star_id in (select star_id from nearby_stars where is_active = true)
   expected: |
     select id
-      from orders
-     where customer_id in (
-       select customer_id
-         from vip_customers
-        where active = true
+      from planet
+     where star_id in (
+       select star_id
+         from nearby_stars
+        where is_active = true
      )
 - description: nested subqueries expand recursively
-  input: select t.id from (select id from (select id from orders where status_id = 1) inner_q where id > 0) t
+  input: select t.id from (select id from (select id from planet where status_id = 1) inner_q where id > 0) t
   expected: |
     select t.id
       from (
         select id
           from (
             select id
-              from orders
+              from planet
              where status_id = 1
           ) inner_q
          where id > 0
       ) t
 - description: a subquery containing a multi-condition join keeps the ON river
-  input: select x.id from (select o.id from orders o join customers c on c.id = o.customer_id and c.active = true) x
+  input: select x.id from (select p.id from planet p join star s on s.id = p.star_id and s.is_active = true) x
   expected: |
     select x.id
       from (
-        select o.id
-          from orders o
-          join customers c on c.id = o.customer_id
-                          and c.active = true
+        select p.id
+          from planet p
+          join star s on s.id = p.star_id
+                     and s.is_active = true
       ) x
 - description: a subquery in the first of several where conditions expands, rest below
-  input: select id from orders where customer_id in (select customer_id from vip_customers where active = true) and status_id = 1
+  input: select id from planet where star_id in (select star_id from nearby_stars where is_active = true) and status_id = 1
   expected: |
     select id
-      from orders
-     where customer_id in (
-       select customer_id
-         from vip_customers
-        where active = true
+      from planet
+     where star_id in (
+       select star_id
+         from nearby_stars
+        where is_active = true
      )
        and status_id = 1
 - description: a subquery in a non-first where condition expands, ) under the connector
-  input: select id from orders where order_status_id = 1 and customer_id in (select customer_id from vip_customers where active = true)
+  input: select id from planet where status_id = 1 and star_id in (select star_id from nearby_stars where is_active = true)
   expected: |
     select id
-      from orders
-     where order_status_id = 1
-       and customer_id in (
-         select customer_id
-           from vip_customers
-          where active = true
+      from planet
+     where status_id = 1
+       and star_id in (
+         select star_id
+           from nearby_stars
+          where is_active = true
        )
 - description: a subquery in a multi-condition join ON expands, ) under the connector
-  input: select o.id from orders o join customers c on c.id = o.customer_id and c.id in (select id from vip_customers)
+  input: select p.id from planet p join star s on s.id = p.star_id and s.id in (select id from nearby_stars)
   expected: |
-    select o.id
-      from orders o
-      join customers c on c.id = o.customer_id
-                      and c.id in (
-                        select id
-                          from vip_customers
-                      )
+    select p.id
+      from planet p
+      join star s on s.id = p.star_id
+                 and s.id in (
+                   select id
+                     from nearby_stars
+                 )
 - description: a scalar subquery in the select list expands at the item column
-  input: select id, (select count(*) from order_items oi where oi.order_id = orders.id) as item_count from orders
+  input: select id, (select count(*) from moon m where m.planet_id = planet.id) as moon_count from planet
   expected: |
     select id,
            (
              select count(*)
-               from order_items oi
-              where oi.order_id = orders.id
-           ) as item_count
-      from orders
+               from moon m
+              where m.planet_id = planet.id
+           ) as moon_count
+      from planet
 - description: a subquery wrapped in a function in the select list stays inline
-  input: select id, coalesce((select max(amount) from order_items oi where oi.order_id = orders.id), 0) as top from orders
+  input: select id, coalesce((select max(mass) from moon m where m.planet_id = planet.id), 0) as top from planet
   expected: |
     select id,
-           coalesce((select max(amount) from order_items oi where oi.order_id = orders.id), 0) as top
-      from orders
+           coalesce((select max(mass) from moon m where m.planet_id = planet.id), 0) as top
+      from planet
 - description: a subquery as a join table expands, alias and single ON on the ) line
-  input: select o.id from orders o join (select customer_id from vip_customers) v on v.customer_id = o.customer_id
+  input: select p.id from planet p join (select star_id from nearby_stars) ns on ns.star_id = p.star_id
   expected: |
-    select o.id
-      from orders o
+    select p.id
+      from planet p
       join (
-        select customer_id
-          from vip_customers
-      ) v on v.customer_id = o.customer_id
+        select star_id
+          from nearby_stars
+      ) ns on ns.star_id = p.star_id
 - description: a join-table subquery with a multi-condition ON keeps the ON river on the ) line
-  input: select o.id from orders o join (select customer_id from vip_customers) v on v.customer_id = o.customer_id and v.tier = o.tier
+  input: select p.id from planet p join (select star_id from nearby_stars) ns on ns.star_id = p.star_id and ns.type = p.type
   expected: |
-    select o.id
-      from orders o
+    select p.id
+      from planet p
       join (
-        select customer_id
-          from vip_customers
-      ) v on v.customer_id = o.customer_id
-         and v.tier = o.tier
+        select star_id
+          from nearby_stars
+      ) ns on ns.star_id = p.star_id
+          and ns.type = p.type
 - description: a standalone comment inside a from-subquery reflows at the inner content column
   input: |
     select x.id from (
       select id
       -- note inside
-      from orders
+      from planet
     ) x
   expected: |
     select x.id
       from (
         select id
                -- note inside
-          from orders
+          from planet
       ) x
 - description: a comment inside a where-subquery (first condition) reflows recursively
   input: |
-    select id from orders where customer_id in (
-      select customer_id
-      -- only the active ones
-      from vip_customers
+    select id from planet where star_id in (
+      select star_id
+      -- only the nearby ones
+      from nearby_stars
     ) and status_id = 1
   expected: |
     select id
-      from orders
-     where customer_id in (
-       select customer_id
-              -- only the active ones
-         from vip_customers
+      from planet
+     where star_id in (
+       select star_id
+              -- only the nearby ones
+         from nearby_stars
      )
        and status_id = 1
 - description: a comment inside a join-table subquery reflows recursively
   input: |
-    select o.id from orders o join (
-      select customer_id
-      -- vips only
-      from vip_customers
-    ) v on v.customer_id = o.customer_id
+    select p.id from planet p join (
+      select star_id
+      -- nearby only
+      from nearby_stars
+    ) v on ns.star_id = p.star_id
   expected: |
-    select o.id
-      from orders o
+    select p.id
+      from planet p
       join (
-        select customer_id
-               -- vips only
-          from vip_customers
-      ) v on v.customer_id = o.customer_id
+        select star_id
+               -- nearby only
+          from nearby_stars
+      ) v on ns.star_id = p.star_id
 - description: a comment inside a scalar subquery in the select list reflows recursively
   input: |
     select id, (
       select count(*)
-      -- count of items
-      from order_items oi where oi.order_id = orders.id
-    ) as item_count from orders
+      -- count of moons
+      from moon m where m.planet_id = planet.id
+    ) as moon_count from planet
   expected: |
     select id,
            (
              select count(*)
-                    -- count of items
-               from order_items oi
-              where oi.order_id = orders.id
-           ) as item_count
-      from orders
+                    -- count of moons
+               from moon m
+              where m.planet_id = planet.id
+           ) as moon_count
+      from planet
 - description: a comment inside a non-first where-subquery now reflows
   input: |-
-    select id from orders where status_id = 1 and customer_id in (
-      select customer_id
+    select id from planet where status_id = 1 and star_id in (
+      select star_id
       -- must not vanish
-      from vip_customers
+      from nearby_stars
     )
   expected: |
     select id
-      from orders
+      from planet
      where status_id = 1
-       and customer_id in (
-         select customer_id
+       and star_id in (
+         select star_id
                 -- must not vanish
-           from vip_customers
+           from nearby_stars
        )
 - description: a comment inside a function-wrapped subquery passes through intact
   input: |
     select id, coalesce((
-      select max(amount)
+      select max(mass)
       -- careful
-      from order_items oi where oi.order_id = orders.id
-    ), 0) as top from orders
+      from moon m where m.planet_id = planet.id
+    ), 0) as top from planet
   expected: |
     select id, coalesce((
-      select max(amount)
+      select max(mass)
       -- careful
-      from order_items oi where oi.order_id = orders.id
-    ), 0) as top from orders
+      from moon m where m.planet_id = planet.id
+    ), 0) as top from planet
 - description: multiple comma-separated CTEs each expand, names recede to the with column
-  input: with a as (select id from orders), b as (select id from customers) select a.id from a join b on a.id = b.id
+  input: with a as (select id from planet), b as (select id from star) select a.id from a join b on a.id = b.id
   expected: |
     with a as (
       select id
-        from orders
+        from planet
     ),
     b as (
       select id
-        from customers
+        from star
     )
     select a.id
       from a
       join b on a.id = b.id
 - description: 'three CTEs: each ) aligns under with, comma after each ) but the last'
-  input: with a as (select id from orders), b as (select id from customers), c as (select id from products) select a.id from a
+  input: with a as (select id from planet), b as (select id from star), c as (select id from galaxy) select a.id from a
   expected: |
     with a as (
       select id
-        from orders
+        from planet
     ),
     b as (
       select id
-        from customers
+        from star
     ),
     c as (
       select id
-        from products
+        from galaxy
     )
     select a.id
       from a
 - description: multiple CTEs with inner where clauses expand recursively
-  input: with a as (select id from orders where status_id = 1), b as (select customer_id from customers where active = true) select a.id from a join b on a.id = b.customer_id where a.id > 0
+  input: with a as (select id from planet where status_id = 1), b as (select star_id from star where is_active = true) select a.id from a join b on a.id = b.star_id where a.id > 0
   expected: |
     with a as (
       select id
-        from orders
+        from planet
        where status_id = 1
     ),
     b as (
-      select customer_id
-        from customers
-       where active = true
+      select star_id
+        from star
+       where is_active = true
     )
     select a.id
       from a
-      join b on a.id = b.customer_id
+      join b on a.id = b.star_id
      where a.id > 0
 - description: a comment inside one of several CTEs reflows via the recursion
   input: |-
     with a as (select id
     -- first cte
-    from orders), b as (select id from customers) select a.id from a
+    from planet), b as (select id from star) select a.id from a
   expected: |
     with a as (
       select id
              -- first cte
-        from orders
+        from planet
     ),
     b as (
       select id
-        from customers
+        from star
     )
     select a.id
       from a
