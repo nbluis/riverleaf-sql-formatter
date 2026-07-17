@@ -8,130 +8,85 @@
   <a href="https://github.com/nbluis/riverleaf-sql-formatter/actions/workflows/ci.yml">
     <img src="https://github.com/nbluis/riverleaf-sql-formatter/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
+  <a href="#installation">
+    <img src="https://img.shields.io/badge/VS%20Code%20Marketplace-under%20construction-orange.svg" alt="VS Code Marketplace — under construction">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="MIT License">
+  </a>
 </p>
 
 Formats SQL scripts in the **river alignment** style: keywords are right-aligned to a
 common vertical column, using **spaces** (never tabs). Your keywords line up along the
 bank while a river of whitespace flows down the middle.
 
+**Why a river?** Left-aligned SQL hides where each clause begins in a ragged wall of text.
+Pulling every clause keyword onto one column turns the *shape* of a query into something you
+can scan in a single downward glance — the whitespace between the bank and the arguments is the
+"river" (hence the name, and the 🍃).
+
 > 🚧 **Work in progress** — behavior, rules, and options may change between versions.
 
 **Opinionated by design.** Riverleaf formats SQL the way its author likes to read it, and it will
 always prioritize those preferences over being configurable to every style. The
 goal is to be an excellent fit for that particular taste — not a general-purpose formatter you tune
-to your own conventions. If you want a different look, this probably isn't the tool for you.
+to your own conventions.
 
-## Example
+<br>
 
-Before:
+<table>
+<tr>
+<th align="left">You write this…</th>
+<th align="left">…and get this</th>
+</tr>
+<tr>
+<td valign="top">
 
 ```sql
-select observed_month as previous_observed_month from monthly_observation_summaries previous_summary
-join stars on stars.star_id = previous_summary.star_id
-left join planets on planets.star_id = stars.star_id and planets.type = stars.default_type and planets.apparent_magnitude between 1 and 2 and (planets.constellation_id = stars.constellation_id or planets.catalog_number = stars.catalog_number)
-where previous_summary.galaxy_id = current_summary.galaxy_id and previous_summary.galaxy_id = 220 and previous_summary.star_id = current_summary.star_id and previous_summary.observed_month < current_summary.observed_month and previous_summary.observation_count > 0
-order by observed_month desc limit 1
+select id, name from planets where mass > 10
 ```
 
-After:
+</td>
+<td valign="top">
 
 ```sql
-select observed_month as previous_observed_month
-  from monthly_observation_summaries previous_summary
-  join stars on stars.star_id = previous_summary.star_id
-  left join planets on planets.star_id = stars.star_id
-                   and planets.type = stars.default_type
-                   and planets.apparent_magnitude between 1 and 2
-                   and (
-                     planets.constellation_id = stars.constellation_id
-                  or planets.catalog_number = stars.catalog_number
-                   )
- where previous_summary.galaxy_id = current_summary.galaxy_id
-   and previous_summary.galaxy_id = 220
-   and previous_summary.star_id = current_summary.star_id
-   and previous_summary.observed_month < current_summary.observed_month
-   and previous_summary.observation_count > 0
- order by observed_month desc
- limit 1
-```
-
-A smaller one — `group by` / `having` / `order by`, from a single compact line:
-
-```sql
-select station_id, count(*) from astronauts group by station_id having count(*) > 5 order by station_id
-```
-
-becomes:
-
-```sql
-select station_id,
-       count(*)
-  from astronauts
- group by station_id
-having count(*) > 5
- order by station_id
-```
-
-A join with more than one ON condition always breaks, aligning `and`/`or` under `on`:
-
-```sql
-select planets.mass,
-       stars.radius
+select id,
+       name
   from planets
-  join stars on stars.id = planets.star_id
-            and stars.parent_id is null
+ where mass > 10
 ```
 
-## Rules
+</td>
+</tr>
+</table>
 
-- **Spaces, never tabs.**
-- The **first word** of each clause (`select`, `from`, `join`, `left`, `where`, `and`,
-  `order`, `limit`, ...) is right-aligned to a common river; arguments start right after.
-- **Keywords lowercased** by default; identifiers preserved.
-- **Breaking is by rule, not by width.** Line length never decides anything: a construct breaks
-  when its *structure* calls for it, and otherwise grows on one line however long. There is no
-  maximum-width setting.
-- A **list clause with more than one item breaks one item per line**, with trailing commas and the
-  columns aligned — `select`, `from` (with a comma), `group by`, `order by`, and the DML
-  `set` / `values` / `insert` column list. A single-item list stays inline.
-- **`where` / `having` break whenever there is more than one condition**, with the `and`/`or`
-  connectors aligned to the main river; a single condition stays inline. A parenthesized boolean
-  group always expands and aligns its own `and`/`or` connectors the same way — to the group's river,
-  one level in.
-- **JOINs with more than one ON condition always break**, aligning the `and`/`or`
-  conditions under the `on`. A join with a single ON condition stays inline (there is nothing
-  to align).
-- **Line comments (`--`)** stay associated with the code around them. A comment that trails
-  code on a line stays attached to that line (its last token) — including a comment on a `where`
-  condition or inside a parenthesized group. A comment alone on its line stays alone: a leading
-  comment sits at the left margin above the statement; comments between list items, between
-  clauses, between `where`/`join` ON conditions, inside an expanded group, or trailing the
-  statement sit at the content column (aligned with the clause arguments). A comment before the
-  first `where`/`having` condition puts the keyword on its own line, with the first condition
-  below the comment.
-- **INSERT / UPDATE / DELETE** format like a select: the anchors join the river, `set` and
-  `values` break one item per line (when there is more than one), `delete from` stays together,
-  and `where` reuses the river. An `INSERT` column list with more than one column breaks one per
-  line, aligned one column past the `(`. The values inside a `values` tuple stay on one line and
-  grow.
-- **Subqueries and CTEs** expand recursively — `from (select ...) alias`, one or more
-  comma-separated CTEs (`with a as (...), b as (...)`), a `where`/`having` condition subquery in
-  **any** position (`where ... in (select ...)`, and after `and`/`or` too), a subquery inside a
-  `join` ON condition, a subquery as a `join` table (`join (select ...) alias on ...`), a scalar
-  subquery in the select list, and a **`LATERAL` derived table** in any position
-  (`join`/`cross join lateral (...)`, `from lateral (...)`, `from t, lateral (...)`). The inner
-  query is re-aligned one level in and the closing `)` aligns
-  under the owner: the clause keyword for the first `where` condition, the `and`/`or` connector for a
-  later one (or ON condition), the item column for a scalar subquery. The `with` preamble is a
-  standalone command at the **left margin** (column 0), not aligned to the river: `with` and the
-  final `select` share column 0, CTE bodies indent one level in, and each `)` sits under `with`. In a
-  multi-CTE `with`, each CTE name after the first recedes to the `with` column and the comma follows
-  the previous `)`. A comment inside any of these expanded subqueries is reflowed by the recursion.
-- **`case ... end`** in the select list (or `group by` / `order by`, in a `where` / `having`
-  condition, and in a `join` ON condition) expands with `when` / `else` / `end` aligned under
-  `case`; anything after the `end` (e.g. `> 100`) rides the `end` line. A nested `case` in a branch
-  expands recursively at the column where the inner `case` begins. A `when ... then` stays on one
-  line and grows, however long.
+The right edge of `select`, `from`, and `where` all land on the same column — the **river** —
+so the eye follows one clean vertical line down the query.
+
+<!--
+  DEMO GIF placeholder. Record a short (~3-5s) clip of format-on-save aligning a query,
+  save it as assets/demo.gif, then delete this comment and uncomment the block below.
+
+<p align="center">
+  <img src="assets/demo.gif" alt="Riverleaf aligning SQL on save" width="640">
+</p>
+-->
+
+## Installation
+
+> 🚧 **VS Code Marketplace listing — under construction.** Not published yet.
+> In the meantime, install from a local build:
+
+```bash
+git clone https://github.com/nbluis/riverleaf-sql-formatter.git
+cd riverleaf-sql-formatter
+npm install
+npx @vscode/vsce package --allow-missing-repository --skip-license
+code --install-extension riverleaf-sql-formatter-0.0.1.vsix --force
+```
+
+Once it's on the Marketplace, this will be a one-click **Install** — or
+`code --install-extension nbluis.riverleaf-sql-formatter`.
 
 ## Usage
 
@@ -146,6 +101,286 @@ and use **Format Selection**. It also works with *format on save*.
 | `riverleaf.indentSize` | `2` | Spaces per nesting level (parentheses/subqueries). |
 
 There is no line-width / maximum-line-length setting: breaking is by rule, not by width.
+
+## Rules
+
+Each rule below is one idea, shown with the smallest example that makes it click.
+
+---
+
+**Spaces only, never tabs. Keywords are lowercased; identifiers are left untouched.**
+
+<table>
+<tr><th align="left">In</th><th align="left">Out</th></tr>
+<tr>
+<td valign="top">
+
+```sql
+SELECT Name FROM Planets
+```
+
+</td>
+<td valign="top">
+
+```sql
+select Name
+  from Planets
+```
+
+</td>
+</tr>
+</table>
+
+**A list with more than one item breaks one item per line, with trailing commas aligned.**
+A single-item list stays inline. (Applies to `select`, `from`, `group by`, `order by`, and the
+DML `set` / `values` / `insert` column list.)
+
+<table>
+<tr><th align="left">In</th><th align="left">Out</th></tr>
+<tr>
+<td valign="top">
+
+```sql
+select id, name, mass from planets
+```
+
+</td>
+<td valign="top">
+
+```sql
+select id,
+       name,
+       mass
+  from planets
+```
+
+</td>
+</tr>
+</table>
+
+**`where` / `having` break when there is more than one condition**, with `and` / `or` aligned to
+the river. A single condition stays inline.
+
+<table>
+<tr><th align="left">In</th><th align="left">Out</th></tr>
+<tr>
+<td valign="top">
+
+```sql
+select name from planets
+where mass > 10 and radius < 5
+```
+
+</td>
+<td valign="top">
+
+```sql
+select name
+  from planets
+ where mass > 10
+   and radius < 5
+```
+
+</td>
+</tr>
+</table>
+
+**A parenthesized boolean group always expands**, aligning its own `and` / `or` one level in.
+
+<table>
+<tr><th align="left">In</th><th align="left">Out</th></tr>
+<tr>
+<td valign="top">
+
+```sql
+select name from planets
+where is_visible = true
+and (mass > 10 or radius < 5)
+```
+
+</td>
+<td valign="top">
+
+```sql
+select name
+  from planets
+ where is_visible = true
+   and (
+     mass > 10
+  or radius < 5
+   )
+```
+
+</td>
+</tr>
+</table>
+
+**A join with more than one ON condition breaks**, aligning `and` / `or` under `on`. A single-ON
+join stays inline.
+
+<table>
+<tr><th align="left">In</th><th align="left">Out</th></tr>
+<tr>
+<td valign="top">
+
+```sql
+select p.mass from planets p
+join stars s on s.id = p.star_id
+and s.parent_id is null
+```
+
+</td>
+<td valign="top">
+
+```sql
+select p.mass
+  from planets p
+  join stars s on s.id = p.star_id
+              and s.parent_id is null
+```
+
+</td>
+</tr>
+</table>
+
+**Subqueries and CTEs expand recursively** — the inner query is re-aligned one level in and its
+`)` sits under the owner. The `with` preamble stays at the left margin, off the river.
+
+<table>
+<tr><th align="left">In</th><th align="left">Out</th></tr>
+<tr>
+<td valign="top">
+
+```sql
+with bright as (select id from stars
+where mass > 10) select id from bright
+```
+
+</td>
+<td valign="top">
+
+```sql
+with bright as (
+  select id
+    from stars
+   where mass > 10
+)
+select id
+  from bright
+```
+
+</td>
+</tr>
+</table>
+
+**`case … end` expands** — `when` / `else` / `end` align under `case`; anything after `end` rides
+its line. Nested `case`s expand recursively.
+
+<table>
+<tr><th align="left">In</th><th align="left">Out</th></tr>
+<tr>
+<td valign="top">
+
+```sql
+select name,
+case when mass > 10 then 'giant'
+else 'dwarf' end as tier
+from planets
+```
+
+</td>
+<td valign="top">
+
+```sql
+select name,
+       case
+       when mass > 10 then 'giant'
+       else 'dwarf'
+       end as tier
+  from planets
+```
+
+</td>
+</tr>
+</table>
+
+**`insert` / `update` / `delete` format like a `select`** — the anchors join the river, and the
+same list and `where` rules apply.
+
+<table>
+<tr><th align="left">In</th><th align="left">Out</th></tr>
+<tr>
+<td valign="top">
+
+```sql
+update planets set mass = 10,
+radius = 5 where id = 1
+```
+
+</td>
+<td valign="top">
+
+```sql
+update planets
+   set mass = 10,
+       radius = 5
+ where id = 1
+```
+
+</td>
+</tr>
+</table>
+
+**Comments keep their place.** A comment trailing code stays on that line; a standalone comment
+keeps its own line. (Comments that can't be moved safely are left exactly as written — see
+[Known limitations](#known-limitations).)
+
+<table>
+<tr><th align="left">In</th><th align="left">Out</th></tr>
+<tr>
+<td valign="top">
+
+```sql
+select mass, -- in solar masses
+radius from planets
+```
+
+</td>
+<td valign="top">
+
+```sql
+select mass, -- in solar masses
+       radius
+  from planets
+```
+
+</td>
+</tr>
+</table>
+
+**Breaking is by rule, not by width.** There is no maximum line length; a single item or condition
+grows on one line however long it gets, and only *structure* ever forces a break.
+
+<table>
+<tr><th align="left">In</th><th align="left">Out</th></tr>
+<tr>
+<td valign="top">
+
+```sql
+select apparent_magnitude - absolute_magnitude + distance / luminosity as index from stars
+```
+
+</td>
+<td valign="top">
+
+```sql
+select apparent_magnitude - absolute_magnitude + distance / luminosity as index
+  from stars
+```
+
+</td>
+</tr>
+</table>
 
 ## Development
 
