@@ -33,8 +33,9 @@ goal is to be an excellent fit for that particular taste — not a general-purpo
 to your own conventions.
 
 <table>
-<tr><td><img width="441" height="1"></td></tr>
 <tr><td>
+
+<img width="810" height="1">
 
 **You write this…**
 
@@ -106,6 +107,8 @@ There is no line-width / maximum-line-length setting: breaking is by rule, not b
 <table>
 <tr><td>
 
+<img width="810" height="1">
+
 **IN**
 
 ```sql
@@ -131,6 +134,8 @@ DML `set` / `values` / `insert` column list.)
 
 <table>
 <tr><td>
+
+<img width="810" height="1">
 
 **IN**
 
@@ -159,6 +164,8 @@ the river. A single condition stays inline.
 <table>
 <tr><td>
 
+<img width="810" height="1">
+
 **IN**
 
 ```sql
@@ -185,6 +192,8 @@ select name
 
 <table>
 <tr><td>
+
+<img width="810" height="1">
 
 **IN**
 
@@ -218,6 +227,8 @@ join stays inline.
 <table>
 <tr><td>
 
+<img width="810" height="1">
+
 **IN**
 
 ```sql
@@ -246,6 +257,8 @@ select p.mass
 
 <table>
 <tr><td>
+
+<img width="810" height="1">
 
 **IN**
 
@@ -277,6 +290,8 @@ its line. Nested `case`s expand recursively.
 
 <table>
 <tr><td>
+
+<img width="810" height="1">
 
 **IN**
 
@@ -310,6 +325,8 @@ same list and `where` rules apply.
 <table>
 <tr><td>
 
+<img width="810" height="1">
+
 **IN**
 
 ```sql
@@ -339,6 +356,8 @@ keeps its own line. (Comments that can't be moved safely are left exactly as wri
 <table>
 <tr><td>
 
+<img width="810" height="1">
+
 **IN**
 
 ```sql
@@ -365,6 +384,8 @@ grows on one line however long it gets, and only *structure* ever forces a break
 
 <table>
 <tr><td>
+
+<img width="810" height="1">
 
 **IN**
 
