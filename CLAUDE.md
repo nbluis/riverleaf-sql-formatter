@@ -158,11 +158,13 @@ These live under `.claude/skills/<name>/SKILL.md` — invoke them, don't reinven
 Note: generator scripts that import `js-yaml` must live in the **project dir** (the scratchpad
 can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } from 'js-yaml'`).
 
-## Open items / roadmap
+## Locked decisions
 
-The aesthetic and breaking-model decisions are settled (breaking is by count, not width; output
-normalizes to column 0; there is no line-width option). A `case` or subquery **wrapped in a function
-call** now expands too (D3). The only remaining passthrough is by design: a comment mid-expression
+The aesthetic and breaking-model decisions are settled — don't re-litigate without the user:
+breaking is by count, not width; output normalizes to column 0; connectors right-align at every
+level; there is no line-width option. A `case` or subquery **wrapped in a function call** expands
+(D3). Set operations stay in the river. The full PostgreSQL feature set (operators, locking, upsert,
+MERGE, windows, …) is covered — details and rationale live in **`.claude/rules/formatting-spec.md`**;
+the change history is in git. The only remaining passthrough is by design: a comment mid-expression
 (inside a single item/condition, not at a boundary and not inside a subquery that expands), so a
-line join can never comment out code. See **`.claude/rules/roadmap.md`** and the README's "Known
-limitations".
+line join can never comment out code.

@@ -35,11 +35,11 @@ secondary river, comment handling, passthrough) and the module you'll touch.
 5. **Verify in the editor** if runtime changed: run the `build-install-vsix` skill, reload, and
    format a real `.sql`.
 
-6. **Update docs.** If the change resolves or shifts a roadmap item, edit
-   `.claude/rules/roadmap.md` (and `formatting-spec.md` if the algorithm changed).
+6. **Update docs.** Edit `.claude/rules/formatting-spec.md` if the algorithm changed, and
+   `CLAUDE.md` if a locked decision or the feature summary shifted.
 
 ## Guardrails
 
 - English only, spaces only, single trailing newline, no trailing whitespace.
-- Don't "fix" the RIVER-vs-BLOCK paren asymmetry without the user's confirmation (roadmap).
+- Don't "fix" the RIVER-vs-BLOCK paren asymmetry without the user's confirmation (a locked decision).
 - Throwaway scripts go to the scratchpad, never committed.

@@ -16,10 +16,3 @@
 
 - [ ] Adicionar `repository` ao `package.json` (hoje o `vsce package` roda com
       `--allow-missing-repository`) e conferir `LICENSE` + `icon` para a listagem do Marketplace.
-
-## Formatter
-
-- [x] **Lacunas de cobertura PostgreSQL (round 3)** — CONCLUÍDO (2026-07-17). Operadores multi-char
-      (maximal-munch), keywords que não ancoram (`IS DISTINCT FROM`, `FOR UPDATE`, `WITH ORDINALITY`,
-      `ON CONFLICT`), `MERGE`, e goldens de todas as features que já funcionavam (set-ops decididos
-      no rio). Suíte 181 → 341 casos. Detalhes no histórico do git (o plano foi removido do `_work/`).
