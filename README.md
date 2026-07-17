@@ -317,8 +317,7 @@ update planets
 </table>
 
 **Comments keep their place.** A comment trailing code stays on that line; a standalone comment
-keeps its own line. (Comments that can't be moved safely are left exactly as written — see
-[Known limitations](#known-limitations).)
+keeps its own line.
 
 <table>
 <tr><th align="left" width="840">IN</th></tr>
@@ -417,15 +416,6 @@ Two house rules for anything committed to the repo:
 - **Examples use the astronomy dictionary** — tables like `planets` / `stars` / `missions`, aliases
   `p` / `s` / `ms`, and so on, so no real data ever leaks into an example. Rewrite any real query
   onto those names, keeping its structure identical.
-
-## Known limitations
-
-This narrower case is not reflowed — the statement is kept exactly as written (never corrupted):
-
-- **Comments** are kept as-is (the whole statement is passed through unchanged) when a line comment
-  sits mid-expression — inside a single list item or boolean condition, not at a list/boolean
-  boundary and not inside a subquery that expands — where it cannot be moved without risk of
-  commenting out code.
 
 ## License
 
