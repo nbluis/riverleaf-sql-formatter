@@ -14,3 +14,28 @@
       from planets
       join stars on stars.id = planets.star_id
                 and stars.parent_id is null
+# --- USING / NATURAL / CROSS / FULL OUTER (Phase 4) ---
+- description: join using a column list
+  input: select p.name from planets p join stars s using (star_id)
+  expected: |
+    select p.name
+      from planets p
+      join stars s using (star_id)
+- description: natural join (widest head joins the river)
+  input: select p.name from planets p natural join stars s
+  expected: |2
+     select p.name
+       from planets p
+    natural join stars s
+- description: cross join
+  input: select p.name from planets p cross join stars s
+  expected: |
+    select p.name
+      from planets p
+     cross join stars s
+- description: full outer join with an on condition
+  input: select p.name from planets p full outer join stars s on p.star_id = s.id
+  expected: |
+    select p.name
+      from planets p
+      full outer join stars s on p.star_id = s.id

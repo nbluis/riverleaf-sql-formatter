@@ -8,7 +8,14 @@ scenarios can be added without touching code — this is our regression guardrai
 - `test/cases/*.yaml` — **one file per subject** (feature), not per dialect:
   - `alignment.yaml` — the river: basic clause alignment, keyword casing, multi-word keywords, indent
     normalization (D2), multi-statement, the no-space-before-`(` call rule, and the showcase example.
-  - `lists.yaml` — list clauses breaking by count (`select`/`from`/`group by`/`order by`).
+  - `lists.yaml` — list clauses breaking by count (`select`/`from`/`group by`/`order by`), plus
+    order-by modifiers (`nulls first/last`, `using op`).
+  - `select.yaml` — select-list / query features: `distinct`, `distinct on`, window `over` + a named
+    `window` clause, `filter`, `within group`, a window frame.
+  - `groupby.yaml` — `group by rollup` / `cube` / `grouping sets`.
+  - `limit.yaml` — `limit` / `offset` / `fetch first`.
+  - `expressions.yaml` — `cast`/`extract`/`substring`/`trim`/`position`, `array`/subscript/`row`/
+    `at time zone`, multi-column `in`.
   - `where.yaml` — `where`/`having`: single condition inline, parenthesized group expands, connectors.
   - `joins.yaml` — joins: single-ON inline, multi-ON breaks (secondary river).
   - `comments.yaml` — all comment placement (inline / standalone / leading / between / in-group / ON / post-`;`).
@@ -16,7 +23,8 @@ scenarios can be added without touching code — this is our regression guardrai
   - `dml.yaml` — `insert` / `update` / `delete` (+ set/values, insert columns, tuples, `on conflict`
     upsert).
   - `subquery.yaml` — subqueries (non-CTE): from / where / join ON / join-table / scalar / function-wrapped.
-  - `cte.yaml` — `with` common table expressions (single, multiple, inner where, comment inside).
+  - `cte.yaml` — `with` common table expressions (single, multiple, inner where, comment inside,
+    `with recursive`).
   - `lateral.yaml` — `LATERAL` derived tables.
   - `locking.yaml` — the row-locking clause (`for update`/`for share`/`for no key update`/… with
     `of`/`nowait`/`skip locked`); `for` joins the river as a clause head.

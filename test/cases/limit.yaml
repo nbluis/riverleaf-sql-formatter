@@ -1,0 +1,17 @@
+# LIMIT / OFFSET / FETCH FIRST (golden guard-rails, Phase 4). These are generic
+# one-line clauses that join the river by their first word's width.
+- description: limit and offset
+  input: select name from planets limit 10 offset 20
+  expected: |
+    select name
+      from planets
+     limit 10
+    offset 20
+- description: offset rows fetch first rows only
+  input: select name from planets order by mass desc offset 10 rows fetch first 5 rows only
+  expected: |
+    select name
+      from planets
+     order by mass desc
+    offset 10 rows
+     fetch first 5 rows only

@@ -1,0 +1,46 @@
+# SELECT-list / query features that already format correctly (golden guard-rails,
+# Phase 4): DISTINCT and DISTINCT ON, window functions (inline OVER and a named
+# WINDOW clause), FILTER, WITHIN GROUP, and a window frame (grows on one line).
+- description: select distinct on a single column
+  input: select distinct classification from planets
+  expected: |
+    select distinct classification
+      from planets
+- description: select distinct on (...) with an order by
+  input: select distinct on (star_id) star_id, name from planets order by star_id, mass desc
+  expected: |
+    select distinct on (star_id) star_id,
+           name
+      from planets
+     order by star_id,
+              mass desc
+- description: a window function with an inline over clause
+  input: select name, rank() over (partition by star_id order by mass desc) as rnk from planets
+  expected: |
+    select name,
+           rank() over (partition by star_id order by mass desc) as rnk
+      from planets
+- description: a named window (window clause)
+  input: select name, avg(mass) over w from planets window w as (partition by star_id order by mass desc)
+  expected: |
+    select name,
+           avg(mass) over w
+      from planets
+    window w as (partition by star_id order by mass desc)
+- description: an aggregate with a filter clause
+  input: select count(*) filter (where is_habitable) as habitable, count(*) as total from planets
+  expected: |
+    select count(*) filter (where is_habitable) as habitable,
+           count(*) as total
+      from planets
+- description: an ordered-set aggregate with within group
+  input: select percentile_cont(0.5) within group (order by mass) as median_mass from planets
+  expected: |
+    select percentile_cont(0.5) within group (order by mass) as median_mass
+      from planets
+- description: a window frame grows on one line (never wrapped)
+  input: select name, sum(mass) over (order by discovered_at rows between unbounded preceding and current row) as running from planets
+  expected: |
+    select name,
+           sum(mass) over (order by discovered_at rows between unbounded preceding and current row) as running
+      from planets

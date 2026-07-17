@@ -23,7 +23,8 @@ if (!specPath) {
 }
 
 const { format } = await import(pathToFileURL(path.join(root, 'src/formatter/format.ts')).href);
-const yaml = (await import('js-yaml')).default;
+// js-yaml is on 5.x here, which uses named exports (no default export).
+const yaml = await import('js-yaml');
 
 const spec = JSON.parse(readFileSync(specPath, 'utf8'));
 if (!Array.isArray(spec)) {

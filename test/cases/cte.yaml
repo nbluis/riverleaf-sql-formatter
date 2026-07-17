@@ -76,3 +76,20 @@
     )
     select a.id
       from a
+# --- WITH RECURSIVE: a self-referential CTE with a union all body (Phase 4) ---
+- description: with recursive (self-referential CTE with union all)
+  input: with recursive moon_tree as (select id, parent_id from moons where parent_id is null union all select m.id, m.parent_id from moons m join moon_tree t on m.parent_id = t.id) select id from moon_tree
+  expected: |
+    with recursive moon_tree as (
+      select id,
+             parent_id
+        from moons
+       where parent_id is null
+       union all
+      select m.id,
+             m.parent_id
+        from moons m
+        join moon_tree t on m.parent_id = t.id
+    )
+    select id
+      from moon_tree

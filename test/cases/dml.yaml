@@ -126,3 +126,29 @@
         on conflict (id) where is_active do update
        set mass = excluded.mass
      where planets.mass < excluded.mass
+# --- UPDATE ... FROM / DELETE ... USING / CREATE VIEW AS / standalone VALUES (Phase 4) ---
+- description: update ... from another table
+  input: update planets p set mass = s.mass from stars s where p.star_id = s.id
+  expected: |
+    update planets p
+       set mass = s.mass
+      from stars s
+     where p.star_id = s.id
+- description: delete ... using another table
+  input: delete from planets p using stars s where p.star_id = s.id and s.is_active
+  expected: |
+    delete from planets p using stars s
+     where p.star_id = s.id
+       and s.is_active
+- description: create view as select
+  input: create view habitable_planets as select name from planets where is_habitable
+  expected: |
+    create view habitable_planets as
+    select name
+      from planets
+     where is_habitable
+- description: standalone values
+  input: values (1, 'Mercury'), (2, 'Venus')
+  expected: |
+    values (1, 'Mercury'),
+           (2, 'Venus')

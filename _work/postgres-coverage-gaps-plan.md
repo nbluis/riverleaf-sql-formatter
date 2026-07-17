@@ -61,22 +61,22 @@ verdes.
 | A4 | `INSERT ... ON CONFLICT ... DO UPDATE/NOTHING` | ✅ **resolvido** (cláusula `on conflict` no rio, Fase 3) | corrupção | **3** ✅ |
 | A5 | `WITH ORDINALITY` (from-item) | ✅ **resolvido** (guard no `WITH`, Fase 2) | corrupção leve | **2** ✅ |
 | A6 | `MERGE ... WHEN MATCHED THEN ...` (PG 15+) | **corrompe** total | corrupção (grande) | **6** (opcional) |
-| B1 | `SELECT DISTINCT` / `DISTINCT ON (...)` | ✅ ok | sem teste | 4 |
-| B2 | window `OVER (...)` + cláusula `WINDOW w AS (...)` | ✅ ok | sem teste | 4 |
-| B3 | `FILTER (WHERE ...)`, `WITHIN GROUP (ORDER BY ...)` | ✅ ok | sem teste | 4 |
+| B1 | `SELECT DISTINCT` / `DISTINCT ON (...)` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
+| B2 | window `OVER (...)` + cláusula `WINDOW w AS (...)` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
+| B3 | `FILTER (WHERE ...)`, `WITHIN GROUP (ORDER BY ...)` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
 | B4 | set ops `UNION`/`UNION ALL`/`INTERSECT`/`EXCEPT` | ⚠️ funciona, **mas** empurra o rio (decisão) | decisão + teste | **5** |
-| B5 | `WITH RECURSIVE` | ✅ ok | sem teste | 4 |
-| B6 | `GROUP BY ROLLUP`/`CUBE`/`GROUPING SETS` | ✅ ok (cosmético: `sets(` sem espaço) | sem teste | 4 |
-| B7 | `ORDER BY ... NULLS FIRST/LAST`, `USING op` | ✅ ok | sem teste | 4 |
-| B8 | `FETCH FIRST n ROWS ONLY`, `OFFSET`/`LIMIT` | ✅ ok | sem teste | 4 |
-| B9 | `JOIN USING (...)`, `NATURAL`, `CROSS`, `FULL OUTER` | ✅ ok | sem teste | 4 |
-| B10 | funções no `FROM` (`generate_series`, `unnest`, coldef `f() as x(a int)`) | ✅ ok | sem teste | 4 |
-| B11 | `CAST`/`::`/`EXTRACT`/`SUBSTRING FROM FOR`/`TRIM`/`POSITION IN` | ✅ ok | sem teste | 4 |
-| B12 | `ARRAY[...]`, subscript `col[1]`, `ROW(...)`, `AT TIME ZONE` | ✅ ok | sem teste | 4 |
-| B13 | `UPDATE ... FROM`, `DELETE ... USING` | ✅ ok | sem teste | 4 |
-| B14 | window frame `ROWS BETWEEN ... AND ...` | ✅ ok (cresce numa linha) | sem teste | 4 |
-| B15 | `CREATE VIEW ... AS SELECT`, `TABLESAMPLE`, `VALUES` standalone | ✅ ok | sem teste | 4 |
-| B16 | multi-coluna `IN` (`where (a,b) in (select ...)`) | ✅ ok | sem teste | 4 |
+| B5 | `WITH RECURSIVE` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
+| B6 | `GROUP BY ROLLUP`/`CUBE`/`GROUPING SETS` | ✅ ok (cosmético: `sets(` sem espaço) | ✅ testado (Fase 4) | 4 ✅ |
+| B7 | `ORDER BY ... NULLS FIRST/LAST`, `USING op` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
+| B8 | `FETCH FIRST n ROWS ONLY`, `OFFSET`/`LIMIT` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
+| B9 | `JOIN USING (...)`, `NATURAL`, `CROSS`, `FULL OUTER` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
+| B10 | funções no `FROM` (`generate_series`, `unnest`, coldef `f() as x(a int)`) | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
+| B11 | `CAST`/`::`/`EXTRACT`/`SUBSTRING FROM FOR`/`TRIM`/`POSITION IN` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
+| B12 | `ARRAY[...]`, subscript `col[1]`, `ROW(...)`, `AT TIME ZONE` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
+| B13 | `UPDATE ... FROM`, `DELETE ... USING` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
+| B14 | window frame `ROWS BETWEEN ... AND ...` | ✅ ok (cresce numa linha) | ✅ testado (Fase 4) | 4 ✅ |
+| B15 | `CREATE VIEW ... AS SELECT`, `TABLESAMPLE`, `VALUES` standalone | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
+| B16 | multi-coluna `IN` (`where (a,b) in (select ...)`) | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
 
 Legenda: **corrupção** = viola o invariante "never corrupt"; **sem teste** = formata certo mas não
 há caso YAML (regressão poderia passar despercebida).
@@ -259,7 +259,20 @@ estender `dml.yaml`.
 
 ---
 
-## Fase 4 — Cobertura das features que já funcionam (B1–B3, B5–B16)
+## Fase 4 — Cobertura das features que já funcionam (B1–B3, B5–B16) ✅ CONCLUÍDA (2026-07-17)
+
+> **Feito (só testes, sem mudança de runtime).** Sondei as 16 features com `format()`, revisei cada
+> saída (todas corretas e idempotentes) e capturei golden cases via `regen-format-cases`. Novos
+> arquivos: `select.yaml` (B1 distinct/distinct on, B2 over + window, B3 filter/within group, B14
+> frame), `groupby.yaml` (B6 rollup/cube/grouping sets), `limit.yaml` (B8 limit/offset/fetch),
+> `expressions.yaml` (B11 cast/extract/substring/trim/position, B12 array/subscript/row/at time zone,
+> B16 multi-col IN). Estendidos: `lists.yaml` (B7 nulls first/last + using op), `joins.yaml` (B9
+> using/natural/cross/full outer), `from_functions.yaml` (B10 generate_series/unnest/coldef + B15
+> tablesample), `dml.yaml` (B13 update…from/delete…using + B15 create view/values standalone),
+> `cte.yaml` (B5 with recursive). 38 casos novos; suíte **321 verde**, `tsc`/`lint` limpos. Também
+> corrigi um bug na skill `regen.mjs` (usava `.default`; js-yaml 5.x é named export). **Cosmético B6
+> pendente de decisão:** `grouping sets(` sem espaço vs. uniformizar com `rollup (`/`cube (` — golden
+> atual captura o comportamento colado; oferecido como follow-up opcional.
 
 **Sem mudança de código** (a não ser cosmético mínimo — ver abaixo). Só **capturar golden cases**
 para travar o comportamento atual como guard-rail. Usar a skill `regen-format-cases` (gerar o

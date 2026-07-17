@@ -1,10 +1,32 @@
-# Set-returning functions in FROM. WITH ORDINALITY is a from-item modifier, not a
-# CTE — the WITH must stay in the from item and not be cut as a new clause (A5).
-# (Phase 4 will extend this file with generate_series/unnest/column-definition
-# lists.)
+# Set-returning functions and table modifiers in FROM. WITH ORDINALITY is a
+# from-item modifier, not a CTE — the WITH must stay in the from item and not be
+# cut as a new clause (A5). Plus golden guard-rails (Phase 4): generate_series,
+# unnest, a column-definition list (`f() as x(a int, b text)`), and TABLESAMPLE.
 - description: with ordinality stays in the from item (not a CTE)
   input: select t.val, t.ord from unnest(array[1,2,3]) with ordinality as t(val, ord)
   expected: |
     select t.val,
            t.ord
       from unnest(array[1, 2, 3]) with ordinality as t(val, ord)
+# --- generate_series / unnest / column-definition list / tablesample (Phase 4) ---
+- description: generate_series in from
+  input: select n from generate_series(1, 10) as n
+  expected: |
+    select n
+      from generate_series(1, 10) as n
+- description: unnest with a column alias
+  input: select t.val from unnest(array[1, 2, 3]) as t(val)
+  expected: |
+    select t.val
+      from unnest(array[1, 2, 3]) as t(val)
+- description: a set-returning function with a column-definition list
+  input: select x.id, x.name from nearby_planets(1) as x(id int, name text)
+  expected: |
+    select x.id,
+           x.name
+      from nearby_planets(1) as x(id int, name text)
+- description: tablesample on a table
+  input: select name from planets tablesample bernoulli (10)
+  expected: |
+    select name
+      from planets tablesample bernoulli(10)

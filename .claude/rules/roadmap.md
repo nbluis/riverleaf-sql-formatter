@@ -29,8 +29,14 @@ row-locking clause `FOR UPDATE`/`FOR SHARE`/… joins the river as a `for` claus
 as one `on` clause head that joins the river (inner `UPDATE` not an anchor); `set` and any trailing
 update `where` follow as ordinary clauses; `on conflict (cols)` keeps its space (locked by
 `dml.yaml`).
-Remaining: Phase 4 (golden coverage for working features), Phase 5 (set-ops river decision),
-Phase 6 (`MERGE`).
+**Phase 4 done (B1–B3, B5–B16, 2026-07-17):** golden guard-rail cases captured for the features
+that already formatted correctly (DISTINCT / window / FILTER / WITHIN GROUP / frame, ROLLUP / CUBE /
+GROUPING SETS, NULLS FIRST/LAST / USING op, LIMIT / OFFSET / FETCH, USING / NATURAL / CROSS / FULL
+OUTER joins, from-functions + column-def lists + TABLESAMPLE, CAST / EXTRACT / SUBSTRING / TRIM /
+POSITION / ARRAY / ROW / AT TIME ZONE / multi-col IN, UPDATE…FROM / DELETE…USING / CREATE VIEW /
+standalone VALUES, WITH RECURSIVE) — new `select`/`groupby`/`limit`/`expressions` yaml files plus
+extensions to `lists`/`joins`/`from_functions`/`dml`. Tests-only, no runtime change.
+Remaining: Phase 5 (set-ops river decision, B4), Phase 6 (`MERGE`).
 
 ## When you pick one up
 

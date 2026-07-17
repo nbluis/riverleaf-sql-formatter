@@ -1,0 +1,25 @@
+# GROUP BY grouping constructs (golden guard-rails, Phase 4): ROLLUP, CUBE, and
+# GROUPING SETS. Note: `grouping sets(` currently renders with no space before the
+# '(' (SETS is not a keyword) while `rollup (`/`cube (` keep one — captured as-is.
+- description: group by rollup
+  input: select classification, count(*) from planets group by rollup (classification)
+  expected: |
+    select classification,
+           count(*)
+      from planets
+     group by rollup (classification)
+- description: group by cube
+  input: select classification, star_id, count(*) from planets group by cube (classification, star_id)
+  expected: |
+    select classification,
+           star_id,
+           count(*)
+      from planets
+     group by cube (classification, star_id)
+- description: group by grouping sets
+  input: select classification, count(*) from planets group by grouping sets ((classification), (star_id))
+  expected: |
+    select classification,
+           count(*)
+      from planets
+     group by grouping sets((classification), (star_id))

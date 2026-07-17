@@ -1,0 +1,59 @@
+# Expression-level constructs that already format correctly (golden guard-rails,
+# Phase 4): CAST / EXTRACT / SUBSTRING ... FROM ... FOR / TRIM / POSITION ... IN,
+# ARRAY constructor and subscript, ROW, AT TIME ZONE, and a multi-column IN with a
+# subquery. (The `::` cast operator lives in operators.yaml.)
+- description: cast function
+  input: select cast(mass as numeric) as m from planets
+  expected: |
+    select cast(mass as numeric) as m
+      from planets
+- description: extract from a date
+  input: select extract(year from discovered_at) as yr from planets
+  expected: |
+    select extract(year from discovered_at) as yr
+      from planets
+- description: substring with from and for
+  input: select substring(name from 1 for 3) as abbr from planets
+  expected: |
+    select substring(name from 1 for 3) as abbr
+      from planets
+- description: trim with both and from
+  input: select trim(both ' ' from name) as n from planets
+  expected: |
+    select trim(both ' ' from name) as n
+      from planets
+- description: position in a string
+  input: select position('a' in name) as p from planets
+  expected: |
+    select position('a' in name) as p
+      from planets
+- description: array constructor
+  input: select array[1, 2, 3] as a from planets
+  expected: |
+    select array[1, 2, 3] as a
+      from planets
+- description: array subscript
+  input: select tags[1] as first_tag from observations
+  expected: |
+    select tags[1] as first_tag
+      from observations
+- description: row constructor
+  input: select row(id, name) as r from planets
+  expected: |
+    select row(id, name) as r
+      from planets
+- description: at time zone
+  input: select observed_at at time zone 'UTC' as local_time from observations
+  expected: |
+    select observed_at at time zone 'UTC' as local_time
+      from observations
+- description: multi-column IN with a subquery
+  input: select name from planets where (star_id, classification) in (select star_id, classification from stars)
+  expected: |
+    select name
+      from planets
+     where (star_id, classification) in (
+       select star_id,
+              classification
+         from stars
+     )

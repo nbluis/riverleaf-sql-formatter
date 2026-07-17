@@ -35,3 +35,24 @@
      group by station_id
     having count(*) > 5
      order by station_id
+# --- Order-by modifiers: NULLS FIRST/LAST and USING an operator (Phase 4) ---
+- description: order by with nulls last
+  input: select name from planets order by mass desc nulls last
+  expected: |
+    select name
+      from planets
+     order by mass desc nulls last
+- description: order by several keys with nulls first/last
+  input: select name, mass from planets order by mass desc nulls last, name asc nulls first
+  expected: |
+    select name,
+           mass
+      from planets
+     order by mass desc nulls last,
+              name asc nulls first
+- description: order by using an operator
+  input: select name from planets order by mass using >
+  expected: |
+    select name
+      from planets
+     order by mass using >
