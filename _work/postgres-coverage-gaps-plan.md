@@ -271,8 +271,8 @@ estender `dml.yaml`.
 > tablesample), `dml.yaml` (B13 update…from/delete…using + B15 create view/values standalone),
 > `cte.yaml` (B5 with recursive). 38 casos novos; suíte **321 verde**, `tsc`/`lint` limpos. Também
 > corrigi um bug na skill `regen.mjs` (usava `.default`; js-yaml 5.x é named export). **Cosmético B6
-> pendente de decisão:** `grouping sets(` sem espaço vs. uniformizar com `rollup (`/`cube (` — golden
-> atual captura o comportamento colado; oferecido como follow-up opcional.
+> resolvido (decisão do usuário: uniformizar):** `SETS` virou keyword, então `grouping sets (…)` sai
+> com espaço igual `rollup (…)`/`cube (…)`; golden do `groupby.yaml` atualizado (commit à parte).
 
 **Sem mudança de código** (a não ser cosmético mínimo — ver abaixo). Só **capturar golden cases**
 para travar o comportamento atual como guard-rail. Usar a skill `regen-format-cases` (gerar o

@@ -103,6 +103,10 @@ export const KEYWORDS: ReadonlySet<string> = new Set([
   'GROUPING',
   'ROLLUP',
   'CUBE',
+  // SETS keeps a space before its '(' in `grouping sets (...)`, matching
+  // `rollup (...)` / `cube (...)` (it is not a function). GROUPING stays in
+  // FUNCTION_KEYWORDS so the `grouping(col)` aggregate is still glued.
+  'SETS',
   // Row-locking clause (FOR UPDATE / FOR SHARE / ...) and the WITH ORDINALITY
   // from-item modifier. Kept as keywords for casing; FOR anchors the clause.
   'FOR',
