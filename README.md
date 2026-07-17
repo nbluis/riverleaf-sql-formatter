@@ -33,6 +33,7 @@ goal is to be an excellent fit for that particular taste — not a general-purpo
 to your own conventions.
 
 <table>
+<tr><td><img width="441" height="1"></td></tr>
 <tr><td>
 
 **You write this…**
