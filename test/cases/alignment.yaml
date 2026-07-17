@@ -1,0 +1,61 @@
+# The river: basic clause alignment, keyword casing, multi-word keywords,
+# indent normalization (D2), multiple statements (blank-line separated), and the
+# no-space-before-'(' call rule. Ends with the showcase (join + where + order).
+- description: keywords lowercased, identifiers preserved
+  input: SELECT StarName FROM Stars
+  expected: |
+    select StarName
+      from Stars
+- description: no space before ( in function calls
+  input: select coalesce(call_sign, given_name), count(*) from astronauts where status_id in (1, 2, 3)
+  expected: |
+    select coalesce(call_sign, given_name),
+           count(*)
+      from astronauts
+     where status_id in (1, 2, 3)
+- description: multiple statements separated by a blank line
+  input: select current_date; select id from planets
+  expected: |
+    select current_date;
+
+    select id
+      from planets
+- description: an indented query is normalized to column 0 (D2)
+  input: |2
+        select id, mass
+        from planets
+        where status_id = 1
+        order by mass desc
+  expected: |
+    select id,
+           mass
+      from planets
+     where status_id = 1
+     order by mass desc
+- description: river alignment with a broken join (nested OR group) and a multi-condition where
+  input: |2
+        select observed_month as previous_observed_month
+        from monthly_observation_summaries previous_summary
+        join stars on stars.star_id = previous_summary.star_id
+        left join planets on planets.star_id = stars.star_id and planets.type = stars.default_type and planets.apparent_magnitude between 1 and 2 and (planets.constellation_id = stars.constellation_id or planets.catalog_number = stars.catalog_number)
+        where previous_summary.galaxy_id = current_summary.galaxy_id and previous_summary.galaxy_id = 220 and previous_summary.star_id = current_summary.star_id and previous_summary.observed_month < current_summary.observed_month and previous_summary.observation_count > 0
+        order by observed_month desc
+        limit 1
+  expected: |
+    select observed_month as previous_observed_month
+      from monthly_observation_summaries previous_summary
+      join stars on stars.star_id = previous_summary.star_id
+      left join planets on planets.star_id = stars.star_id
+                       and planets.type = stars.default_type
+                       and planets.apparent_magnitude between 1 and 2
+                       and (
+                         planets.constellation_id = stars.constellation_id
+                      or planets.catalog_number = stars.catalog_number
+                       )
+     where previous_summary.galaxy_id = current_summary.galaxy_id
+       and previous_summary.galaxy_id = 220
+       and previous_summary.star_id = current_summary.star_id
+       and previous_summary.observed_month < current_summary.observed_month
+       and previous_summary.observation_count > 0
+     order by observed_month desc
+     limit 1

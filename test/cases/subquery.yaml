@@ -1,3 +1,7 @@
+# Subqueries (non-CTE): from ( ... ) alias, a where condition subquery in any
+# position, a join ON subquery, a join-table subquery, a scalar subquery in the
+# select list, a function-wrapped subquery (stays inline), and comments inside
+# each expanded subquery. CTEs live in cte.yaml.
 - description: from ( subquery ) alias expands, closing ) aligned under from
   input: select x.id, x.total from (select id, sum(mass) as total from planets group by id) x where x.total > 100
   expected: |
@@ -10,16 +14,6 @@
          group by id
       ) x
      where x.total > 100
-- description: a single CTE body expands, closing ) aligned under with
-  input: with recent as (select id from planets where created_at > now() - interval '7 days') select id from recent
-  expected: |
-    with recent as (
-      select id
-        from planets
-       where created_at > now() - interval '7 days'
-    )
-    select id
-      from recent
 - description: where ... in ( subquery ) expands under the where keyword
   input: select id from planets where star_id in (select star_id from nearby_stars where is_active = true)
   expected: |
@@ -210,68 +204,3 @@
       -- careful
       from moons m where m.planet_id = planets.id
     ), 0) as top from planets
-- description: multiple comma-separated CTEs each expand, names recede to the with column
-  input: with a as (select id from planets), b as (select id from stars) select a.id from a join b on a.id = b.id
-  expected: |
-    with a as (
-      select id
-        from planets
-    ),
-    b as (
-      select id
-        from stars
-    )
-    select a.id
-      from a
-      join b on a.id = b.id
-- description: 'three CTEs: each ) aligns under with, comma after each ) but the last'
-  input: with a as (select id from planets), b as (select id from stars), c as (select id from galaxies) select a.id from a
-  expected: |
-    with a as (
-      select id
-        from planets
-    ),
-    b as (
-      select id
-        from stars
-    ),
-    c as (
-      select id
-        from galaxies
-    )
-    select a.id
-      from a
-- description: multiple CTEs with inner where clauses expand recursively
-  input: with a as (select id from planets where status_id = 1), b as (select star_id from stars where is_active = true) select a.id from a join b on a.id = b.star_id where a.id > 0
-  expected: |
-    with a as (
-      select id
-        from planets
-       where status_id = 1
-    ),
-    b as (
-      select star_id
-        from stars
-       where is_active = true
-    )
-    select a.id
-      from a
-      join b on a.id = b.star_id
-     where a.id > 0
-- description: a comment inside one of several CTEs reflows via the recursion
-  input: |-
-    with a as (select id
-    -- first cte
-    from planets), b as (select id from stars) select a.id from a
-  expected: |
-    with a as (
-      select id
-             -- first cte
-        from planets
-    ),
-    b as (
-      select id
-        from stars
-    )
-    select a.id
-      from a

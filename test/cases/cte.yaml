@@ -1,0 +1,78 @@
+# Common table expressions (WITH): a single CTE, multiple / three CTEs (names
+# recede to the with column, each ')' under with), CTEs with inner where, and a
+# comment inside a CTE. The with preamble sits off-river at column 0.
+- description: a single CTE body expands, closing ) aligned under with
+  input: with recent as (select id from planets where created_at > now() - interval '7 days') select id from recent
+  expected: |
+    with recent as (
+      select id
+        from planets
+       where created_at > now() - interval '7 days'
+    )
+    select id
+      from recent
+- description: multiple comma-separated CTEs each expand, names recede to the with column
+  input: with a as (select id from planets), b as (select id from stars) select a.id from a join b on a.id = b.id
+  expected: |
+    with a as (
+      select id
+        from planets
+    ),
+    b as (
+      select id
+        from stars
+    )
+    select a.id
+      from a
+      join b on a.id = b.id
+- description: 'three CTEs: each ) aligns under with, comma after each ) but the last'
+  input: with a as (select id from planets), b as (select id from stars), c as (select id from galaxies) select a.id from a
+  expected: |
+    with a as (
+      select id
+        from planets
+    ),
+    b as (
+      select id
+        from stars
+    ),
+    c as (
+      select id
+        from galaxies
+    )
+    select a.id
+      from a
+- description: multiple CTEs with inner where clauses expand recursively
+  input: with a as (select id from planets where status_id = 1), b as (select star_id from stars where is_active = true) select a.id from a join b on a.id = b.star_id where a.id > 0
+  expected: |
+    with a as (
+      select id
+        from planets
+       where status_id = 1
+    ),
+    b as (
+      select star_id
+        from stars
+       where is_active = true
+    )
+    select a.id
+      from a
+      join b on a.id = b.star_id
+     where a.id > 0
+- description: a comment inside one of several CTEs reflows via the recursion
+  input: |-
+    with a as (select id
+    -- first cte
+    from planets), b as (select id from stars) select a.id from a
+  expected: |
+    with a as (
+      select id
+             -- first cte
+        from planets
+    ),
+    b as (
+      select id
+        from stars
+    )
+    select a.id
+      from a

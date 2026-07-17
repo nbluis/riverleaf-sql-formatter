@@ -5,8 +5,19 @@ scenarios can be added without touching code — this is our regression guardrai
 
 ## Structure
 
-- `test/cases/*.yaml` — one file per family (e.g. `postgres.yaml`, and future `mysql.yaml`,
-  `postgres_cte.yaml`, `psql.yaml`, ...).
+- `test/cases/*.yaml` — **one file per subject** (feature), not per dialect:
+  - `alignment.yaml` — the river: basic clause alignment, keyword casing, multi-word keywords, indent
+    normalization (D2), multi-statement, the no-space-before-`(` call rule, and the showcase example.
+  - `lists.yaml` — list clauses breaking by count (`select`/`from`/`group by`/`order by`).
+  - `where.yaml` — `where`/`having`: single condition inline, parenthesized group expands, connectors.
+  - `joins.yaml` — joins: single-ON inline, multi-ON breaks (secondary river).
+  - `comments.yaml` — all comment placement (inline / standalone / leading / between / in-group / ON / post-`;`).
+  - `case.yaml` — `case ... end` (list, where/having, join ON, nested).
+  - `dml.yaml` — `insert` / `update` / `delete` (+ set/values, insert columns, tuples).
+  - `subquery.yaml` — subqueries (non-CTE): from / where / join ON / join-table / scalar / function-wrapped.
+  - `cte.yaml` — `with` common table expressions (single, multiple, inner where, comment inside).
+  - `lateral.yaml` — `LATERAL` derived tables.
+  - A future dialect-specific quirk goes in `dialect_<name>.yaml` (the runner reads flat, non-recursively).
 - `test/cases.test.ts` — the runner. It reads **every** `*.yaml`/`*.yml` in `test/cases/` and, per
   entry, asserts:
   1. `format(input, options) === expected`

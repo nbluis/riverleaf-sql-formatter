@@ -1,0 +1,28 @@
+# where / having (RIVER): a single condition inline, a parenthesized group
+# always expands (BLOCK), connectors right-aligned to the river.
+- description: a where with a single condition stays inline
+  input: select id from planets where status_id = 1
+  expected: |
+    select id
+      from planets
+     where status_id = 1
+- description: a where that is a single parenthesized group always expands (D-c)
+  input: select id from planets where (status_id = 1 or status_id = 2)
+  expected: |
+    select id
+      from planets
+     where (
+             status_id = 1
+          or status_id = 2
+           )
+- description: an expanded OR group aligns its connectors to the group river (RIVER, D1)
+  input: select id from planets where (status_id = 1 or status_id = 2 or status_id = 3) and mass > 0
+  expected: |
+    select id
+      from planets
+     where (
+             status_id = 1
+          or status_id = 2
+          or status_id = 3
+           )
+       and mass > 0

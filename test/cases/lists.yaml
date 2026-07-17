@@ -1,0 +1,37 @@
+# List clauses break by count: a multi-item select / from / group by / order by
+# breaks one item per line; a single item stays inline. Includes group by +
+# having + order by together.
+- description: a single-column select stays inline (nothing to break)
+  input: select name from stars
+  expected: |
+    select name
+      from stars
+- description: a multi-column select breaks one column per line
+  input: select name, designation, catalog_number from stars
+  expected: |
+    select name,
+           designation,
+           catalog_number
+      from stars
+- description: a three-column select breaks with trailing commas
+  input: select name, mass, radius from moons
+  expected: |
+    select name,
+           mass,
+           radius
+      from moons
+- description: a from list with more than one table breaks one per line
+  input: select id from planets p, stars s
+  expected: |
+    select id
+      from planets p,
+           stars s
+- description: group by / having / order by alignment
+  input: select station_id, count(*) from astronauts group by station_id having count(*) > 5 order by station_id
+  expected: |
+    select station_id,
+           count(*)
+      from astronauts
+     group by station_id
+    having count(*) > 5
+     order by station_id
