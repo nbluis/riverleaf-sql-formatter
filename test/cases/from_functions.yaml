@@ -1,0 +1,10 @@
+# Set-returning functions in FROM. WITH ORDINALITY is a from-item modifier, not a
+# CTE — the WITH must stay in the from item and not be cut as a new clause (A5).
+# (Phase 4 will extend this file with generate_series/unnest/column-definition
+# lists.)
+- description: with ordinality stays in the from item (not a CTE)
+  input: select t.val, t.ord from unnest(array[1,2,3]) with ordinality as t(val, ord)
+  expected: |
+    select t.val,
+           t.ord
+      from unnest(array[1, 2, 3]) with ordinality as t(val, ord)

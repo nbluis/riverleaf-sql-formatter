@@ -17,6 +17,10 @@ scenarios can be added without touching code — this is our regression guardrai
   - `subquery.yaml` — subqueries (non-CTE): from / where / join ON / join-table / scalar / function-wrapped.
   - `cte.yaml` — `with` common table expressions (single, multiple, inner where, comment inside).
   - `lateral.yaml` — `LATERAL` derived tables.
+  - `locking.yaml` — the row-locking clause (`for update`/`for share`/`for no key update`/… with
+    `of`/`nowait`/`skip locked`); `for` joins the river as a clause head.
+  - `from_functions.yaml` — set-returning functions in `from` (`with ordinality` for now; Phase 4
+    extends it with `generate_series`/`unnest`/column-definition lists).
   - `operators.yaml` — multi-char operators lexed by maximal munch (JSONB `@>`/`<@`/`#>`/`#>>`/
     `?`/`?|`/`?&`, regex `~`/`~*`/`!~`/`!~*`, array `&&`, bit-shift `<<`/`>>`) plus the classics
     (`::`/`->`/`->>`/`||`/`<>`/`>=`) as a regression guard.

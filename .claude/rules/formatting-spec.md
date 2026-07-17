@@ -41,6 +41,17 @@ no `maxWidth` — all removed. Two categories:
   - `GROUP`/`ORDER` only start a clause when followed by `BY` (else they're identifiers).
   - JOIN phrases are consumed whole (`left [outer] join`, `inner join`, `cross join`, ...); a
     `LEFT(` immediately followed by `(` is the function, not a join.
+  - **Continuation keywords that must NOT anchor** (guards in `isClauseBoundary`, like the
+    `pendingBetween` guard for `between ... and ...`):
+    - `IS [NOT] DISTINCT FROM` — a `FROM` immediately preceded by `DISTINCT` is the operator's
+      `from`, not a clause (A2).
+    - `WITH ORDINALITY` — a `WITH` immediately followed by `ORDINALITY` is a from-item modifier,
+      not a CTE; it stays in the `from` item (A5).
+  - **Row-locking clause** — `FOR (UPDATE | NO KEY UPDATE | SHARE | KEY SHARE) [OF t, ...]
+    [NOWAIT | SKIP LOCKED]`. `FOR` anchors its own clause (kind `generic`, so it joins the river as
+    a one-line head like `limit`). The strength keywords (`NO`/`KEY`/`UPDATE`/`SHARE`) are consumed
+    **into the head** so the inner `UPDATE`/`SHARE` are never re-examined as DML anchors; the
+    remainder (`OF` list, `NOWAIT`/`SKIP LOCKED`) flows as the body (A3).
 - `K = max(firstWord.length over all clauses **except `cte`**)` (dominated by `select`=6 in typical
   queries). The `with` (cte) preamble is **not part of the river** — it is a standalone command that
   always sits at the base column (0), so its first word is excluded from `K` (it never pulls the

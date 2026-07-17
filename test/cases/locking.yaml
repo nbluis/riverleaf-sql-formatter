@@ -1,0 +1,37 @@
+# Row-locking clause: FOR (UPDATE | NO KEY UPDATE | SHARE | KEY SHARE)
+# [OF table, ...] [NOWAIT | SKIP LOCKED]. `for` joins the river as its own clause
+# head (like limit/offset) and the phrase rides one line; the inner UPDATE/SHARE
+# are not treated as DML anchors (A3).
+- description: for update joins the river as a clause
+  input: select id from observation where is_confirmed = true for update
+  expected: |
+    select id
+      from observation
+     where is_confirmed = true
+       for update
+- description: for update of ... skip locked stays on one line
+  input: select id from observation where is_confirmed = true for update of observation skip locked
+  expected: |
+    select id
+      from observation
+     where is_confirmed = true
+       for update of observation skip locked
+- description: for share nowait
+  input: select id from planets where mass > 1 for share nowait
+  expected: |
+    select id
+      from planets
+     where mass > 1
+       for share nowait
+- description: for no key update (no where)
+  input: select id from planets for no key update
+  expected: |
+    select id
+      from planets
+       for no key update
+- description: for key share
+  input: select id from stars for key share
+  expected: |
+    select id
+      from stars
+       for key share

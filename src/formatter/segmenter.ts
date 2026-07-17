@@ -175,6 +175,34 @@ function isClauseBoundary(tokens: Token[], i: number): number {
   if (tok.type !== 'keyword') return 0;
   const up = tok.upper;
 
+  // IS [NOT] DISTINCT FROM: the FROM belongs to the operator, not a new clause
+  // (like the AND in BETWEEN ... AND ...). Guard it before the FROM anchor (A2).
+  if (up === 'FROM' && tokens[i - 1]?.upper === 'DISTINCT') return 0;
+
+  // WITH ORDINALITY is a from-item modifier, not a CTE — don't anchor here (A5).
+  if (up === 'WITH' && tokens[i + 1]?.upper === 'ORDINALITY') return 0;
+
+  // Row-locking clause: FOR (UPDATE | NO KEY UPDATE | SHARE | KEY SHARE) [OF ...]
+  // [NOWAIT | SKIP LOCKED]. `for` anchors its own clause; consume the strength
+  // keywords into the head so the inner UPDATE/SHARE are not seen as DML anchors
+  // (A3). The remainder (OF list, NOWAIT / SKIP LOCKED) flows as the body.
+  if (up === 'FOR') {
+    let j = i + 1;
+    while (
+      j < tokens.length &&
+      tokens[j].type === 'keyword' &&
+      (tokens[j].upper === 'NO' ||
+        tokens[j].upper === 'KEY' ||
+        tokens[j].upper === 'UPDATE' ||
+        tokens[j].upper === 'SHARE')
+    ) {
+      const terminal = tokens[j].upper === 'UPDATE' || tokens[j].upper === 'SHARE';
+      j++;
+      if (terminal) break;
+    }
+    return j - i;
+  }
+
   // GROUP / ORDER only start a clause when followed by BY
   if (up === 'GROUP' || up === 'ORDER') {
     if (tokens[i + 1]?.upper === 'BY') return 2;

@@ -103,6 +103,17 @@ export const KEYWORDS: ReadonlySet<string> = new Set([
   'GROUPING',
   'ROLLUP',
   'CUBE',
+  // Row-locking clause (FOR UPDATE / FOR SHARE / ...) and the WITH ORDINALITY
+  // from-item modifier. Kept as keywords for casing; FOR anchors the clause.
+  'FOR',
+  'OF',
+  'NO',
+  'KEY',
+  'SHARE',
+  'NOWAIT',
+  'SKIP',
+  'LOCKED',
+  'ORDINALITY',
 ]);
 
 /**

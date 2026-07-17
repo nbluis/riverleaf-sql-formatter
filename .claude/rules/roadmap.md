@@ -21,8 +21,12 @@ Larger tracked effort: **PostgreSQL coverage gaps** — see `_work/postgres-cove
 (keywords cut as anchors, untested features). **Phase 1 done (A1, 2026-07-17):** the tokenizer now
 lexes operators by maximal munch, so multi-char PG operators (JSONB `@>`/`#>>`/`?|`, regex `~*`/`!~`,
 array `&&`, bit-shift `<<`/`>>`) are no longer sliced apart — locked by `test/cases/operators.yaml`.
-Remaining: Phase 2 (`IS DISTINCT FROM` / `FOR UPDATE` / `WITH ORDINALITY`), Phase 3 (`ON CONFLICT`),
-Phase 4 (golden coverage for working features), Phase 5 (set-ops river decision), Phase 6 (`MERGE`).
+**Phase 2 done (A2/A3/A5, 2026-07-17):** continuation keywords no longer mis-anchor —
+`IS [NOT] DISTINCT FROM` keeps its `from`, `WITH ORDINALITY` stays a from-item modifier, and the
+row-locking clause `FOR UPDATE`/`FOR SHARE`/… joins the river as a `for` clause head (locked by
+`locking.yaml`, `from_functions.yaml`, and new `where.yaml` cases).
+Remaining: Phase 3 (`ON CONFLICT`), Phase 4 (golden coverage for working features), Phase 5 (set-ops
+river decision), Phase 6 (`MERGE`).
 
 ## When you pick one up
 

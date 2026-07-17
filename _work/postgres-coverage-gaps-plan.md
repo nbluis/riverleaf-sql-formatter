@@ -56,10 +56,10 @@ verdes.
 | # | Construto | Hoje | Classe | Fase |
 |---|-----------|------|--------|------|
 | A1 | Operadores multi-char PG (`@>`,`<@`,`#>`,`#>>`,`?`,`?|`,`?&`,`@@`,`~*`,`!~`,`&&`,`<<`,`>>`) | ✅ **resolvido** (maximal-munch, Fase 1) | corrupção | **1** ✅ |
-| A2 | `IS [NOT] DISTINCT FROM` | **corrompe** (`FROM` vira cláusula) | corrupção | **2** |
-| A3 | `FOR UPDATE`/`FOR SHARE`/`FOR NO KEY UPDATE` (+`OF`/`NOWAIT`/`SKIP LOCKED`) | **corrompe** (`UPDATE` vira DML) | corrupção | **2** |
+| A2 | `IS [NOT] DISTINCT FROM` | ✅ **resolvido** (guard no `FROM`, Fase 2) | corrupção | **2** ✅ |
+| A3 | `FOR UPDATE`/`FOR SHARE`/`FOR NO KEY UPDATE` (+`OF`/`NOWAIT`/`SKIP LOCKED`) | ✅ **resolvido** (cláusula `for` no rio, Fase 2) | corrupção | **2** ✅ |
 | A4 | `INSERT ... ON CONFLICT ... DO UPDATE/NOTHING` | **corrompe** (`conflict(id)` glued, `UPDATE` split) | corrupção | **3** |
-| A5 | `WITH ORDINALITY` (from-item) | quebra feio (`WITH` vira CTE) | corrupção leve | **2** |
+| A5 | `WITH ORDINALITY` (from-item) | ✅ **resolvido** (guard no `WITH`, Fase 2) | corrupção leve | **2** ✅ |
 | A6 | `MERGE ... WHEN MATCHED THEN ...` (PG 15+) | **corrompe** total | corrupção (grande) | **6** (opcional) |
 | B1 | `SELECT DISTINCT` / `DISTINCT ON (...)` | ✅ ok | sem teste | 4 |
 | B2 | window `OVER (...)` + cláusula `WINDOW w AS (...)` | ✅ ok | sem teste | 4 |
@@ -152,7 +152,19 @@ que os já-ok (`::`, `->`, `->>`, `||`, `<>`, `>=`) continuam. **Idempotência**
 
 ---
 
-## Fase 2 — Palavras que não iniciam cláusula: `IS DISTINCT FROM`, `FOR UPDATE`, `WITH ORDINALITY` (A2, A3, A5)
+## Fase 2 — Palavras que não iniciam cláusula: `IS DISTINCT FROM`, `FOR UPDATE`, `WITH ORDINALITY` (A2, A3, A5) ✅ CONCLUÍDA (2026-07-17)
+
+> **Feito.** Guards em `isClauseBoundary` (`segmenter.ts`), estilo `pendingBetween`:
+> **A2** `FROM` precedido de `DISTINCT` não abre cláusula (`is [not] distinct from` fica inteiro);
+> **A5** `WITH` seguido de `ORDINALITY` não abre CTE (fica no item do `from`);
+> **A3** `FOR` vira cláusula própria (kind `generic`, entra no rio como head `for`, igual `limit` —
+> **decisão do usuário: opção A, no rio**), consumindo os keywords de força (`NO`/`KEY`/`UPDATE`/
+> `SHARE`) para dentro do head, de modo que o `UPDATE`/`SHARE` interno nunca é reexaminado como âncora
+> DML; o resto (`OF ...`, `NOWAIT`/`SKIP LOCKED`) flui no body numa linha. `keywords.ts` ganhou
+> `FOR`/`OF`/`NO`/`KEY`/`SHARE`/`NOWAIT`/`SKIP`/`LOCKED`/`ORDINALITY` (casing). Casos: `locking.yaml`
+> (5), `from_functions.yaml` (1, será estendido na Fase 4), 3 novos em `where.yaml`. Conferido:
+> `substring(name from 1 for 3)` (FOR/FROM em depth>0 não ancoram) e casing upper. Suíte 233 verde,
+> `tsc`/`lint` limpos.
 
 Três instâncias da mesma causa-raiz: uma keyword é cortada como âncora fora de contexto. Podem ir
 juntas (pequenas, no `segmenter.ts`/`keywords.ts`).

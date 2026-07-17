@@ -26,3 +26,23 @@
           or status_id = 3
            )
        and mass > 0
+# IS [NOT] DISTINCT FROM: the FROM belongs to the operator, not a new clause (A2).
+- description: is distinct from keeps its from (not a clause anchor)
+  input: select id from planets where discovered_at is distinct from cataloged_at
+  expected: |
+    select id
+      from planets
+     where discovered_at is distinct from cataloged_at
+- description: is not distinct from keeps its from
+  input: select id from planets where discovered_at is not distinct from cataloged_at
+  expected: |
+    select id
+      from planets
+     where discovered_at is not distinct from cataloged_at
+- description: is distinct from as one of several conditions (breaks only at and/or)
+  input: select id from planets where discovered_at is distinct from cataloged_at and launched_at is not distinct from landed_at
+  expected: |
+    select id
+      from planets
+     where discovered_at is distinct from cataloged_at
+       and launched_at is not distinct from landed_at

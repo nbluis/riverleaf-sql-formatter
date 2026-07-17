@@ -62,6 +62,11 @@ touching `layout.ts`/`segmenter.ts`.
   head. `insert into t (cols)` keeps a space before the column-list `(`, and that column list breaks
   by count. A `values` tuple interior is expression level — it grows on one line (multi-row `values`
   still breaks one tuple per line).
+- **Continuation keywords / locking.** Keywords that must not anchor a clause out of context are
+  guarded in `segmentClauses`: `IS [NOT] DISTINCT FROM` keeps its `from`, `WITH ORDINALITY` stays a
+  from-item modifier. The **row-locking clause** (`for update`/`for share`/`for no key update`/… with
+  `of`/`nowait`/`skip locked`) joins the river as a one-line `for` clause head (like `limit`); its
+  inner `update`/`share` are not DML anchors.
 - **Subqueries / CTEs** expand recursively for the common shapes: `from (select ...) alias`, one or
   more comma-separated CTEs, a `where`/`having` condition subquery in any position, a subquery in a
   `join` ON condition, a subquery as a `join` table, and a scalar subquery in the select list. A
