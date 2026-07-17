@@ -14,10 +14,10 @@ string (literals), matching how SQL is actually written.
 
 ## How to use it (when rewriting a real query into an example)
 
-- **Substitute by role, not by spelling.** Find the role each real object plays (main entity, child
+- **Substitute by role, not by spelling.** Find the role each object plays (main entity, child
   rows, a joined lookup, a numeric measure, a date, a status literal, …) and pick the matching
-  dictionary word. The "Suggested role mapping" table below gives sensible defaults so independent
-  rewrites stay consistent.
+  dictionary word. Prefer the first name in the relevant list as the default so independent rewrites
+  stay consistent.
 - **Keep the shape identical.** Same number of columns, joins, conditions, CTEs, nesting. Only the
   *names and literals* change — never the structure being demonstrated.
 - **Reuse the canonical alias** for a table (see Aliases) so `p.mass`, `ms.status`, `obs.observed_at`
@@ -38,17 +38,17 @@ tables:
   primary:
     - planet          # default main entity
     - star            # default joined entity
-    - galaxy          # default grouping/parent (org / tenant / category)
-    - moon            # default child rows (line items of a planet)
+    - galaxy          # default grouping / parent entity
+    - moon            # default child rows (belong to a planet)
     - satellite
     - asteroid
     - comet
     - spacecraft
-    - mission         # default transactional entity (has status + dates)
-    - astronaut       # default "person" (customer / user / employee)
+    - mission         # default entity with a status + dates
+    - astronaut       # default "person" entity
     - station
     - observatory
-    - observation     # default detail/line-item of a mission
+    - observation     # default detail / child rows of a mission
     - constellation   # a long name, for wide-head examples
     - nebula
     - telescope
@@ -69,15 +69,15 @@ tables:
     - mission_status
     - orbit_type
 
-  # Time-bucketed summary / rollup tables (the analog of monthly_*_summaries or
-  # *_visit_months — a per-period aggregate keyed by an entity + a period).
+  # Time-bucketed summary / rollup tables — a per-period aggregate keyed by an
+  # entity plus a period.
   summary:
     - monthly_observation_summaries
     - planet_transit_months
     - star_visibility_months
     - daily_observation_counts
 
-  # Staging / scratch inputs (the analog of staging_*).
+  # Staging / scratch input tables.
   staging:
     - observation_staging
     - planet_import
@@ -110,9 +110,8 @@ columns:
     - nebula_id
     - parent_id
 
-  # Numeric measures — use for any amount / total / value / price / balance.
-  # Default "amount" -> mass; secondary numeric -> distance; a "price"-like ->
-  # magnitude. Pick a longer one when you need a wide column.
+  # Numeric measures — use for any numeric quantity. Default measure -> mass;
+  # a second distinct measure -> distance. Pick a longer one for a wide column.
   measures:
     - mass
     - radius
@@ -137,7 +136,7 @@ columns:
     - satellite_count
     - observation_count
     - transit_count
-    - visit_count      # kept for parity with real "visit_count" shapes
+    - visit_count
 
   # Text / descriptive columns.
   text:
@@ -303,37 +302,15 @@ values:
   statuses: [planned, active, completed, cancelled]
   # planet classification values
   classifications: [terrestrial, gas_giant, ice_giant, dwarf]
-  # discovery / observation status (analog of new/returning/recovered)
+  # discovery / observation status
   discovery: [confirmed, candidate, disputed]
-  # tiers / segments (analog of customer segments, brightness classes)
+  # tiers / brightness classes
   tiers: [supergiant, giant, subgiant, dwarf]
   spectral_classes: [O, B, A, F, G, K, M]
   booleans: [true, false]
   # dates: use ISO literals, e.g. '2026-01-01', '2026-07-01'
 ```
 
-## Suggested role mapping (defaults, to keep rewrites consistent)
-
-| Real-world role in a query                                   | Dictionary default            | Alias |
-| ------------------------------------------------------------ | ----------------------------- | ----- |
-| main entity being selected (`orders`, `products`)            | `planet`                      | `p`   |
-| a second joined entity (`customers`, `table2`)               | `star`                        | `s`   |
-| a parent / grouping / tenant (`organization`, `salon`)       | `galaxy`                      | `g`   |
-| child / line-item rows (`order_items`, `order_services`)     | `moon` (or `observation`)     | `m`   |
-| a transactional entity with status + dates (`orders`)        | `mission`                     | `ms`  |
-| a person (`customers`, `users`, `employees`)                 | `astronaut`                   | `ast` |
-| detail rows of the transaction (`order_items`)               | `observation`                 | `obs` |
-| a lookup/type table (`status`, `*_type`)                     | `mission_status`/`planet_type`| —     |
-| a many-to-many bridge                                        | `mission_astronaut`           | —     |
-| a per-period summary (`monthly_*_summaries`, `*_months`)     | `monthly_observation_summaries` / `planet_transit_months` | — |
-| a staging input (`staging_*`)                                | `observation_staging`         | —     |
-| an amount / total / value / balance                          | `mass` (2nd: `distance`)      | —     |
-| a price-like measure                                         | `magnitude` (`apparent_magnitude`) | — |
-| a quantity / count                                           | `moon_count` / `observation_count` | — |
-| a status/label column                                        | `status` / `classification`   | —     |
-| a "name" / free text                                         | `name` / `designation`        | —     |
-| a boolean flag (`active`, `valid`)                           | `is_active` / `is_confirmed`   | —     |
-
-If a real query has more objects of one kind than the defaults cover, keep going down the relevant
-list (e.g. a third joined table → `moon`; a fourth measure → `temperature`). When nothing fits, add
-the new name to this file rather than inventing an off-theme one.
+If a query has more objects of one kind than a list covers, keep going down the relevant list
+(e.g. a third joined table → `moon`; a fourth measure → `temperature`). When nothing fits, add the
+new name to this file rather than inventing an off-theme one.
