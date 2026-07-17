@@ -14,6 +14,7 @@ scenarios can be added without touching code — this is our regression guardrai
     `window` clause, `filter`, `within group`, a window frame.
   - `groupby.yaml` — `group by rollup` / `cube` / `grouping sets`.
   - `limit.yaml` — `limit` / `offset` / `fetch first`.
+  - `setops.yaml` — `union` / `union all` / `intersect` / `except` (they stay in the river).
   - `expressions.yaml` — `cast`/`extract`/`substring`/`trim`/`position`, `array`/subscript/`row`/
     `at time zone`, multi-column `in`.
   - `where.yaml` — `where`/`having`: single condition inline, parenthesized group expands, connectors.

@@ -64,7 +64,7 @@ verdes.
 | B1 | `SELECT DISTINCT` / `DISTINCT ON (...)` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
 | B2 | window `OVER (...)` + cláusula `WINDOW w AS (...)` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
 | B3 | `FILTER (WHERE ...)`, `WITHIN GROUP (ORDER BY ...)` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
-| B4 | set ops `UNION`/`UNION ALL`/`INTERSECT`/`EXCEPT` | ⚠️ funciona, **mas** empurra o rio (decisão) | decisão + teste | **5** |
+| B4 | set ops `UNION`/`UNION ALL`/`INTERSECT`/`EXCEPT` | ✅ **decidido: fica no rio** (Fase 5) + testado | decisão + teste | **5** ✅ |
 | B5 | `WITH RECURSIVE` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
 | B6 | `GROUP BY ROLLUP`/`CUBE`/`GROUPING SETS` | ✅ ok (cosmético: `sets(` sem espaço) | ✅ testado (Fase 4) | 4 ✅ |
 | B7 | `ORDER BY ... NULLS FIRST/LAST`, `USING op` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
@@ -298,7 +298,14 @@ para travar o comportamento atual como guard-rail. Usar a skill `regen-format-ca
 
 ---
 
-## Fase 5 — Decisão: set operations e o rio (B4)
+## Fase 5 — Decisão: set operations e o rio (B4) ✅ CONCLUÍDA (2026-07-17)
+
+> **Decisão do usuário: MANTER NO RIO** (rejeitada a alternativa off-river coluna 0). Os operadores
+> `union`/`union all`/`intersect`/`except` continuam ancorando cláusula e participando do K, então
+> `union all` fica em leading 1 (`union` no rio, `all` depois) e um `intersect` (9 chars) empurra os
+> selects pra direita. **Sem mudança de runtime** — só capturei o comportamento atual como golden em
+> `setops.yaml` (6 casos: union / union all / intersect / except / three-way / union com where+order).
+> Suíte 333 verde, `tsc`/`lint` limpos.
 
 Hoje `UNION`/`INTERSECT`/`EXCEPT` são clause-starters e **entram no rio**, então `intersect`
 (9 chars) empurra `select`/`from` para a direita:

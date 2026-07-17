@@ -59,6 +59,10 @@ no `maxWidth` — all removed. Two categories:
     line. The `DO UPDATE`'s `SET` and any trailing update `WHERE` then anchor as ordinary river
     clauses below it. `CONFLICT` is a keyword, so `on conflict (cols)` keeps its space before the
     `(` for free (`renderTokens`). `EXCLUDED` stays an identifier (`excluded.col`, preserved) (A4).
+- **Set operations stay in the river** (decision, 2026-07-17, B4): `union`/`union all`/`intersect`/
+  `except` (kind `setop`) anchor a clause and **do** participate in `K` (unlike `cte`), so `union all`
+  sits at leading 1 (`union` on the river, `all` after it) and a wide operator like `intersect`
+  (9 chars) pushes the selects right. This was chosen over the off-river-at-column-0 alternative.
 - `K = max(firstWord.length over all clauses **except `cte`**)` (dominated by `select`=6 in typical
   queries). The `with` (cte) preamble is **not part of the river** — it is a standalone command that
   always sits at the base column (0), so its first word is excluded from `K` (it never pulls the

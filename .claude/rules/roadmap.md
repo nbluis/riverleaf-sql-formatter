@@ -36,7 +36,10 @@ OUTER joins, from-functions + column-def lists + TABLESAMPLE, CAST / EXTRACT / S
 POSITION / ARRAY / ROW / AT TIME ZONE / multi-col IN, UPDATE…FROM / DELETE…USING / CREATE VIEW /
 standalone VALUES, WITH RECURSIVE) — new `select`/`groupby`/`limit`/`expressions` yaml files plus
 extensions to `lists`/`joins`/`from_functions`/`dml`. Tests-only, no runtime change.
-Remaining: Phase 5 (set-ops river decision, B4), Phase 6 (`MERGE`).
+**Phase 5 done (B4, 2026-07-17):** decided the set-op layout — `union`/`intersect`/`except` **stay
+in the river** (participate in K, unlike `with`); captured as golden cases in `setops.yaml`.
+Tests-only (the decision kept current behavior).
+Remaining: Phase 6 (`MERGE`, optional).
 
 ## When you pick one up
 

@@ -1,0 +1,60 @@
+# Set operations UNION / UNION ALL / INTERSECT / EXCEPT (golden guard-rails,
+# Phase 4/B4). Decision (2026-07-17): the operators STAY IN THE RIVER — they
+# anchor a clause and participate in the river width K, so `union all` sits at
+# leading 1 (`union` on the river, `all` after it) and a wide operator like
+# `intersect` (9 chars) pushes the selects to the right. This was chosen over the
+# off-river-at-column-0 alternative (the `with` treatment).
+- description: union of two selects
+  input: select id from planets union select id from stars
+  expected: |
+    select id
+      from planets
+     union
+    select id
+      from stars
+- description: union all keeps all in the river (union head, all after)
+  input: select id from planets union all select id from stars
+  expected: |
+    select id
+      from planets
+     union all
+    select id
+      from stars
+- description: intersect (a wide operator pushes the selects right)
+  input: select id from planets intersect select id from stars
+  expected: |2
+       select id
+         from planets
+    intersect
+       select id
+         from stars
+- description: except of two selects
+  input: select id from planets except select id from stars
+  expected: |
+    select id
+      from planets
+    except
+    select id
+      from stars
+- description: a three-way union
+  input: select id from planets union select id from stars union select id from moons
+  expected: |
+    select id
+      from planets
+     union
+    select id
+      from stars
+     union
+    select id
+      from moons
+- description: union with where on each side and a trailing order by
+  input: select name from planets where is_habitable union select name from stars where is_binary order by name
+  expected: |
+    select name
+      from planets
+     where is_habitable
+     union
+    select name
+      from stars
+     where is_binary
+     order by name
