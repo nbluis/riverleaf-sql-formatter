@@ -32,11 +32,17 @@ always prioritize those preferences over being configurable to every style. The
 goal is to be an excellent fit for that particular taste — not a general-purpose formatter you tune
 to your own conventions.
 
+<table>
+<tr><td>
+
 **You write this…**
 
 ```sql
 select id, name from planets where mass > 10
 ```
+
+</td></tr>
+<tr><td>
 
 **…and get this:**
 
@@ -46,6 +52,9 @@ select id,
   from planets
  where mass > 10
 ```
+
+</td></tr>
+</table>
 
 The right edge of `select`, `from`, and `where` all land on the same column — the **river** —
 so the eye follows one clean vertical line down the query.
@@ -93,32 +102,45 @@ There is no line-width / maximum-line-length setting: breaking is by rule, not b
 
 **Spaces only, never tabs. Keywords are lowercased; identifiers are left untouched.**
 
-IN
+<table>
+<tr><td>
+
+**IN**
 
 ```sql
 SELECT Name FROM Planets
 ```
 
-OUT
+</td></tr>
+<tr><td>
+
+**OUT**
 
 ```sql
 select Name
   from Planets
 ```
 
----
+</td></tr>
+</table>
 
 **A list with more than one item breaks one item per line, with trailing commas aligned.**
 A single-item list stays inline. (Applies to `select`, `from`, `group by`, `order by`, and the
 DML `set` / `values` / `insert` column list.)
 
-IN
+<table>
+<tr><td>
+
+**IN**
 
 ```sql
 select id, name, mass from planets
 ```
 
-OUT
+</td></tr>
+<tr><td>
+
+**OUT**
 
 ```sql
 select id,
@@ -127,19 +149,26 @@ select id,
   from planets
 ```
 
----
+</td></tr>
+</table>
 
 **`where` / `having` break when there is more than one condition**, with `and` / `or` aligned to
 the river. A single condition stays inline.
 
-IN
+<table>
+<tr><td>
+
+**IN**
 
 ```sql
 select name from planets
 where mass > 10 and radius < 5
 ```
 
-OUT
+</td></tr>
+<tr><td>
+
+**OUT**
 
 ```sql
 select name
@@ -148,11 +177,15 @@ select name
    and radius < 5
 ```
 
----
+</td></tr>
+</table>
 
 **A parenthesized boolean group always expands**, aligning its own `and` / `or` one level in.
 
-IN
+<table>
+<tr><td>
+
+**IN**
 
 ```sql
 select name from planets
@@ -160,7 +193,10 @@ where is_visible = true
 and (mass > 10 or radius < 5)
 ```
 
-OUT
+</td></tr>
+<tr><td>
+
+**OUT**
 
 ```sql
 select name
@@ -172,12 +208,16 @@ select name
    )
 ```
 
----
+</td></tr>
+</table>
 
 **A join with more than one ON condition breaks**, aligning `and` / `or` under `on`. A single-ON
 join stays inline.
 
-IN
+<table>
+<tr><td>
+
+**IN**
 
 ```sql
 select p.mass from planets p
@@ -185,7 +225,10 @@ join stars s on s.id = p.star_id
 and s.parent_id is null
 ```
 
-OUT
+</td></tr>
+<tr><td>
+
+**OUT**
 
 ```sql
 select p.mass
@@ -194,19 +237,26 @@ select p.mass
               and s.parent_id is null
 ```
 
----
+</td></tr>
+</table>
 
 **Subqueries and CTEs expand recursively** — the inner query is re-aligned one level in and its
 `)` sits under the owner. The `with` preamble stays at the left margin, off the river.
 
-IN
+<table>
+<tr><td>
+
+**IN**
 
 ```sql
 with bright as (select id from stars
 where mass > 10) select id from bright
 ```
 
-OUT
+</td></tr>
+<tr><td>
+
+**OUT**
 
 ```sql
 with bright as (
@@ -218,12 +268,16 @@ select id
   from bright
 ```
 
----
+</td></tr>
+</table>
 
 **`case … end` expands** — `when` / `else` / `end` align under `case`; anything after `end` rides
 its line. Nested `case`s expand recursively.
 
-IN
+<table>
+<tr><td>
+
+**IN**
 
 ```sql
 select name,
@@ -232,7 +286,10 @@ else 'dwarf' end as tier
 from planets
 ```
 
-OUT
+</td></tr>
+<tr><td>
+
+**OUT**
 
 ```sql
 select name,
@@ -243,19 +300,26 @@ select name,
   from planets
 ```
 
----
+</td></tr>
+</table>
 
 **`insert` / `update` / `delete` format like a `select`** — the anchors join the river, and the
 same list and `where` rules apply.
 
-IN
+<table>
+<tr><td>
+
+**IN**
 
 ```sql
 update planets set mass = 10,
 radius = 5 where id = 1
 ```
 
-OUT
+</td></tr>
+<tr><td>
+
+**OUT**
 
 ```sql
 update planets
@@ -264,20 +328,27 @@ update planets
  where id = 1
 ```
 
----
+</td></tr>
+</table>
 
 **Comments keep their place.** A comment trailing code stays on that line; a standalone comment
 keeps its own line. (Comments that can't be moved safely are left exactly as written — see
 [Known limitations](#known-limitations).)
 
-IN
+<table>
+<tr><td>
+
+**IN**
 
 ```sql
 select mass, -- in solar masses
 radius from planets
 ```
 
-OUT
+</td></tr>
+<tr><td>
+
+**OUT**
 
 ```sql
 select mass, -- in solar masses
@@ -285,23 +356,33 @@ select mass, -- in solar masses
   from planets
 ```
 
----
+</td></tr>
+</table>
 
 **Breaking is by rule, not by width.** There is no maximum line length; a single item or condition
 grows on one line however long it gets, and only *structure* ever forces a break.
 
-IN
+<table>
+<tr><td>
+
+**IN**
 
 ```sql
 select apparent_magnitude - absolute_magnitude + distance / luminosity as index from stars
 ```
 
-OUT
+</td></tr>
+<tr><td>
+
+**OUT**
 
 ```sql
 select apparent_magnitude - absolute_magnitude + distance / luminosity as index
   from stars
 ```
+
+</td></tr>
+</table>
 
 ## Development
 
