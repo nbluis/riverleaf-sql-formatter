@@ -71,6 +71,11 @@ touching `layout.ts`/`segmenter.ts`.
   `on` clause head that joins the river (the inner `update` is not an anchor); the `do update`'s `set`
   and any trailing update `where` follow as ordinary river clauses. `on conflict (cols)` keeps a
   space before the `(` (`conflict` is a keyword); `excluded.col` is preserved as an identifier.
+- **`MERGE` (PG 15+).** A statement starting with `merge` uses a dedicated anchor set
+  (`segmentClauses` mergeMode): `merge into` / `using` / `on` / each `when … then` join the river; the
+  `on` renders like a where (breaks on >1 condition); each `when … then <action>` grows on one line
+  (its inner `update`/`insert`/`delete`/`set`/`values` are not anchors). A `case` inside an action is
+  protected (its `when` is not a MERGE boundary).
 - **Subqueries / CTEs** expand recursively for the common shapes: `from (select ...) alias`, one or
   more comma-separated CTEs, a `where`/`having` condition subquery in any position, a subquery in a
   `join` ON condition, a subquery as a `join` table, and a scalar subquery in the select list. A

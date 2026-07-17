@@ -17,29 +17,22 @@ The only remaining inline/passthrough case is by design, not an open item: a **l
 mid-expression** (inside a single list item or boolean condition, not at a boundary and not inside a
 subquery that expands) forces passthrough, so a line join can never comment out code.
 
-Larger tracked effort: **PostgreSQL coverage gaps** — see `_work/postgres-coverage-gaps-plan.md`
-(keywords cut as anchors, untested features). **Phase 1 done (A1, 2026-07-17):** the tokenizer now
-lexes operators by maximal munch, so multi-char PG operators (JSONB `@>`/`#>>`/`?|`, regex `~*`/`!~`,
-array `&&`, bit-shift `<<`/`>>`) are no longer sliced apart — locked by `test/cases/operators.yaml`.
-**Phase 2 done (A2/A3/A5, 2026-07-17):** continuation keywords no longer mis-anchor —
-`IS [NOT] DISTINCT FROM` keeps its `from`, `WITH ORDINALITY` stays a from-item modifier, and the
-row-locking clause `FOR UPDATE`/`FOR SHARE`/… joins the river as a `for` clause head (locked by
-`locking.yaml`, `from_functions.yaml`, and new `where.yaml` cases).
-**Phase 3 done (A4, 2026-07-17):** `INSERT … ON CONFLICT … DO UPDATE/NOTHING` (upsert) is consumed
-as one `on` clause head that joins the river (inner `UPDATE` not an anchor); `set` and any trailing
-update `where` follow as ordinary clauses; `on conflict (cols)` keeps its space (locked by
-`dml.yaml`).
-**Phase 4 done (B1–B3, B5–B16, 2026-07-17):** golden guard-rail cases captured for the features
-that already formatted correctly (DISTINCT / window / FILTER / WITHIN GROUP / frame, ROLLUP / CUBE /
-GROUPING SETS, NULLS FIRST/LAST / USING op, LIMIT / OFFSET / FETCH, USING / NATURAL / CROSS / FULL
-OUTER joins, from-functions + column-def lists + TABLESAMPLE, CAST / EXTRACT / SUBSTRING / TRIM /
-POSITION / ARRAY / ROW / AT TIME ZONE / multi-col IN, UPDATE…FROM / DELETE…USING / CREATE VIEW /
-standalone VALUES, WITH RECURSIVE) — new `select`/`groupby`/`limit`/`expressions` yaml files plus
-extensions to `lists`/`joins`/`from_functions`/`dml`. Tests-only, no runtime change.
-**Phase 5 done (B4, 2026-07-17):** decided the set-op layout — `union`/`intersect`/`except` **stay
-in the river** (participate in K, unlike `with`); captured as golden cases in `setops.yaml`.
-Tests-only (the decision kept current behavior).
-Remaining: Phase 6 (`MERGE`, optional).
+**PostgreSQL coverage gaps — DONE (all phases, 2026-07-17).** The tracked effort in
+`_work/postgres-coverage-gaps-plan.md` is complete; the per-phase details are captured in that plan
+and in git. Summary:
+- **Phase 1 (A1):** operators lexed by maximal munch — multi-char PG operators (JSONB `@>`/`#>>`/`?|`,
+  regex `~*`/`!~`, array `&&`, bit-shift `<<`/`>>`) no longer sliced apart (`operators.yaml`).
+- **Phase 2 (A2/A3/A5):** continuation keywords no longer mis-anchor — `IS [NOT] DISTINCT FROM`,
+  `WITH ORDINALITY`, and the `FOR UPDATE`/`FOR SHARE` locking clause (`locking.yaml`,
+  `from_functions.yaml`, `where.yaml`).
+- **Phase 3 (A4):** `INSERT … ON CONFLICT … DO UPDATE/NOTHING` upsert (`dml.yaml`).
+- **Phase 4 (B1–B3, B5–B16):** golden guard-rails for the already-working features — `select`,
+  `groupby`, `limit`, `expressions` yaml plus extensions to `lists`/`joins`/`from_functions`/`dml`/
+  `cte`. (Tests-only, plus the B6 cosmetic `grouping sets (` space.)
+- **Phase 5 (B4):** decided set-ops **stay in the river** (`setops.yaml`).
+- **Phase 6 (A6):** `MERGE` (PG 15+) via a dedicated `mergeMode` segmentation (`merge.yaml`).
+
+**No open items remain.** New work starts from a fresh plan.
 
 ## When you pick one up
 

@@ -169,11 +169,31 @@ export function splitStatements(tokens: Token[]): Statement[] {
   return statements;
 }
 
-function isClauseBoundary(tokens: Token[], i: number): number {
+/** Whether the statement is a MERGE (first non-comment token is the MERGE keyword). */
+function startsMerge(tokens: Token[]): boolean {
+  for (const t of tokens) {
+    if (t.type === 'lineComment' || t.type === 'blockComment') continue;
+    return t.type === 'keyword' && t.upper === 'MERGE';
+  }
+  return false;
+}
+
+function isClauseBoundary(tokens: Token[], i: number, mergeMode = false): number {
   // Returns the number of keyword-phrase tokens if `i` starts a clause; else 0.
   const tok = tokens[i];
   if (tok.type !== 'keyword') return 0;
   const up = tok.upper;
+
+  // MERGE (PG 15+) has its own anchor set. Only merge / using / on / when /
+  // returning start a clause; the action keywords (UPDATE / INSERT / DELETE /
+  // SET / VALUES / DO / MATCHED / THEN / AND ...) are NOT anchors here, so each
+  // `when ... then <action>` accumulates on one line. The caller guards WHEN so it
+  // is not seen inside a CASE (whose own WHEN sits at paren depth 0).
+  if (mergeMode) {
+    if (up === 'MERGE') return tokens[i + 1]?.upper === 'INTO' ? 2 : 1;
+    if (up === 'USING' || up === 'ON' || up === 'WHEN' || up === 'RETURNING') return 1;
+    return 0;
+  }
 
   // IS [NOT] DISTINCT FROM: the FROM belongs to the operator, not a new clause
   // (like the AND in BETWEEN ... AND ...). Guard it before the FROM anchor (A2).
@@ -308,7 +328,14 @@ function takeTrailingStandaloneComments(body: Token[]): string[] {
  */
 export function segmentClauses(tokens: Token[]): { clauses: Clause[]; trailingComments: string[] } {
   const clauses: Clause[] = [];
+  // MERGE (PG 15+) uses a dedicated anchor set (see isClauseBoundary). Detected
+  // from the first non-comment token so a plain `merge_log` identifier elsewhere
+  // is unaffected.
+  const mergeMode = startsMerge(tokens);
   let depth = 0;
+  // CASE nesting depth (merge mode only): a CASE's own WHEN sits at paren depth 0,
+  // so we must not treat it as a MERGE WHEN boundary.
+  let caseDepth = 0;
   let i = 0;
 
   // walk tokens up to the first clause, attaching any preamble as generic
@@ -328,7 +355,9 @@ export function segmentClauses(tokens: Token[]): { clauses: Clause[]; trailingCo
     const p = pending as { head: Token[]; body: Token[] };
     const trailing = takeTrailingStandaloneComments(p.body);
     clauses.push({
-      kind: clauseKind(p.head),
+      // The MERGE ON condition renders like a where (RIVER: breaks when it has
+      // more than one condition).
+      kind: mergeMode && p.head[0].upper === 'ON' ? 'where' : clauseKind(p.head),
       head: p.head,
       firstWord: p.head[0].value.toLowerCase(),
       body: p.body,
@@ -342,8 +371,11 @@ export function segmentClauses(tokens: Token[]): { clauses: Clause[]; trailingCo
     const tok = tokens[i];
     if (tok.type === 'punct' && tok.value === '(') depth++;
     else if (tok.type === 'punct' && tok.value === ')') depth = Math.max(0, depth - 1);
+    else if (mergeMode && depth === 0 && tok.type === 'keyword' && tok.upper === 'CASE') caseDepth++;
+    else if (mergeMode && depth === 0 && tok.type === 'keyword' && tok.upper === 'END') caseDepth = Math.max(0, caseDepth - 1);
 
-    const boundary = depth === 0 ? isClauseBoundary(tokens, i) : 0;
+    // In merge mode, a WHEN inside a CASE is not a MERGE boundary.
+    const boundary = depth === 0 && caseDepth === 0 ? isClauseBoundary(tokens, i, mergeMode) : 0;
     if (boundary > 0) {
       commit();
       startClause(boundary);

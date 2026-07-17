@@ -126,6 +126,11 @@ export const KEYWORDS: ReadonlySet<string> = new Set([
   'DO',
   'NOTHING',
   'CONSTRAINT',
+  // MERGE (PG 15+). MERGE anchors the statement; MATCHED is kept for casing.
+  // (USING / ON / WHEN / THEN / INTO / UPDATE / INSERT / DELETE / SET / VALUES
+  // are already keywords.)
+  'MERGE',
+  'MATCHED',
 ]);
 
 /**

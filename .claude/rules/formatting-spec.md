@@ -63,6 +63,16 @@ no `maxWidth` — all removed. Two categories:
   `except` (kind `setop`) anchor a clause and **do** participate in `K` (unlike `cte`), so `union all`
   sits at leading 1 (`union` on the river, `all` after it) and a wide operator like `intersect`
   (9 chars) pushes the selects right. This was chosen over the off-river-at-column-0 alternative.
+- **MERGE** (PG 15+, A6, 2026-07-17): a statement whose first non-comment token is `MERGE` is
+  segmented with a dedicated anchor set (`segmentClauses`'s `mergeMode`, from `startsMerge`):
+  `isClauseBoundary(tokens, i, true)` treats **only** `MERGE` (consuming `merge into` = 2), `USING`,
+  `ON`, `WHEN`, and `RETURNING` as anchors — the action keywords (`UPDATE`/`INSERT`/`DELETE`/`SET`/
+  `VALUES`/`DO`/`MATCHED`/`THEN`/`AND`) are **not** anchors, so each `when [not] matched [and cond]
+  then <action>` accumulates on one line (kind `generic`, grows, never breaks — user choice: action
+  on the `when` line). The `ON` clause is retagged kind `where` (RIVER: breaks on >1 condition). The
+  loop tracks a `caseDepth` (merge only) so a `CASE`'s own `WHEN` — which sits at paren depth 0 — is
+  not mistaken for a MERGE `WHEN`. Firstwords `merge`/`using`/`on`/`when` give `K = 5`, so `on` lands
+  at leading 3 and `when` at leading 1.
 - `K = max(firstWord.length over all clauses **except `cte`**)` (dominated by `select`=6 in typical
   queries). The `with` (cte) preamble is **not part of the river** — it is a standalone command that
   always sits at the base column (0), so its first word is excluded from `K` (it never pulls the

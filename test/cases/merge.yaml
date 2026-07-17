@@ -1,0 +1,37 @@
+# MERGE (PostgreSQL 15+). `merge into` / `using` / `on` / each `when ... then`
+# join the river; the ON condition renders like a where (breaks when it has more
+# than one condition); each WHEN action (`update set ...`, `insert ... values ...`,
+# `delete`, `do nothing`) grows on one line — its inner UPDATE/INSERT/DELETE are
+# not DML anchors. Layout: action on the same line as the `when` (user choice). (A6)
+- description: basic merge with update and insert actions
+  input: merge into planets p using planet_imports s on p.code = s.code when matched then update set mass = s.mass when not matched then insert (code, mass) values (s.code, s.mass)
+  expected: |
+    merge into planets p
+    using planet_imports s
+       on p.code = s.code
+     when matched then update set mass = s.mass
+     when not matched then insert (code, mass) values (s.code, s.mass)
+- description: merge with a matched condition, a delete, and an insert
+  input: merge into planets p using planet_imports s on p.code = s.code when matched and s.is_active then update set mass = s.mass when matched then delete when not matched then insert (code, mass) values (s.code, s.mass)
+  expected: |
+    merge into planets p
+    using planet_imports s
+       on p.code = s.code
+     when matched and s.is_active then update set mass = s.mass
+     when matched then delete
+     when not matched then insert (code, mass) values (s.code, s.mass)
+- description: merge with do nothing
+  input: merge into planets p using planet_imports s on p.code = s.code when not matched then do nothing
+  expected: |
+    merge into planets p
+    using planet_imports s
+       on p.code = s.code
+     when not matched then do nothing
+- description: merge on with more than one condition breaks like a where
+  input: merge into planets p using planet_imports s on p.code = s.code and p.star_id = s.star_id when matched then delete
+  expected: |
+    merge into planets p
+    using planet_imports s
+       on p.code = s.code
+      and p.star_id = s.star_id
+     when matched then delete

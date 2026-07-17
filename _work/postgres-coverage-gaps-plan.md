@@ -60,7 +60,7 @@ verdes.
 | A3 | `FOR UPDATE`/`FOR SHARE`/`FOR NO KEY UPDATE` (+`OF`/`NOWAIT`/`SKIP LOCKED`) | ✅ **resolvido** (cláusula `for` no rio, Fase 2) | corrupção | **2** ✅ |
 | A4 | `INSERT ... ON CONFLICT ... DO UPDATE/NOTHING` | ✅ **resolvido** (cláusula `on conflict` no rio, Fase 3) | corrupção | **3** ✅ |
 | A5 | `WITH ORDINALITY` (from-item) | ✅ **resolvido** (guard no `WITH`, Fase 2) | corrupção leve | **2** ✅ |
-| A6 | `MERGE ... WHEN MATCHED THEN ...` (PG 15+) | **corrompe** total | corrupção (grande) | **6** (opcional) |
+| A6 | `MERGE ... WHEN MATCHED THEN ...` (PG 15+) | ✅ **resolvido** (mergeMode dedicado, Fase 6) | corrupção (grande) | **6** ✅ |
 | B1 | `SELECT DISTINCT` / `DISTINCT ON (...)` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
 | B2 | window `OVER (...)` + cláusula `WINDOW w AS (...)` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
 | B3 | `FILTER (WHERE ...)`, `WITHIN GROUP (ORDER BY ...)` | ✅ ok | ✅ testado (Fase 4) | 4 ✅ |
@@ -332,7 +332,19 @@ aprovado): `layout.ts` (excluir set-ops do cálculo de `K`, `leading = base`), c
 
 ---
 
-## Fase 6 (opcional) — `MERGE` (A6) 🔴 grande, PG 15+
+## Fase 6 (opcional) — `MERGE` (A6) 🔴 grande, PG 15+ ✅ CONCLUÍDA (2026-07-17)
+
+> **Feito.** Segmentação dedicada em `segmentClauses` (`mergeMode`, detectado por `startsMerge` —
+> primeiro token não-comentário = `MERGE`). Em modo-merge, `isClauseBoundary(tokens, i, true)` trata
+> **só** `MERGE` (consome `merge into` = 2), `USING`, `ON`, `WHEN` e `RETURNING` como âncoras — os
+> keywords de ação (`UPDATE`/`INSERT`/`DELETE`/`SET`/`VALUES`/`DO`/`MATCHED`/`THEN`/`AND`) **não**
+> ancoram, então cada `when [not] matched [and cond] then <ação>` cresce numa linha (kind `generic`).
+> **Decisão do usuário: opção A, ação na mesma linha do `when`.** O `ON` é retagueado como kind
+> `where` (quebra multi-condição como RIVER). A varredura acompanha um `caseDepth` (só no merge) para
+> que o `WHEN` de um `CASE` interno (em paren depth 0) não seja confundido com o `WHEN` do MERGE.
+> `keywords.ts` ganhou `MERGE`/`MATCHED`. 4 casos em `merge.yaml`. Conferido: CASE dentro da ação,
+> casing upper, e regressões (`case when` num select normal, `delete … using`, identificador
+> `merge_log`). Suíte 341 verde, `tsc`/`lint` limpos.
 
 `MERGE INTO t USING src ON cond WHEN MATCHED THEN UPDATE SET ... / DELETE / WHEN NOT MATCHED THEN
 INSERT (...) VALUES (...)`. Hoje sai completamente mangled. É a maior das features (várias sub-

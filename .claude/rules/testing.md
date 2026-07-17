@@ -23,6 +23,7 @@ scenarios can be added without touching code — this is our regression guardrai
   - `case.yaml` — `case ... end` (list, where/having, join ON, nested).
   - `dml.yaml` — `insert` / `update` / `delete` (+ set/values, insert columns, tuples, `on conflict`
     upsert).
+  - `merge.yaml` — `merge` (PG 15+): `merge into`/`using`/`on`/each `when … then <action>`.
   - `subquery.yaml` — subqueries (non-CTE): from / where / join ON / join-table / scalar / function-wrapped.
   - `cte.yaml` — `with` common table expressions (single, multiple, inner where, comment inside,
     `with recursive`).
