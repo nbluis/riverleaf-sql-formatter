@@ -7,10 +7,10 @@
       from planets
       join stars on stars.id = planets.star_id
 - description: a multi-condition join always breaks, aligning and/or under on (even when it fits)
-  input: select planets.mass, stars.radius from table1 join table2 on stars.id = planets.star_id and stars.parent_id is null
+  input: select planets.mass, stars.radius from planets join stars on stars.id = planets.star_id and stars.parent_id is null
   expected: |
     select planets.mass,
            stars.radius
-      from table1
-      join table2 on stars.id = planets.star_id
-                 and stars.parent_id is null
+      from planets
+      join stars on stars.id = planets.star_id
+                and stars.parent_id is null
