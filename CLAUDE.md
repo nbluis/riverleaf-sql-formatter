@@ -35,78 +35,47 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer.
 
 ## Formatting rules (summary)
 
-- River column = `baseIndent + max(firstWord length over clauses)`. `baseIndent` is always **0**
-  (D2, 2026-07-16): output is normalized to the left margin, discarding any source indentation. The
-  widest clause head lands at column 0 (e.g. river at 6 for a `select`), so it round trips.
-  (Formerly `baseIndent` = the minimum source indent, preserved; that scan was removed when D2
-  chose normalization.)
-- Clause first word right-aligned to the river; arguments start 1 space after. Multi-word keywords
-  (`left join`, `order by`) align only their **first** word; the rest flows.
-- **Breaking is by rule (count), not by width** (2026-07-16). A list clause (`select`, `from` with a
-  comma, `group by`, `order by`, `set`, `values`, and the `insert` column list) **breaks one item
-  per line whenever there is more than one item**; a single item stays inline and just grows.
-  `where`/`having` (and `join` ON) **break whenever there is more than one condition** (RIVER); a
-  single condition stays inline. A parenthesized boolean group **always expands** (BLOCK) — it only
-  exists with >1 inner term. Line length no longer participates in any breaking decision.
-- Joins with **more than one ON condition always break** (by count); the `and`/`or`
-  conditions align under `on`. A single-condition ON stays inline.
-- `where`/`on`: connectors (`and`/`or`) right-aligned to the river (RIVER mode).
-- Parenthesized boolean groups expand in BLOCK mode which, since D1 (locked 2026-07-15), also
-  **right-aligns** connectors — to the group's own river (`blockIndent - 1`), operands at
-  `blockIndent`. The closing `)` still aligns under the owner connector (unchanged). So both levels
-  are RIVER now (the old left-aligned inconsistency is gone).
-- Keywords lowercased (config); identifiers preserved. `between ... and ...` — that `and` is not a
-  connector.
-- **DML** (`insert`/`update`/`delete`) formats like a select: the anchors join the river. `set`
-  and `values` are ordinary list clauses (same count rule as select/from); a single assignment/tuple
-  stays inline. `delete from` is kept together as one head. `insert into t (cols)` keeps a space
-  before the column-list `(` (via `renderInsertClause`, since `renderTokens` would glue it as a
-  call); the **column list breaks by count** (>1 column → one per line, aligned one column past the
-  `(`, trailing commas, `)` on the last, via `renderTupleBroken`). The **interior of a `values`
-  tuple is expression level** — it never breaks, it grows on one line (multi-row `values` still
-  breaks one tuple per line, by count).
-- **Subqueries / CTEs** expand recursively (always, for common shapes): `from (select ...) alias`,
-  one or more comma-separated CTEs (`with a as (...), b as (...)`), a `where`/`having` condition
-  subquery in **any** position, a subquery inside a **join ON** condition, a subquery as a **join
-  table** (`join (select ...) alias on ...`), and a **scalar subquery in the select list** (expanded
-  at the item column). A **`LATERAL` derived table** expands the same way in every position
-  (`join`/`cross join lateral (...)`, `from lateral (...)`, and a `from`-list `, lateral (...)`) —
-  the shared `findDerivedSubquery` accepts a `(` that is either the first token or preceded solely by
-  the `LATERAL` keyword (`LATERAL` is in `KEYWORDS`, so it takes a space before `(`, never glued as a
-  function). Inner query re-aligned at `ownerLeading + indentSize`; the closing `)` aligns
-  **under the owner** — the clause keyword for the first `where` condition, the `and`/`or` connector
-  (`emitTerm`'s `expandSubquery`, Phase 10) for a later/ON condition, or the item column for a scalar
-  subquery (`renderSubqueryBlock`/`findSubquery`/`renderInner`/`renderOn`/`itemSubquery`).
-  `findSubquery` lives in `segmenter.ts` (shared with `format.ts`). The **`with` preamble is
-  off-river**: it always sits at the **base column 0** (excluded from the river width `K`), so `with`
-  and the final `select` share column 0, CTE bodies indent to column 2, and every `)` aligns under
-  `with` at 0. In a **multi-CTE `with`** (`renderCteClause` loops `splitCommaList`), each CTE name
-  after the first recedes to the `with` column (0), the comma follows the previous `)`; falls back to
-  the one-liner if any CTE body isn't a parenthesized `select`/`with`. Nested subqueries recurse. Still
-  inline: a function-wrapped subquery. A comment **inside an expanded** subquery reflows
-  (`isCommentSafe` recurses, into each CTE and each condition-subquery too); a comment inside a
-  non-expanded one still forces passthrough.
-- **`case ... end`** in a select/group-by/order-by list item expands: `case` on the item line,
-  each `when`/`else` and the `end` aligned at the item column (`parseCase`/`renderCase`, routed by
-  `renderItemLines`). A **nested `case`** in a `when`/`else` branch expands recursively at the
-  column where the inner `case` begins (`renderCaseSegment`/`findNestedCase`). A `case` in a
-  **`where`/`having`** or a **`join` ON** condition expands at the operand column, with anything
-  after `end` (e.g. `> 100`, `= 1`) on the `end` line (`emitTerm`'s `expandCase` flag, set for
-  where/having and — since Phase 11 — join ON via `renderOn`). A `when ... then` is a single line
-  that **grows** however long — it is never wrapped (breaking is by rule, not by width). A `case`
-  wrapped in a function stays inline.
-- Line comments: **inline** comments (trailing code on a line) stay attached to that line's last
-  token — in lists (`ListItem.comment`) and on `where`/`having` conditions (`BoolTerm.comment`).
-  **Standalone** comments (alone on a line, detected via `token.newlineBefore`) stay on their own
-  line: leading comments at the base margin, everything else (between clauses, between list items,
-  between `where` conditions via `BoolTerm.commentsBefore`, trailing) at the content column
-  `riverEnd + 1`. A comment after the final `;` glues under the statement. Standalone/inline
-  comments inside expanded paren groups (BLOCK mode), before the first `where` condition (keyword
-  alone, condition drops below), and inside a `join` ON also reflow. Passthrough (unchanged SQL)
-  applies only to a comment mid-token or inside an inline subquery/scalar-paren expression.
+Declarative summary of current behavior. The mechanics (river math, ON secondary river, BLOCK mode,
+comment handling, passthrough) live in **`.claude/rules/formatting-spec.md`** — read it before
+touching `layout.ts`/`segmenter.ts`.
 
-Full algorithm (river math, ON secondary river, BLOCK mode, comment handling, passthrough):
-read **`.claude/rules/formatting-spec.md`** before touching `layout.ts`/`segmenter.ts`.
+- **River.** River column = `max(firstWord length over clauses)`; `baseIndent` is always **0**, so
+  output is normalized to the left margin (source indentation is discarded) and the widest clause
+  head lands at column 0 (round trips). Each clause's first word is right-aligned to the river;
+  arguments start 1 space after. Multi-word keywords (`left join`, `order by`) align only their
+  **first** word; the rest flows.
+- **Breaking is by rule (count), not by width.** A list clause (`select`, `from` with a comma,
+  `group by`, `order by`, `set`, `values`, the `insert` column list) breaks one item per line
+  whenever there is more than one item; a single item stays inline and grows. `where`/`having` and a
+  `join` ON break whenever there is more than one condition; a single condition stays inline. A
+  parenthesized boolean group always expands. Line length participates in nothing.
+- **Connectors.** `where`/`having`/`on` right-align `and`/`or` to the river (RIVER mode). An
+  expanded parenthesized group (BLOCK mode) also right-aligns its connectors — to the group's own
+  river (`blockIndent - 1`), operands at `blockIndent` — and the closing `)` aligns under the owner
+  connector. `between ... and ...` — that `and` is not a connector.
+- **Casing.** Keywords lowercased (config); identifiers preserved.
+- **DML** (`insert`/`update`/`delete`) formats like a select: the anchors join the river. `set` and
+  `values` are ordinary list clauses (a single assignment/tuple stays inline). `delete from` is one
+  head. `insert into t (cols)` keeps a space before the column-list `(`, and that column list breaks
+  by count. A `values` tuple interior is expression level — it grows on one line (multi-row `values`
+  still breaks one tuple per line).
+- **Subqueries / CTEs** expand recursively for the common shapes: `from (select ...) alias`, one or
+  more comma-separated CTEs, a `where`/`having` condition subquery in any position, a subquery in a
+  `join` ON condition, a subquery as a `join` table, and a scalar subquery in the select list. A
+  `LATERAL` derived table expands the same way in every position. The inner query is re-aligned one
+  level in and the closing `)` aligns under its owner (the clause keyword, the `and`/`or` connector,
+  or the item column). The `with` preamble sits off-river at column 0; in a multi-CTE `with`, each
+  later CTE name recedes to the `with` column. Still inline: a subquery wrapped in a function call.
+- **`case ... end`** expands in a select/group-by/order-by list item, in a `where`/`having`
+  condition, and in a `join` ON — `case`/`when`/`else`/`end` share a column, and anything after
+  `end` rides the `end` line. Nested `case`s expand recursively. A `when ... then` grows on one line
+  and is never wrapped. Still inline: a `case` wrapped in a function call.
+- **Line comments.** Inline comments (trailing code) stay attached to that line's last token.
+  Standalone comments (alone on a line) stay on their own line — leading ones at the base margin, the
+  rest at the content column (`riverEnd + 1`) — and reflow inside expanded paren groups, before the
+  first `where` condition, inside a `join` ON, and inside any expanded subquery. Passthrough (the
+  statement is emitted unchanged) applies only to a comment mid-token or inside a non-expanded
+  (function-wrapped) subquery.
 
 ## Tests — read before adding coverage
 
@@ -136,9 +105,9 @@ extension id first if the publisher/name changed).
 ## Conventions & gotchas
 
 - Throwaway scripts (formatter probes, case generators) go to the **scratchpad**, never committed.
-- `js-yaml` is on **5.x** (bumped from 4.x by Dependabot and vetted here — the test suite is the
-  only consumer and uses just `load()`, which is unchanged). `@types/js-yaml` stays on **4.x** (no
-  5.x typings published; still type-checks clean against our usage).
+- `js-yaml` is on **5.x** (the test suite is its only consumer and uses just `load()`);
+  `@types/js-yaml` stays on **4.x** (no 5.x typings published; still type-checks clean against our
+  usage).
 - ESLint uses **flat config** (`eslint.config.js`, CommonJS), required by ESLint 9+. It composes
   `@eslint/js` recommended + `@typescript-eslint`'s `flat/recommended`, plus the lenient
   `no-unused-vars` (`argsIgnorePattern: ^_`). There is no `.eslintrc.json` anymore.
@@ -164,9 +133,8 @@ can't resolve `node_modules`); js-yaml 5.x uses named exports (`import { dump } 
 
 ## Open items / roadmap
 
-See **`.claude/rules/roadmap.md`** for the narrower sub-cases still rendered inline (a `case` or
-subquery wrapped in a function, and comments mid-token or inside a function-wrapped subquery). The
-aesthetic decisions are settled: D1 (nested-paren BLOCK vs RIVER →
-both RIVER), D2 (base-indent → **normalize to column 0**), and the rule-based-breaking change
-(breaking is by count, not by width — `maxLineLength`/`fits`/width all removed, 2026-07-16) are all
-resolved. D3 (explicit default `maxLineLength`) is now moot — there is no line-width option.
+The aesthetic and breaking-model decisions are settled (breaking is by count, not width; output
+normalizes to column 0; there is no line-width option). What's left are the narrower sub-cases still
+rendered inline or passed through unchanged — a `case` or subquery wrapped in a function call, and
+comments mid-token or inside a function-wrapped subquery. See **`.claude/rules/roadmap.md`** and the
+README's "Known limitations".
