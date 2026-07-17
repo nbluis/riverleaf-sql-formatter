@@ -33,20 +33,16 @@ goal is to be an excellent fit for that particular taste — not a general-purpo
 to your own conventions.
 
 <table>
+<tr><th align="left" width="840">You write this…</th></tr>
 <tr><td>
-
-<img width="810" height="1">
-
-**You write this…**
 
 ```sql
 select id, name from planets where mass > 10
 ```
 
 </td></tr>
+<tr><th align="left" width="840">…and get this:</th></tr>
 <tr><td>
-
-**…and get this:**
 
 ```sql
 select id,
@@ -105,20 +101,16 @@ There is no line-width / maximum-line-length setting: breaking is by rule, not b
 **Spaces only, never tabs. Keywords are lowercased; identifiers are left untouched.**
 
 <table>
+<tr><th align="left" width="840">IN</th></tr>
 <tr><td>
-
-<img width="810" height="1">
-
-**IN**
 
 ```sql
 SELECT Name FROM Planets
 ```
 
 </td></tr>
+<tr><th align="left" width="840">OUT</th></tr>
 <tr><td>
-
-**OUT**
 
 ```sql
 select Name
@@ -133,20 +125,16 @@ A single-item list stays inline. (Applies to `select`, `from`, `group by`, `orde
 DML `set` / `values` / `insert` column list.)
 
 <table>
+<tr><th align="left" width="840">IN</th></tr>
 <tr><td>
-
-<img width="810" height="1">
-
-**IN**
 
 ```sql
 select id, name, mass from planets
 ```
 
 </td></tr>
+<tr><th align="left" width="840">OUT</th></tr>
 <tr><td>
-
-**OUT**
 
 ```sql
 select id,
@@ -162,11 +150,8 @@ select id,
 the river. A single condition stays inline.
 
 <table>
+<tr><th align="left" width="840">IN</th></tr>
 <tr><td>
-
-<img width="810" height="1">
-
-**IN**
 
 ```sql
 select name from planets
@@ -174,9 +159,8 @@ where mass > 10 and radius < 5
 ```
 
 </td></tr>
+<tr><th align="left" width="840">OUT</th></tr>
 <tr><td>
-
-**OUT**
 
 ```sql
 select name
@@ -191,11 +175,8 @@ select name
 **A parenthesized boolean group always expands**, aligning its own `and` / `or` one level in.
 
 <table>
+<tr><th align="left" width="840">IN</th></tr>
 <tr><td>
-
-<img width="810" height="1">
-
-**IN**
 
 ```sql
 select name from planets
@@ -204,9 +185,8 @@ and (mass > 10 or radius < 5)
 ```
 
 </td></tr>
+<tr><th align="left" width="840">OUT</th></tr>
 <tr><td>
-
-**OUT**
 
 ```sql
 select name
@@ -225,11 +205,8 @@ select name
 join stays inline.
 
 <table>
+<tr><th align="left" width="840">IN</th></tr>
 <tr><td>
-
-<img width="810" height="1">
-
-**IN**
 
 ```sql
 select p.mass from planets p
@@ -238,9 +215,8 @@ and s.parent_id is null
 ```
 
 </td></tr>
+<tr><th align="left" width="840">OUT</th></tr>
 <tr><td>
-
-**OUT**
 
 ```sql
 select p.mass
@@ -256,11 +232,8 @@ select p.mass
 `)` sits under the owner. The `with` preamble stays at the left margin, off the river.
 
 <table>
+<tr><th align="left" width="840">IN</th></tr>
 <tr><td>
-
-<img width="810" height="1">
-
-**IN**
 
 ```sql
 with bright as (select id from stars
@@ -268,9 +241,8 @@ where mass > 10) select id from bright
 ```
 
 </td></tr>
+<tr><th align="left" width="840">OUT</th></tr>
 <tr><td>
-
-**OUT**
 
 ```sql
 with bright as (
@@ -289,11 +261,8 @@ select id
 its line. Nested `case`s expand recursively.
 
 <table>
+<tr><th align="left" width="840">IN</th></tr>
 <tr><td>
-
-<img width="810" height="1">
-
-**IN**
 
 ```sql
 select name,
@@ -303,9 +272,8 @@ from planets
 ```
 
 </td></tr>
+<tr><th align="left" width="840">OUT</th></tr>
 <tr><td>
-
-**OUT**
 
 ```sql
 select name,
@@ -323,11 +291,8 @@ select name,
 same list and `where` rules apply.
 
 <table>
+<tr><th align="left" width="840">IN</th></tr>
 <tr><td>
-
-<img width="810" height="1">
-
-**IN**
 
 ```sql
 update planets set mass = 10,
@@ -335,9 +300,8 @@ radius = 5 where id = 1
 ```
 
 </td></tr>
+<tr><th align="left" width="840">OUT</th></tr>
 <tr><td>
-
-**OUT**
 
 ```sql
 update planets
@@ -354,11 +318,8 @@ keeps its own line. (Comments that can't be moved safely are left exactly as wri
 [Known limitations](#known-limitations).)
 
 <table>
+<tr><th align="left" width="840">IN</th></tr>
 <tr><td>
-
-<img width="810" height="1">
-
-**IN**
 
 ```sql
 select mass, -- in solar masses
@@ -366,9 +327,8 @@ radius from planets
 ```
 
 </td></tr>
+<tr><th align="left" width="840">OUT</th></tr>
 <tr><td>
-
-**OUT**
 
 ```sql
 select mass, -- in solar masses
@@ -383,20 +343,16 @@ select mass, -- in solar masses
 grows on one line however long it gets, and only *structure* ever forces a break.
 
 <table>
+<tr><th align="left" width="840">IN</th></tr>
 <tr><td>
-
-<img width="810" height="1">
-
-**IN**
 
 ```sql
 select apparent_magnitude - absolute_magnitude + distance / luminosity as index from stars
 ```
 
 </td></tr>
+<tr><th align="left" width="840">OUT</th></tr>
 <tr><td>
-
-**OUT**
 
 ```sql
 select apparent_magnitude - absolute_magnitude + distance / luminosity as index
