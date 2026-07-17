@@ -58,7 +58,7 @@ verdes.
 | A1 | Operadores multi-char PG (`@>`,`<@`,`#>`,`#>>`,`?`,`?|`,`?&`,`@@`,`~*`,`!~`,`&&`,`<<`,`>>`) | ✅ **resolvido** (maximal-munch, Fase 1) | corrupção | **1** ✅ |
 | A2 | `IS [NOT] DISTINCT FROM` | ✅ **resolvido** (guard no `FROM`, Fase 2) | corrupção | **2** ✅ |
 | A3 | `FOR UPDATE`/`FOR SHARE`/`FOR NO KEY UPDATE` (+`OF`/`NOWAIT`/`SKIP LOCKED`) | ✅ **resolvido** (cláusula `for` no rio, Fase 2) | corrupção | **2** ✅ |
-| A4 | `INSERT ... ON CONFLICT ... DO UPDATE/NOTHING` | **corrompe** (`conflict(id)` glued, `UPDATE` split) | corrupção | **3** |
+| A4 | `INSERT ... ON CONFLICT ... DO UPDATE/NOTHING` | ✅ **resolvido** (cláusula `on conflict` no rio, Fase 3) | corrupção | **3** ✅ |
 | A5 | `WITH ORDINALITY` (from-item) | ✅ **resolvido** (guard no `WITH`, Fase 2) | corrupção leve | **2** ✅ |
 | A6 | `MERGE ... WHEN MATCHED THEN ...` (PG 15+) | **corrompe** total | corrupção (grande) | **6** (opcional) |
 | B1 | `SELECT DISTINCT` / `DISTINCT ON (...)` | ✅ ok | sem teste | 4 |
@@ -212,7 +212,19 @@ select t.val,
 
 ---
 
-## Fase 3 — `INSERT ... ON CONFLICT` (upsert) (A4)
+## Fase 3 — `INSERT ... ON CONFLICT` (upsert) (A4) ✅ CONCLUÍDA (2026-07-17)
+
+> **Feito.** `isClauseBoundary` (`segmenter.ts`) consome `on conflict [target] [where ...] do
+> (nothing | update)` como **um head só** (kind `generic`, `on` entra no rio), varrendo até o `DO`
+> em depth 0 e incluindo `do` + a ação — assim o `UPDATE` interno nunca vira âncora DML, e o target
+> `(cols)` + o `where` de índice parcial pegam carona na linha do `on conflict`. O `set` do
+> `do update` e o `where` final do update ancoram como cláusulas de rio normais abaixo.
+> **Decisão do usuário: opção A, no rio.** `keywords.ts` ganhou `CONFLICT`/`DO`/`NOTHING`/
+> `CONSTRAINT` (o `DO` precisa ser keyword para a varredura; `CONFLICT` keyword dá o espaço antes do
+> `(` de graça via `renderTokens`). `EXCLUDED` ficou como identificador (`excluded.col`, preservado).
+> 6 casos novos em `dml.yaml` (do update / do nothing ±target / on constraint / multi-set / partial
+> where + update where). Conferido: casing upper, `returning` depois (comportamento de rio
+> pré-existente), e regressão do join `ON` (não-conflict). Suíte 245 verde, `tsc`/`lint` limpos.
 
 Hoje (corrompido):
 ```

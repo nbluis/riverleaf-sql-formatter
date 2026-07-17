@@ -25,8 +25,12 @@ array `&&`, bit-shift `<<`/`>>`) are no longer sliced apart — locked by `test/
 `IS [NOT] DISTINCT FROM` keeps its `from`, `WITH ORDINALITY` stays a from-item modifier, and the
 row-locking clause `FOR UPDATE`/`FOR SHARE`/… joins the river as a `for` clause head (locked by
 `locking.yaml`, `from_functions.yaml`, and new `where.yaml` cases).
-Remaining: Phase 3 (`ON CONFLICT`), Phase 4 (golden coverage for working features), Phase 5 (set-ops
-river decision), Phase 6 (`MERGE`).
+**Phase 3 done (A4, 2026-07-17):** `INSERT … ON CONFLICT … DO UPDATE/NOTHING` (upsert) is consumed
+as one `on` clause head that joins the river (inner `UPDATE` not an anchor); `set` and any trailing
+update `where` follow as ordinary clauses; `on conflict (cols)` keeps its space (locked by
+`dml.yaml`).
+Remaining: Phase 4 (golden coverage for working features), Phase 5 (set-ops river decision),
+Phase 6 (`MERGE`).
 
 ## When you pick one up
 

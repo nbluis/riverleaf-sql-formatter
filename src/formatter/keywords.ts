@@ -114,6 +114,14 @@ export const KEYWORDS: ReadonlySet<string> = new Set([
   'SKIP',
   'LOCKED',
   'ORDINALITY',
+  // INSERT ... ON CONFLICT (upsert). CONFLICT is a keyword (not a function) so the
+  // conflict target keeps a space before its '('; DO must be a keyword so the
+  // segmenter can find the action terminal. EXCLUDED stays an identifier (it reads
+  // as a table reference, `excluded.col`, and identifiers are preserved as written).
+  'CONFLICT',
+  'DO',
+  'NOTHING',
+  'CONSTRAINT',
 ]);
 
 /**

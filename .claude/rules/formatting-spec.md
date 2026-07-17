@@ -52,6 +52,13 @@ no `maxWidth` — all removed. Two categories:
     a one-line head like `limit`). The strength keywords (`NO`/`KEY`/`UPDATE`/`SHARE`) are consumed
     **into the head** so the inner `UPDATE`/`SHARE` are never re-examined as DML anchors; the
     remainder (`OF` list, `NOWAIT`/`SKIP LOCKED`) flows as the body (A3).
+  - **`ON CONFLICT` (upsert)** — `on conflict [ (target) | on constraint name ] [where predicate]
+    do (nothing | update)`. The whole run from `ON CONFLICT` through the `DO NOTHING`/`DO UPDATE`
+    terminal is consumed as **one clause head** (kind `generic`, `on` joins the river), so the inner
+    `UPDATE` is not a DML anchor and the target `(cols)` + partial-index `WHERE` ride the on-conflict
+    line. The `DO UPDATE`'s `SET` and any trailing update `WHERE` then anchor as ordinary river
+    clauses below it. `CONFLICT` is a keyword, so `on conflict (cols)` keeps its space before the
+    `(` for free (`renderTokens`). `EXCLUDED` stays an identifier (`excluded.col`, preserved) (A4).
 - `K = max(firstWord.length over all clauses **except `cte`**)` (dominated by `select`=6 in typical
   queries). The `with` (cte) preamble is **not part of the river** — it is a standalone command that
   always sits at the base column (0), so its first word is excluded from `K` (it never pulls the

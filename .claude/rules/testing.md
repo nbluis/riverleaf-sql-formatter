@@ -13,7 +13,8 @@ scenarios can be added without touching code — this is our regression guardrai
   - `joins.yaml` — joins: single-ON inline, multi-ON breaks (secondary river).
   - `comments.yaml` — all comment placement (inline / standalone / leading / between / in-group / ON / post-`;`).
   - `case.yaml` — `case ... end` (list, where/having, join ON, nested).
-  - `dml.yaml` — `insert` / `update` / `delete` (+ set/values, insert columns, tuples).
+  - `dml.yaml` — `insert` / `update` / `delete` (+ set/values, insert columns, tuples, `on conflict`
+    upsert).
   - `subquery.yaml` — subqueries (non-CTE): from / where / join ON / join-table / scalar / function-wrapped.
   - `cte.yaml` — `with` common table expressions (single, multiple, inner where, comment inside).
   - `lateral.yaml` — `LATERAL` derived tables.

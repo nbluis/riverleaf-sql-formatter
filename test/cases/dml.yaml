@@ -75,3 +75,54 @@
                        notes)
     values (1, 2, 3),
            ('a long designation value here', 'another quite long designation', 'a third long designation too')
+# ON CONFLICT (upsert). `on conflict ... do update/nothing` joins the river as its
+# own clause (head `on`); the inner UPDATE is not a DML anchor. `set` and any
+# trailing update WHERE follow as normal river clauses. The conflict target keeps
+# a space before its '(' (CONFLICT is a keyword, not a function). (A4)
+- description: on conflict do update set (upsert)
+  input: insert into planets (id, mass) values (1, 5.9) on conflict (id) do update set mass = excluded.mass
+  expected: |
+    insert into planets (id,
+                         mass)
+    values (1, 5.9)
+        on conflict (id) do update
+       set mass = excluded.mass
+- description: on conflict do nothing (no target)
+  input: insert into planets (id) values (1) on conflict do nothing
+  expected: |
+    insert into planets (id)
+    values (1)
+        on conflict do nothing
+- description: on conflict (target) do nothing
+  input: insert into planets (id) values (1) on conflict (id) do nothing
+  expected: |
+    insert into planets (id)
+    values (1)
+        on conflict (id) do nothing
+- description: on conflict on constraint do update
+  input: insert into planets (id, mass) values (1, 5.9) on conflict on constraint uq_planet_code do update set mass = excluded.mass
+  expected: |
+    insert into planets (id,
+                         mass)
+    values (1, 5.9)
+        on conflict on constraint uq_planet_code do update
+       set mass = excluded.mass
+- description: on conflict do update with a multi-assignment set (breaks by count)
+  input: insert into planets (id, mass, radius) values (1, 5.9, 2.1) on conflict (id) do update set mass = excluded.mass, radius = excluded.radius
+  expected: |
+    insert into planets (id,
+                         mass,
+                         radius)
+    values (1, 5.9, 2.1)
+        on conflict (id) do update
+       set mass = excluded.mass,
+           radius = excluded.radius
+- description: on conflict with a partial-index where and an update where
+  input: insert into planets (id, mass) values (1, 5.9) on conflict (id) where is_active do update set mass = excluded.mass where planets.mass < excluded.mass
+  expected: |
+    insert into planets (id,
+                         mass)
+    values (1, 5.9)
+        on conflict (id) where is_active do update
+       set mass = excluded.mass
+     where planets.mass < excluded.mass

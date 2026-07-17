@@ -182,6 +182,29 @@ function isClauseBoundary(tokens: Token[], i: number): number {
   // WITH ORDINALITY is a from-item modifier, not a CTE — don't anchor here (A5).
   if (up === 'WITH' && tokens[i + 1]?.upper === 'ORDINALITY') return 0;
 
+  // INSERT ... ON CONFLICT [target] [WHERE ...] DO (NOTHING | UPDATE SET ...).
+  // Consume `on conflict ... do (nothing | update)` as a single clause head so the
+  // inner UPDATE is not seen as a DML anchor and the conflict target / partial-index
+  // WHERE ride the on-conflict line; the `set` and any trailing update WHERE then
+  // anchor as their own river clauses (A4). CONFLICT being a keyword gives the space
+  // before the target '(' for free (renderTokens).
+  if (up === 'ON' && tokens[i + 1]?.upper === 'CONFLICT') {
+    let j = i + 2;
+    let d = 0;
+    while (j < tokens.length) {
+      const t = tokens[j];
+      if (t.type === 'punct' && t.value === '(') d++;
+      else if (t.type === 'punct' && t.value === ')') d = Math.max(0, d - 1);
+      else if (d === 0 && t.type === 'keyword' && t.upper === 'DO') {
+        // include DO and its action word (NOTHING / UPDATE), then stop
+        j += tokens[j + 1] ? 2 : 1;
+        return j - i;
+      }
+      j++;
+    }
+    return j - i; // no DO found (malformed) — consume the rest, never split
+  }
+
   // Row-locking clause: FOR (UPDATE | NO KEY UPDATE | SHARE | KEY SHARE) [OF ...]
   // [NOWAIT | SKIP LOCKED]. `for` anchors its own clause; consume the strength
   // keywords into the head so the inner UPDATE/SHARE are not seen as DML anchors
