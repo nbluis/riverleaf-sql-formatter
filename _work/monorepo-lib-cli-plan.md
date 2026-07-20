@@ -18,9 +18,16 @@
   tooling de build/lint é *hoisted* da raiz. Assim ambos mantêm o nome `riverleaf-sql-formatter` (um no
   npm, outro via `publisher.name` no Marketplace) sem conflito. `workspaces: ["packages/core"]` (lista
   explícita, não glob `packages/*`).
-- **Próximas:** Fase 2 (entry `index.ts` + build ESM/`.d.ts`), Fase 3 (CLI), Fase 4 (extensão consome o
-  core via nome do pacote + mover `assets/` e README de extensão pra `packages/vscode` + verificar no
-  editor), Fase 5 (publish), Fase 6 (CI, opcional).
+- **Fase 2 — lib publicável: FEITA.** `packages/core/src/index.ts` reexporta `format`/`FormatOptions`/
+  `DEFAULT_OPTIONS`. Build ESM-only: `build:js` (esbuild bundle → `dist/index.js`) + `build:types`
+  (`tsc -p tsconfig.build.json --emitDeclarationOnly` → `dist/index.d.ts` + `dist/formatter/*.d.ts`).
+  `package.json` do core: `type: module`, `exports` (`types`+`import`), `files: ["dist"]`,
+  `sideEffects: false`, `engines.node >=16`, **zero `dependencies`**. Smoke test OK: `import { format }
+  from 'riverleaf-sql-formatter'` resolve pelo symlink do workspace → `dist` e formata. Root ganhou
+  `build`/`build:core`. `dist/` está no `.gitignore`.
+- **Próximas:** Fase 3 (CLI `riverleaf` + bin + testes), Fase 4 (extensão consome o core via nome do
+  pacote + mover `assets/` e README de extensão pra `packages/vscode` + verificar no editor), Fase 5
+  (publish), Fase 6 (CI, opcional).
 
 ## Objetivo
 

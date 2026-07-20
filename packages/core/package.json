@@ -15,10 +15,41 @@
     "url": "https://github.com/nbluis/riverleaf-sql-formatter/issues"
   },
   "homepage": "https://github.com/nbluis/riverleaf-sql-formatter#readme",
+  "keywords": [
+    "sql",
+    "formatter",
+    "format",
+    "sql-formatter",
+    "pretty-print",
+    "align",
+    "river",
+    "riverleaf"
+  ],
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist",
+    "build": "npm run clean && npm run build:js && npm run build:types",
+    "build:js": "esbuild src/index.ts --bundle --platform=node --format=esm --target=es2020 --sourcemap --outfile=dist/index.js",
+    "build:types": "tsc -p tsconfig.build.json"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

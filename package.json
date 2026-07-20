@@ -19,6 +19,8 @@
     "test:watch": "npm run test:watch -w riverleaf-sql-formatter",
     "typecheck": "tsc -p packages/core/tsconfig.json && tsc -p packages/vscode/tsconfig.json",
     "lint": "eslint packages/core/src packages/core/test packages/vscode/src",
+    "build": "npm run build:core && npm run build:vscode",
+    "build:core": "npm run build -w riverleaf-sql-formatter",
     "build:vscode": "node packages/vscode/esbuild.js",
     "package": "npm --prefix packages/vscode run package"
   },
