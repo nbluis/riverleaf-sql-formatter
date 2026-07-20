@@ -5,7 +5,7 @@
 // the shell (`riverleaf src/**/*.sql`). Reads files or stdin, formats with the
 // river-alignment core, and either prints to stdout, rewrites in place (--write),
 // or checks formatting for CI (--check).
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, realpathSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { format, FormatOptions } from './index';
 
@@ -224,12 +224,24 @@ export async function run(
   return 0;
 }
 
-// Only drive the process when invoked as the entry point (the `riverleaf` bin),
-// not when imported by tests.
-const invokedPath = process.argv[1];
-const isMain = invokedPath !== undefined && import.meta.url === pathToFileURL(invokedPath).href;
+/**
+ * True when this module is the process entry point (the `riverleaf` bin), so it
+ * should drive the process — false when imported (e.g. by tests). When installed,
+ * the bin is a symlink (node_modules/.bin/riverleaf ->
+ * ../riverleaf-sql-formatter/dist/cli.js), so `invokedPath` (argv[1]) is the
+ * symlink path while `importMetaUrl` is the real path; resolve the symlink with
+ * realpathSync before comparing, or the CLI silently no-ops under `npx riverleaf`.
+ */
+export function isEntryPoint(importMetaUrl: string, invokedPath: string | undefined): boolean {
+  if (invokedPath === undefined) return false;
+  try {
+    return importMetaUrl === pathToFileURL(realpathSync(invokedPath)).href;
+  } catch {
+    return false;
+  }
+}
 
-if (isMain) {
+if (isEntryPoint(import.meta.url, process.argv[1])) {
   run(process.argv.slice(2))
     .then((code) => process.exit(code))
     .catch((err) => {

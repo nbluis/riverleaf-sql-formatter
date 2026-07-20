@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { mkdtempSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, writeFileSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { run, parseArgs, UsageError } from '../src/cli';
+import { run, parseArgs, UsageError, isEntryPoint } from '../src/cli';
 
 // Capture everything a run() writes to stdout/stderr without touching the real
 // streams, so assertions stay hermetic.
@@ -81,6 +82,30 @@ describe('parseArgs', () => {
     expect(() => parseArgs(['--indent-size', 'x'])).toThrow(UsageError);
     expect(() => parseArgs(['--indent-size', '-1'])).toThrow(UsageError);
     expect(() => parseArgs(['--keyword-case'])).toThrow(UsageError);
+  });
+});
+
+describe('isEntryPoint', () => {
+  it('matches when argv[1] is the module file itself', () => {
+    const real = tmpFile('cli.js', '');
+    expect(isEntryPoint(pathToFileURL(real).href, real)).toBe(true);
+  });
+
+  it('matches through a bin symlink (npx installs the bin as a symlink)', () => {
+    const real = tmpFile('cli.js', '');
+    const link = join(real, '..', 'riverleaf-link');
+    symlinkSync(real, link);
+    // import.meta.url is the real path; argv[1] is the symlink — must still match.
+    expect(isEntryPoint(pathToFileURL(real).href, link)).toBe(true);
+  });
+
+  it('does not match a different file or missing argv[1]', () => {
+    const real = tmpFile('cli.js', '');
+    const other = join(real, '..', 'other.js');
+    writeFileSync(other, '');
+    expect(isEntryPoint(pathToFileURL(real).href, other)).toBe(false);
+    expect(isEntryPoint(pathToFileURL(real).href, undefined)).toBe(false);
+    expect(isEntryPoint(pathToFileURL(real).href, join(real, '..', 'nope.js'))).toBe(false);
   });
 });
 

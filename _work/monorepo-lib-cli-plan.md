@@ -50,8 +50,22 @@
   + `out/extension.js` + `assets/icon.png`. **Removido `baseUrl`** do tsconfig da vscode (deprecado no
   TS 6; `paths` funciona sem ele sob `moduleResolution: bundler`).
 - **Falta na Fase 4:** usuário rodar `build-install-vsix` e testar Format Document num `.sql` no editor.
-- **Próximas:** Fase 5 (publish: README do core p/ npm + `LICENSE` em cada pacote + `prepublishOnly` +
-  `npm publish --dry-run`), Fase 6 (CI, opcional).
+- **Fase 5 — preparação de publicação: FEITA.** `packages/core/README.md` (npm: uso via `import` +
+  `npx riverleaf`, tabela de flags, exemplos do dicionário). `LICENSE` copiado pra `packages/core` e
+  `packages/vscode` (npm e vsce incluem automaticamente). `prepublishOnly` no core =
+  `typecheck && test && build`. `npm publish --dry-run -w core`: tarball limpo de **18 arquivos**
+  (`dist/` + `README.md` + `LICENSE` + `package.json`), **sem warnings**. `vsce ls` da extensão = 5
+  arquivos (`package.json` + `README.md` + `LICENSE` + `out/extension.js` + `assets/icon.png`).
+  **Bug pego e corrigido:** o `bin` tinha `./dist/cli.js` e o npm 11 removia o bin no publish
+  (`npm pkg fix` → `dist/cli.js`); e o guard `isMain` comparava `import.meta.url` (path real) com
+  `argv[1]` (o **symlink** do `.bin`), então `npx riverleaf` não fazia nada — corrigido resolvendo o
+  symlink com `realpathSync` (helper puro `isEntryPoint`, +3 testes → **360**). Validado com
+  pack+install real num consumidor: bin roda, `import` ESM funciona.
+- **Falta pro publish de fato (passos manuais do usuário):** `npm login` + `npm publish -w
+  riverleaf-sql-formatter`; publicar a extensão no Marketplace (`vsce publish`, PAT); gravar o GIF de
+  demo.
+- **Próxima (opcional):** Fase 6 — CI (GitHub Actions: test+lint+typecheck+build em PR; publish em
+  tag/release com secrets `NPM_TOKEN`/`VSCE_PAT`).
 
 ## Objetivo
 
