@@ -1,6 +1,7 @@
 # Formatting algorithm spec
 
-Read this before editing `src/formatter/layout.ts` or `src/formatter/segmenter.ts`. It captures the
+Read this before editing `packages/core/src/formatter/layout.ts` or
+`packages/core/src/formatter/segmenter.ts`. It captures the
 non-obvious rules that are expensive to re-derive from code. Positions below are 0-indexed character
 columns.
 

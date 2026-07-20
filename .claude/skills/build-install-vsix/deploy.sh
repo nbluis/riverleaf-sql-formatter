@@ -3,16 +3,17 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-cd "$ROOT"
+VSCODE_PKG="$ROOT/packages/vscode"
+cd "$VSCODE_PKG"
 
 echo "→ building"
-npm run build
+node esbuild.js
 
 echo "→ packaging"
 npx --yes @vscode/vsce package --allow-missing-repository --skip-license
 
 VSIX="$(ls -t ./*.vsix | head -1)"
-echo "→ vsix: $VSIX"
+echo "→ vsix: $VSCODE_PKG/$VSIX"
 
 echo "→ uninstalling previous builds (any publisher)"
 code --list-extensions 2>/dev/null | grep -i 'riverleaf-sql-formatter' | while read -r ext; do

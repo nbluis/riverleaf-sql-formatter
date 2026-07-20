@@ -368,8 +368,10 @@ select apparent_magnitude - absolute_magnitude + distance / luminosity as index
 
 ```bash
 npm install
-npm test          # core tests (vitest)
-npm run build     # extension bundle (esbuild)
+npm test              # core tests (vitest)
+npm run typecheck     # tsc --noEmit on both packages
+npm run lint          # eslint
+npm run build:vscode  # extension bundle (esbuild)
 ```
 
 To debug, press **F5** in VS Code (opens the Extension Development Host).
@@ -377,8 +379,9 @@ To build the `.vsix`: `npm run package`.
 
 ### Adding formatting cases
 
-Tests are data-driven: `test/cases/*.yaml` holds the scenarios and `test/cases.test.ts`
-loads **every** `.yaml` file in that folder. To add a scenario, drop a new entry into an
+Tests are data-driven: `packages/core/test/cases/*.yaml` holds the scenarios and
+`packages/core/test/cases.test.ts` loads **every** `.yaml` file in that folder. To add a scenario,
+drop a new entry into an
 existing file (or create a new one like `mysql.yaml`, `postgres_cte.yaml`, ...):
 
 ```yaml
@@ -406,7 +409,7 @@ Contributions are welcome — especially real-world SQL that Riverleaf mangles.
   with the **input SQL** and the **output you expect**. That input/expected pair is exactly what
   becomes a regression test.
 - **Anything else** (feature idea, question, docs) → the *Other issue* template.
-- **Pull requests** are test-first: add a YAML case under `test/cases/*.yaml` that captures the
+- **Pull requests** are test-first: add a YAML case under `packages/core/test/cases/*.yaml` that captures the
   behavior (see [Adding formatting cases](#adding-formatting-cases)), then make it pass. Before
   opening the PR, make sure `npm test` and `npm run lint` are green and formatting stays idempotent.
 

@@ -1,6 +1,6 @@
 ---
 name: build-install-vsix
-description: Build, package, and install the Riverleaf SQL Formatter VS Code extension locally. Use after changing runtime code in src/ to test the extension in the real editor, or whenever a fresh .vsix should replace the installed build.
+description: Build, package, and install the Riverleaf SQL Formatter VS Code extension locally. Use after changing runtime code in packages/core/src or packages/vscode/src to test the extension in the real editor, or whenever a fresh .vsix should replace the installed build.
 ---
 
 # build-install-vsix
@@ -24,6 +24,6 @@ Then reload the VS Code window (`Developer: Reload Window`) so the new build is 
   yet).
 - Uninstalls **any** installed `*.riverleaf-sql-formatter` first, so publisher/name changes don't
   leave duplicates fighting to format `.sql`.
-- Only needed after **runtime** changes (`src/formatter/*`, `src/extension.ts`). Test-only, YAML,
-  or README changes don't require re-packaging.
+- Only needed after **runtime** changes (`packages/core/src/formatter/*`,
+  `packages/vscode/src/extension.ts`). Test-only, YAML, or README changes don't require re-packaging.
 - Verify a change actually works end-to-end (open a `.sql`, run Format Document) — not just tests.

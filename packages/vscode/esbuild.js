@@ -1,14 +1,19 @@
-// Extension bundle. The core (src/formatter) is pure TS and is also tested
-// directly by vitest without going through here.
+// Extension bundle. The formatter core (packages/core/src) is pure TS and is
+// bundled in here from source; it is also tested directly by vitest in the core
+// package without going through this build.
 const esbuild = require('esbuild');
+const path = require('node:path');
 
+// Resolve paths relative to this file so the build works no matter the cwd
+// (root `npm run build:vscode` runs it as `node packages/vscode/esbuild.js`).
+const here = __dirname;
 const watch = process.argv.includes('--watch');
 
 /** @type {import('esbuild').BuildOptions} */
 const options = {
-  entryPoints: ['src/extension.ts'],
+  entryPoints: [path.join(here, 'src/extension.ts')],
   bundle: true,
-  outfile: 'out/extension.js',
+  outfile: path.join(here, 'out/extension.js'),
   external: ['vscode'],
   format: 'cjs',
   platform: 'node',

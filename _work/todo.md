@@ -16,3 +16,10 @@
 
 - [ ] Adicionar `repository` ao `package.json` (hoje o `vsce package` roda com
       `--allow-missing-repository`) e conferir `LICENSE` + `icon` para a listagem do Marketplace.
+
+## Distribuição
+
+- [ ] **Biblioteca npm + CLI (monorepo)** — ver `_work/monorepo-lib-cli-plan.md`. Reestruturar em
+      workspaces (`packages/core` = lib + CLI publicável, `packages/vscode` = extensão), sem mudar a
+      lógica de formatação. Esforço estimado ~1 dia; Fase 0 tem decisões a travar (nomes, bin, dual
+      ESM/CJS, tsup, versionamento, flags do CLI).

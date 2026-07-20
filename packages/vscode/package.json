@@ -1,0 +1,81 @@
+{
+  "name": "riverleaf-sql-formatter",
+  "displayName": "Riverleaf SQL Formatter",
+  "description": "Formats SQL in the river alignment style (keywords right-aligned to a common river).",
+  "version": "0.0.1",
+  "publisher": "nbluis",
+  "author": {
+    "name": "Eduardo Bohrer"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nbluis/riverleaf-sql-formatter.git",
+    "directory": "packages/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/nbluis/riverleaf-sql-formatter/issues"
+  },
+  "homepage": "https://github.com/nbluis/riverleaf-sql-formatter#readme",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Formatters"
+  ],
+  "keywords": [
+    "sql",
+    "formatter",
+    "format",
+    "sql formatter",
+    "align",
+    "river",
+    "riverleaf"
+  ],
+  "icon": "assets/icon.png",
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:sql"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "sql",
+        "aliases": [
+          "SQL",
+          "sql"
+        ],
+        "extensions": [
+          ".sql"
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "Riverleaf SQL Formatter",
+      "properties": {
+        "riverleaf.keywordCase": {
+          "type": "string",
+          "enum": [
+            "lower",
+            "upper",
+            "preserve"
+          ],
+          "default": "lower",
+          "description": "Case for SQL keywords."
+        },
+        "riverleaf.indentSize": {
+          "type": "number",
+          "default": 2,
+          "description": "Number of spaces per nesting level (parentheses/subqueries)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "vsce package"
+  }
+}

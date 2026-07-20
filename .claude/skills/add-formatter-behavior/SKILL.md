@@ -1,6 +1,6 @@
 ---
 name: add-formatter-behavior
-description: TDD workflow for extending or fixing how the Riverleaf SQL formatter lays out SQL. Use when changing formatting behavior in src/formatter (layout.ts, segmenter.ts, render.ts) — it enforces adding a failing YAML case first, then implementing, then verifying green and idempotent.
+description: TDD workflow for extending or fixing how the Riverleaf SQL formatter lays out SQL. Use when changing formatting behavior in packages/core/src/formatter (layout.ts, segmenter.ts, render.ts) — it enforces adding a failing YAML case first, then implementing, then verifying green and idempotent.
 ---
 
 # add-formatter-behavior
@@ -18,7 +18,7 @@ secondary river, comment handling, passthrough) and the module you'll touch.
 1. **Capture the desired output.** Decide the exact `expected` for the new/changed input. If it's a
    fix, the user often shows the target output — mirror it precisely (indentation matters).
 
-2. **Add a failing case (red).** Add an entry to a `test/cases/*.yaml` with `description`,
+2. **Add a failing case (red).** Add an entry to a `packages/core/test/cases/*.yaml` with `description`,
    optional `options`, `input`, `expected`. For a brand-new behavior whose exact output you must
    compute, use the `regen-format-cases` skill — but only after you've reviewed the output as
    correct. Run `npm test`; confirm it fails for the right reason (or, for a not-yet-supported

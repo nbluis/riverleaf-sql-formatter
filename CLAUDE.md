@@ -1,10 +1,22 @@
 # Riverleaf SQL Formatter — project guide for agents
 
-VS Code extension that formats SQL in the **river alignment** style: the first word of each clause
-is right-aligned to a common column (the "river"), spaces only, never tabs.
+Formats SQL in the **river alignment** style: the first word of each clause is right-aligned to a
+common column (the "river"), spaces only, never tabs.
 
 > Personal project of **Eduardo Bohrer** (publisher `nbluis`, author "Eduardo Bohrer").
 > Standalone and independent — don't infer an organization from the parent folder name.
+
+## Repository layout (npm workspaces monorepo)
+
+- **`packages/core/`** — the pure formatting core (`src/formatter/`), plus the tests (`test/`). This is
+  the package published to npm as `riverleaf-sql-formatter` (library + `riverleaf` CLI). It is the
+  **only** npm workspace and stays **dependency-free at runtime** (`js-yaml` is a test-only devDep).
+- **`packages/vscode/`** — the VS Code extension (`src/extension.ts`, `esbuild.js`). Marketplace id
+  `nbluis.riverleaf-sql-formatter`. It is **not** an npm workspace (its `name` collides with core's on
+  purpose — both are `riverleaf-sql-formatter`, one on npm, one via `publisher.name` on the
+  Marketplace); it consumes the core and its build/lint tooling is hoisted from the repo root.
+- **Root** — workspace manager (`private`, `workspaces: ["packages/core"]`), shared `tsconfig.base.json`
+  + `eslint.config.js`, and orchestration scripts. Per-package `tsconfig.json` extend the base.
 
 ## Golden rules
 
@@ -28,7 +40,7 @@ is right-aligned to a common column (the "river"), spaces only, never tabs.
 ## Layout & responsibilities
 
 Pure formatting core (no `vscode` import), consumed by a thin extension layer. Files under
-`src/formatter/`:
+`packages/core/src/formatter/`:
 
 - `types.ts` — `Token`, `FormatOptions`, `DEFAULT_OPTIONS` (keywordCase `lower`, indentSize `2`).
 - `keywords.ts` — keyword sets (`CLAUSE_STARTERS`, `JOIN_STARTERS`, `BOOL_CONNECTORS`,
@@ -42,8 +54,8 @@ Pure formatting core (no `vscode` import), consumed by a thin extension layer. F
 - `layout.ts` — the `Layout` alignment engine (river math, RIVER/BLOCK modes, breaking). **The hard
   part.** Read `.claude/rules/formatting-spec.md` before editing this or `segmenter.ts`.
 - `format.ts` — public `format(sql, options)`, comment-safety gate + passthrough fallback.
-- `../extension.ts` — registers the document/range formatting providers; config under `riverleaf.*`
-  (`keywordCase`, `indentSize`).
+- `packages/vscode/src/extension.ts` — registers the document/range formatting providers; config
+  under `riverleaf.*` (`keywordCase`, `indentSize`). Imports `format` from the core.
 
 ## Formatting rules at a glance
 
@@ -70,18 +82,19 @@ Full mechanics live in `.claude/rules/formatting-spec.md`. In short:
 
 ## Tests
 
-Data-driven: `test/cases/*.yaml` (the runner loads **every** yaml and asserts idempotency per case)
-plus a property test `test/comment-invariants.test.ts`. Add scenarios by editing yaml — no code
-changes. **Generate `expected` with the formatter, never hand-count spaces.** See
-`.claude/rules/testing.md`.
+Data-driven: `packages/core/test/cases/*.yaml` (the runner loads **every** yaml and asserts
+idempotency per case) plus a property test `packages/core/test/comment-invariants.test.ts`. Add
+scenarios by editing yaml — no code changes. **Generate `expected` with the formatter, never
+hand-count spaces.** See `.claude/rules/testing.md`.
 
-## Commands
+## Commands (run from the repo root)
 
 ```bash
-npm test       # vitest (core)
-npm run build  # esbuild bundle → out/extension.js
-npm run lint   # eslint
-npm run package
+npm test           # vitest (core) — the 341-case suite
+npm run typecheck  # tsc --noEmit on both packages
+npm run lint       # eslint over packages/*/src + core test
+npm run build:vscode  # esbuild bundle → packages/vscode/out/extension.js
+npm run package       # vsce package (in packages/vscode)
 ```
 
 Debug with **F5** (Extension Development Host). For a local install, use the `build-install-vsix`
@@ -101,7 +114,7 @@ skill.
 - `js-yaml` is on **5.x** (named exports — `import { dump } from 'js-yaml'`); `@types/js-yaml` stays
   on **4.x** (no 5.x typings; still type-checks clean).
 - ESLint uses **flat config** (`eslint.config.js`, ESLint 9+); there is no `.eslintrc`.
-  `tsconfig.json` sets `"types": ["node"]` (required for the tests to type-check under @types/node 26
-  / TypeScript 6).
-- After changing runtime code (`src/formatter/*`, `src/extension.ts`), re-package + re-install to test
-  in the real editor; test-only / README changes don't need it.
+  `tsconfig.base.json` sets `"types": ["node"]` (required for the tests to type-check under
+  @types/node 26 / TypeScript 6); each package's `tsconfig.json` extends it.
+- After changing runtime code (`packages/core/src/formatter/*`, `packages/vscode/src/extension.ts`),
+  re-package + re-install to test in the real editor; test-only / README changes don't need it.

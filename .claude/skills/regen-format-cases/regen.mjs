@@ -8,7 +8,7 @@
 //
 // Usage (from project root):
 //   npx tsx .claude/skills/regen-format-cases/regen.mjs cases.json
-//   npx tsx .claude/skills/regen-format-cases/regen.mjs cases.json --append test/cases/postgres.yaml
+//   npx tsx .claude/skills/regen-format-cases/regen.mjs cases.json --append packages/core/test/cases/postgres.yaml
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { readFileSync, appendFileSync } from 'node:fs';
 import path from 'node:path';
@@ -22,7 +22,9 @@ if (!specPath) {
   process.exit(1);
 }
 
-const { format } = await import(pathToFileURL(path.join(root, 'src/formatter/format.ts')).href);
+const { format } = await import(
+  pathToFileURL(path.join(root, 'packages/core/src/formatter/format.ts')).href
+);
 // js-yaml is on 5.x here, which uses named exports (no default export).
 const yaml = await import('js-yaml');
 

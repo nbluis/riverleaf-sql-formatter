@@ -1,6 +1,6 @@
 ---
 name: regen-format-cases
-description: Generate exact YAML test cases for the Riverleaf SQL formatter by running the formatter on SQL inputs. Use when adding or updating scenarios in test/cases/*.yaml so the expected river-aligned output is always correct instead of being hand-written.
+description: Generate exact YAML test cases for the Riverleaf SQL formatter by running the formatter on SQL inputs. Use when adding or updating scenarios in packages/core/test/cases/*.yaml so the expected river-aligned output is always correct instead of being hand-written.
 ---
 
 # regen-format-cases
@@ -29,13 +29,13 @@ error-prone. This skill runs the real formatter to produce the exact `expected`.
    Review the printed YAML. When it looks right, append it to the target file:
 
    ```bash
-   npx tsx .claude/skills/regen-format-cases/regen.mjs <spec.json> --append test/cases/postgres.yaml
+   npx tsx .claude/skills/regen-format-cases/regen.mjs <spec.json> --append packages/core/test/cases/postgres.yaml
    ```
 
    (Create a new yaml — `mysql.yaml`, `postgres_cte.yaml`, ... — for a distinct family.)
 
-3. Run `npm test`. The runner (`test/cases.test.ts`) picks up every yaml and also asserts
-   idempotency.
+3. Run `npm test`. The runner (`packages/core/test/cases.test.ts`) picks up every yaml and also
+   asserts idempotency.
 
 ## Rules
 

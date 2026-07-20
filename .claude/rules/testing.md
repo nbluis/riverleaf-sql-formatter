@@ -5,8 +5,9 @@ scenarios can be added without touching code — this is the regression guardrai
 
 ## Structure
 
-- `test/cases/*.yaml` — **one file per subject** (feature), not per dialect. The runner reads flat
-  (non-recursively), so a new dialect quirk just goes in a new `dialect_<name>.yaml`. Current files:
+- `packages/core/test/cases/*.yaml` — **one file per subject** (feature), not per dialect. The runner
+  reads flat (non-recursively), so a new dialect quirk just goes in a new `dialect_<name>.yaml`.
+  Current files:
   - `alignment.yaml` — the river: clause alignment, casing, multi-word keywords, indent normalization,
     multi-statement, the no-space-before-`(` rule, the showcase example.
   - `lists.yaml` — list clauses breaking by count, plus order-by modifiers (`nulls first/last`,
@@ -37,12 +38,13 @@ scenarios can be added without touching code — this is the regression guardrai
     `unnest`, column-definition lists, `tablesample`).
   - `operators.yaml` — multi-char operators (JSONB / regex / array / bit-shift) plus the classics
     (`::`/`->`/`->>`/`||`/`<>`/`>=`) as a regression guard.
-- `test/cases.test.ts` — the runner. It reads **every** `*.yaml`/`*.yml` in `test/cases/` and, per
+- `packages/core/test/cases.test.ts` — the runner. It reads **every** `*.yaml`/`*.yml` in
+  `packages/core/test/cases/` and, per
   entry, asserts:
   1. `format(input, options) === expected`
   2. idempotency: `format(expected, options) === expected` (opt out with `idempotent: false`).
 
-## Comment-safety invariants (`test/comment-invariants.test.ts`)
+## Comment-safety invariants (`packages/core/test/comment-invariants.test.ts`)
 
 A second, **property-based** test guards the coupling most prone to silent breakage: the
 comment-reflow layout (`layout.ts`) and the comment-safety gate (`format.ts`) must stay in agreement —

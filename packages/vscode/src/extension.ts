@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
-import { format, FormatOptions } from './formatter/format';
+// Phase 1: import the formatter core straight from its source in packages/core.
+// Phase 4 swaps this for the published package name ('riverleaf-sql-formatter').
+import { format, FormatOptions } from '../../core/src/formatter/format';
 
 function resolveOptions(document: vscode.TextDocument): FormatOptions {
   const cfg = vscode.workspace.getConfiguration('riverleaf', document);

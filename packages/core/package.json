@@ -1,0 +1,28 @@
+{
+  "name": "riverleaf-sql-formatter",
+  "version": "0.0.1",
+  "description": "Format SQL in the river alignment style — clause keywords right-aligned to a common column, spaces only.",
+  "license": "MIT",
+  "author": {
+    "name": "Eduardo Bohrer"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nbluis/riverleaf-sql-formatter.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/nbluis/riverleaf-sql-formatter/issues"
+  },
+  "homepage": "https://github.com/nbluis/riverleaf-sql-formatter#readme",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "js-yaml": "^5.2.1",
+    "vitest": "^4.1.9"
+  }
+}
