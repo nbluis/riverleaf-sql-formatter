@@ -25,9 +25,21 @@
   `sideEffects: false`, `engines.node >=16`, **zero `dependencies`**. Smoke test OK: `import { format }
   from 'riverleaf-sql-formatter'` resolve pelo symlink do workspace → `dist` e formata. Root ganhou
   `build`/`build:core`. `dist/` está no `.gitignore`.
-- **Próximas:** Fase 3 (CLI `riverleaf` + bin + testes), Fase 4 (extensão consome o core via nome do
-  pacote + mover `assets/` e README de extensão pra `packages/vscode` + verificar no editor), Fase 5
-  (publish), Fase 6 (CI, opcional).
+- **Fase 3 — CLI: FEITA.** `packages/core/src/cli.ts` (shebang, zero-dep, parse de args na mão; globs
+  ficam a cargo do shell). Flags: `-w/--write`, `--check`, `--keyword-case`, `--indent-size`, `--stdin`,
+  `-h/--help`, `-v/--version`, mais `--flag=value` e `--` (resto vira arquivo). Modos: stdin→stdout,
+  arquivos→stdout, `--write` in-place (só reescreve se mudou), `--check` (exit 1 se algo não formatado).
+  Exit codes: 0 ok / 1 check falhou / 2 uso ou I/O. `bin.riverleaf → ./dist/cli.js`; build passou a
+  bundlar 2 entries com `--splitting` (chunk compartilhado; shebang e `+x` preservados no `cli.js`).
+  `version` lida de `../package.json` via `import.meta.url`. Testável sem build: `run`/`parseArgs`
+  exportados, `readInput` injetável, auto-exec sob guarda `isMain`. **16 testes** novos
+  (`test/cli.test.ts`) → suíte agora **357**. `npm pack --dry-run` mostra tarball limpo (só `dist/` +
+  `package.json`). **Mudança de config:** `tsconfig.base.json` passou de `module: commonjs` para
+  `module: esnext` + `moduleResolution: bundler` (necessário pro `import.meta`; mantém imports sem
+  extensão do core; ambos os pacotes são bundlados por esbuild, então não afeta runtime).
+- **Próximas:** Fase 4 (extensão consome o core via nome do pacote + mover `assets/` e README de
+  extensão pra `packages/vscode` + verificar no editor), Fase 5 (publish: README do core + `.npmignore`/
+  `prepublishOnly`), Fase 6 (CI, opcional).
 
 ## Objetivo
 

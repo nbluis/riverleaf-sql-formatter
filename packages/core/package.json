@@ -35,6 +35,9 @@
       "import": "./dist/index.js"
     }
   },
+  "bin": {
+    "riverleaf": "./dist/cli.js"
+  },
   "sideEffects": false,
   "files": [
     "dist"
@@ -48,7 +51,7 @@
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist",
     "build": "npm run clean && npm run build:js && npm run build:types",
-    "build:js": "esbuild src/index.ts --bundle --platform=node --format=esm --target=es2020 --sourcemap --outfile=dist/index.js",
+    "build:js": "esbuild src/index.ts src/cli.ts --bundle --splitting --platform=node --format=esm --target=es2020 --sourcemap --outdir=dist",
     "build:types": "tsc -p tsconfig.build.json"
   },
   "devDependencies": {
