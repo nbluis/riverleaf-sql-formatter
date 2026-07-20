@@ -1,7 +1,12 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    "paths": {
+      "riverleaf-sql-formatter": [
+        "../core/src/index.ts"
+      ]
+    }
   },
   "include": [
     "src"

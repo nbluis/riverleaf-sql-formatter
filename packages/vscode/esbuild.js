@@ -15,6 +15,12 @@ const options = {
   bundle: true,
   outfile: path.join(here, 'out/extension.js'),
   external: ['vscode'],
+  // Resolve the `riverleaf-sql-formatter` import to the core's public entry
+  // (source), so the extension bundles the in-repo core directly — no dependency
+  // on a prior `build:core`. Mirrors the tsconfig `paths` mapping.
+  alias: {
+    'riverleaf-sql-formatter': path.join(here, '../core/src/index.ts'),
+  },
   format: 'cjs',
   platform: 'node',
   target: 'node16',

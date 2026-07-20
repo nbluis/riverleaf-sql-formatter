@@ -1,7 +1,8 @@
 import * as vscode from 'vscode';
-// Phase 1: import the formatter core straight from its source in packages/core.
-// Phase 4 swaps this for the published package name ('riverleaf-sql-formatter').
-import { format, FormatOptions } from '../../core/src/formatter/format';
+// Consume the published library by its package name. esbuild (alias) and tsc
+// (tsconfig paths) both resolve this to the core's public entry in packages/core,
+// so the extension always bundles the in-repo core with no build-order coupling.
+import { format, FormatOptions } from 'riverleaf-sql-formatter';
 
 function resolveOptions(document: vscode.TextDocument): FormatOptions {
   const cfg = vscode.workspace.getConfiguration('riverleaf', document);

@@ -37,9 +37,21 @@
   `package.json`). **Mudança de config:** `tsconfig.base.json` passou de `module: commonjs` para
   `module: esnext` + `moduleResolution: bundler` (necessário pro `import.meta`; mantém imports sem
   extensão do core; ambos os pacotes são bundlados por esbuild, então não afeta runtime).
-- **Próximas:** Fase 4 (extensão consome o core via nome do pacote + mover `assets/` e README de
-  extensão pra `packages/vscode` + verificar no editor), Fase 5 (publish: README do core + `.npmignore`/
-  `prepublishOnly`), Fase 6 (CI, opcional).
+- **Fase 4 — extensão consome o core: FEITA (falta só verificar no editor real — passo do usuário).**
+  `extension.ts` importa `format` de `'riverleaf-sql-formatter'` (nome do pacote), resolvido pra
+  `packages/core/src/index.ts` por **alias do esbuild** + **`paths` do tsconfig** (fonte, não `dist` —
+  sem acoplamento de ordem de build; `git clone && npm install && build:vscode` funciona sem
+  `build:core`). Bundle self-contained confirmado (0 refs bare ao pacote, lógica do formatter presente,
+  buildado do zero). `icon.png` e `.vscodeignore` movidos pra `packages/vscode` (o `.vscodeignore` foi
+  reescrito pro novo root do pacote). **README dividido:** o antigo README (listing da extensão) virou
+  `packages/vscode/README.md` (hero via URL absoluta do GitHub raw, snippet de build local ajustado,
+  seções de dev/contrib apontam pro repo); novo `README.md` na raiz = overview do monorepo (2 pacotes,
+  uso lib/CLI/extensão, dev, contributing). `vsce ls` mostra o vsix limpo: `package.json` + `README.md`
+  + `out/extension.js` + `assets/icon.png`. **Removido `baseUrl`** do tsconfig da vscode (deprecado no
+  TS 6; `paths` funciona sem ele sob `moduleResolution: bundler`).
+- **Falta na Fase 4:** usuário rodar `build-install-vsix` e testar Format Document num `.sql` no editor.
+- **Próximas:** Fase 5 (publish: README do core p/ npm + `LICENSE` em cada pacote + `prepublishOnly` +
+  `npm publish --dry-run`), Fase 6 (CI, opcional).
 
 ## Objetivo
 
