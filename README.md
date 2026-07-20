@@ -33,24 +33,13 @@ eye follows one clean vertical line down the query.
 
 > 🚧 **Work in progress** — behavior, rules, and options may change between versions.
 
-## Packages
+## Usage
 
-This is an npm-workspaces monorepo with two deliverables:
+### Use it in VS Code
 
-| Package | What it is | Where |
-| --- | --- | --- |
-| **[`riverleaf-sql-formatter`](packages/core)** | The formatter as a dependency-free npm library (`format()`) **and** the `riverleaf` CLI. | `packages/core` |
-| **Riverleaf SQL Formatter** (VS Code extension) | Format-on-save / Format Document for `.sql`, id `nbluis.riverleaf-sql-formatter`. | [`packages/vscode`](packages/vscode) |
-
-Both share one pure formatting core, so the editor, a script, and CI all produce identical output.
-
-### Use it as a library
-
-```ts
-import { format } from 'riverleaf-sql-formatter';
-
-format('select id, name from planets where mass > 10');
-```
+Install the **Riverleaf SQL Formatter** extension, open a `.sql` file, and run **Format Document**
+(`Shift+Alt+F` / `⇧⌥F`) or enable *format on save*. See
+[`packages/vscode/README.md`](packages/vscode/README.md) for settings and the full rule gallery.
 
 ### Use it from the command line
 
@@ -63,23 +52,13 @@ npx riverleaf --check src/**/*.sql
 cat query.sql | npx riverleaf --keyword-case upper
 ```
 
-Flags: `-w/--write`, `--check`, `--keyword-case lower|upper|preserve`, `--indent-size N`, `--stdin`,
-`-h/--help`, `-v/--version`. Globs are expanded by your shell.
+### Use it as a library
 
-### Use it in VS Code
+```ts
+import { format } from 'riverleaf-sql-formatter';
 
-Install the **Riverleaf SQL Formatter** extension, open a `.sql` file, and run **Format Document**
-(`Shift+Alt+F` / `⇧⌥F`) or enable *format on save*. See
-[`packages/vscode/README.md`](packages/vscode/README.md) for settings and the full rule gallery.
-
-## Options
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `keywordCase` | `lower` | `lower` / `upper` / `preserve`. |
-| `indentSize` | `2` | Spaces per nesting level (parentheses / subqueries). |
-
-There is no line-width / maximum-line-length option: breaking is **by rule (count), not by width**.
+format('select id, name from planets where mass > 10');
+```
 
 ## Development
 
@@ -95,6 +74,8 @@ Layout: `packages/core` (the only npm workspace; runtime dependency-free) holds 
 `src/index.ts`, `src/cli.ts`, and the `test/` suite; `packages/vscode` holds the extension and bundles
 the core from source. The extension `.vsix` is built with `npm run package`; press **F5** in VS Code
 for the Extension Development Host.
+
+Publishing a new version (npm + Marketplace) is documented in [RELEASING.md](RELEASING.md).
 
 ### Adding formatting cases
 
