@@ -138,6 +138,11 @@ GitHub UI if needed.
 
 ## Notes & recovery
 
+- **README.** There is a single source of truth: the root `README.md`. The npm and Marketplace
+  listings show generated copies — `scripts/sync-readme.mjs` copies it into `packages/core` and
+  `packages/vscode` automatically from `prepublishOnly` (npm) and `vscode:prepublish` (vsce), so the
+  README that appears in the dry-run tarball / `.vsix` above is expected. Edit the root README only;
+  the copies are git-ignored.
 - **Versioning.** Patch (`X.Y.Z+1`) for fixes, minor (`X.Y+1.0`) for new formatting behavior/flags,
   major for breaking changes. While pre-1.0, breaking changes may ride a minor bump.
 - **npm mistake.** You can `npm unpublish riverleaf-sql-formatter@$VERSION` only within 72h and only if

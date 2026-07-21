@@ -53,7 +53,7 @@
     "build": "npm run clean && npm run build:js && npm run build:types",
     "build:js": "esbuild src/index.ts src/cli.ts --bundle --splitting --platform=node --format=esm --target=es2020 --sourcemap --outdir=dist",
     "build:types": "tsc -p tsconfig.build.json",
-    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+    "prepublishOnly": "node ../../scripts/sync-readme.mjs && npm run typecheck && npm run test && npm run build"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

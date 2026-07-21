@@ -3,3 +3,8 @@ out/
 dist/
 *.vsix
 .DS_Store
+
+# Generated at publish time from the root README (scripts/sync-readme.mjs) —
+# the root README.md is the single source of truth; never edit these copies.
+packages/core/README.md
+packages/vscode/README.md
