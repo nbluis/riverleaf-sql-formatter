@@ -242,19 +242,23 @@ interior has >1 term). `between ... and ...` is protected: that `and` is not a s
     the column right after `on`. First ON term stays on the join line. A join with two or more ON
     conditions **always breaks** (by count); a single-condition ON stays inline (nothing to align).
 - **BLOCK mode** (`renderBoolBlock`, used inside an expanded parenthesized group): connectors are
-  **right-aligned** to the group's own river, same as the top level. Operands align at `blockIndent`;
-  each connector's right edge lands at `blockIndent - 1` (a secondary river inside the group), so a term
-  is `pad(blockIndent - 1 - connLen) + connector + " " + operand`. The first term has no connector and
-  sits at `blockIndent`. Standalone comments align with the operands (`blockIndent`).
+  **left-aligned at the group's block start**. Every term starts at `blockIndent`: the first term (no
+  connector) puts its operand there, and each subsequent term is
+  `pad(blockIndent) + connector + " " + operand` — the connector reads as the head of a fresh line and
+  its operand rides after it (so operands do **not** share a column). This is unlike the top-level
+  RIVER, where connectors right-align to the river. `lineStart` for every term is `blockIndent` (so a
+  nested group's `(`/`)` and an expanded subquery/case anchor there). Standalone comments align at the
+  block start (`blockIndent`).
 
 When a term is a group (`emitTerm`) — a group **always expands** (it only exists with >1 inner term, so
 the count rule always breaks it): emit `... (` on the owner line, render the interior in BLOCK mode at
 `blockIndent = ownerLineStart + indentSize`, close with `)` at `ownerLineStart` (aligned under the
-connector that owns the group). Because the `)` sits at `ownerLineStart` while the interior connectors
-align to the group river (`blockIndent - 1`), a **connector-preceded** group (e.g. `and (` inside an
-ON/where river) has its `(` and `)` in different columns, and a short interior connector (`or`) can
-protrude one column left of the owner connector — that is the mechanical result of right-aligning to the
-group river and is expected. For a **first-term** group (`where (`), the `(` and `)` share a column.
+connector that owns the group). The interior — first operand and every inner connector — is left-aligned
+one level in from the owner at `blockIndent`, so a **connector-preceded** group (e.g. `and (` inside an
+ON/where river) has its `(` and `)` in different columns (the `(` rides after `and`, the `)` sits under
+`and`) while the interior sits cleanly indented past them, and a **first-term** group (`where (`) has
+its `(` and `)` share a column. (Earlier the interior connectors right-aligned to a secondary group
+river at `blockIndent - 1`, which let a short `or` protrude left of the owner connector; that is gone.)
 
 ## Operator lexing (`tokenizer.ts`)
 

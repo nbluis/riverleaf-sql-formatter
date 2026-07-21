@@ -147,7 +147,7 @@
      where (
              status_id = 1
              -- inside the group
-          or status_id = 2
+             or status_id = 2
            )
        and mass > 0
 - description: an inline comment on a condition inside a parenthesized group is kept
@@ -162,7 +162,7 @@
       from planets
      where (
              status_id = 1
-          or status_id = 2 -- second option
+             or status_id = 2 -- second option
            )
        and mass > 0
 - description: a leading standalone comment inside a parenthesized group is kept
@@ -179,7 +179,7 @@
      where (
              -- head of group
              status_id = 1
-          or status_id = 2
+             or status_id = 2
            )
        and mass > 0
 - description: a line comment after the final semicolon glues under the statement

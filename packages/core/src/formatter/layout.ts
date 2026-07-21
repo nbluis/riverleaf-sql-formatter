@@ -104,22 +104,22 @@ export class Layout {
     }
   }
 
-  // --- boolean expression: BLOCK mode (connectors right-aligned, RIVER) --
-  // Used inside expanded parenthesized groups. Operands align at blockIndent;
-  // connectors are right-aligned so their right edge lands at blockIndent - 1
-  // (a secondary river inside the group, matching the top-level where/on style).
+  // --- boolean expression: BLOCK mode (connectors left-aligned) ----------
+  // Used inside expanded parenthesized groups. Every term starts at blockIndent:
+  // the first term's operand sits there, and each connector (`and`/`or`) is
+  // left-aligned there too, with its operand riding after `<conn> `. So the
+  // connector reads as the head of a fresh line at the group's block start
+  // (unlike the top-level RIVER, where connectors right-align to the river).
 
   private renderBoolBlock(terms: BoolTerm[], blockIndent: number): string[] {
     const lines: string[] = [];
-    const connEnd = blockIndent - 1; // connectors' right edge; operands at blockIndent
     for (const term of terms) {
-      // standalone comments sit on their own line, aligned with the operands
+      // standalone comments sit on their own line, at the block start column
       for (const c of term.commentsBefore ?? []) lines.push(pad(blockIndent) + c);
       if (term.connector) {
         const conn = caseConnector(term.connector, this.options);
-        const lineStart = connEnd - conn.length;
-        const prefix = pad(lineStart) + conn + ' ';
-        this.emitTerm(lines, term, prefix, lineStart, blockIndent);
+        const prefix = pad(blockIndent) + conn + ' ';
+        this.emitTerm(lines, term, prefix, blockIndent, blockIndent);
       } else {
         this.emitTerm(lines, term, pad(blockIndent), blockIndent, blockIndent);
       }

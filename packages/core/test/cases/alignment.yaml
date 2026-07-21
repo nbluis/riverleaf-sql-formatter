@@ -50,7 +50,7 @@
                        and planets.apparent_magnitude between 1 and 2
                        and (
                          planets.constellation_id = stars.constellation_id
-                      or planets.catalog_number = stars.catalog_number
+                         or planets.catalog_number = stars.catalog_number
                        )
      where previous_summary.galaxy_id = current_summary.galaxy_id
        and previous_summary.galaxy_id = 220

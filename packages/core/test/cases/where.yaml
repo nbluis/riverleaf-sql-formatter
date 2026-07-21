@@ -1,5 +1,5 @@
 # where / having (RIVER): a single condition inline, a parenthesized group
-# always expands (BLOCK), connectors right-aligned to the river.
+# always expands (BLOCK), inner connectors left-aligned at the group's block start.
 - description: a where with a single condition stays inline
   input: select id from planets where status_id = 1
   expected: |
@@ -13,17 +13,17 @@
       from planets
      where (
              status_id = 1
-          or status_id = 2
+             or status_id = 2
            )
-- description: an expanded OR group aligns its connectors to the group river (RIVER, D1)
+- description: an expanded OR group left-aligns its connectors at the group block start (RIVER, D1)
   input: select id from planets where (status_id = 1 or status_id = 2 or status_id = 3) and mass > 0
   expected: |
     select id
       from planets
      where (
              status_id = 1
-          or status_id = 2
-          or status_id = 3
+             or status_id = 2
+             or status_id = 3
            )
        and mass > 0
 # IS [NOT] DISTINCT FROM: the FROM belongs to the operator, not a new clause (A2).

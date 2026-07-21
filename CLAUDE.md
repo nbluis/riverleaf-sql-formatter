@@ -34,7 +34,9 @@ common column (the "river"), spaces only, never tabs.
 - Breaking is **by rule (count), not by width** — there is no line-width option and no `fits()`.
 - Output **normalizes to column 0** (source indentation is discarded); the widest clause head lands
   at column 0, so a formatted query round-trips.
-- Connectors (`and`/`or`) **right-align at every level** — top-level and inside expanded groups.
+- Connectors (`and`/`or`) **right-align to the river at the top level** (where/having/join ON), but
+  **left-align at the block start inside an expanded parenthesized group** — the inner `and`/`or` reads
+  as the head of a fresh line, indented in with the group's operands.
 - A `case`/subquery **wrapped in a function call** expands; **set operations stay in the river**.
 
 ## Layout & responsibilities
@@ -68,8 +70,8 @@ Full mechanics live in `.claude/rules/formatting-spec.md`. In short:
   `values` / the insert column list break one item per line when there's more than one; a single item
   grows inline.
 - **Booleans break by count.** `where`/`having` and a `join` ON break on more than one condition; a
-  parenthesized group always expands. `and`/`or` right-align to the river (`between … and …` is not a
-  connector).
+  parenthesized group always expands. Top-level `and`/`or` right-align to the river; inside an expanded
+  group they left-align at the group's block start (`between … and …` is not a connector).
 - **Expression level grows, never breaks** — a single item/condition, function args, `in (...)`, a
   `values` tuple, a `when … then`.
 - **`case`, subqueries/CTEs, and function-wrapped `case`/subqueries expand recursively**; the closing
