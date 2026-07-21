@@ -54,9 +54,30 @@ select id,
 The right edge of `select`, `from`, and `where` all land on the same column — the **river** — so the
 eye follows one clean vertical line down the query.
 
-It runs the same three ways, from one engine: a **VS Code extension**, a **command-line tool**
-(`npx riverleaf`), and a **library** (`import { format }`). Whichever you reach for first, the other
-two are there when you need them — see [Usage](#usage).
+## Usage
+
+One engine, three ways to run it. Pick whichever fits — see [Reference](#reference) for options,
+flags, and the API.
+
+### In VS Code
+
+Open a `.sql` file and run **Format Document** (`Shift+Alt+F` / `⇧⌥F`), or format on save.
+
+### From the command line
+
+```bash
+npx riverleaf query.sql             # format to stdout
+npx riverleaf --write src/**/*.sql  # rewrite files in place
+npx riverleaf --check src/**/*.sql  # exit 1 if anything is unformatted (CI)
+```
+
+### As a library
+
+```ts
+import { format } from 'riverleaf-sql-formatter';
+
+format('select id, name from planets where mass > 10');
+```
 
 ## Rules
 
@@ -327,10 +348,9 @@ select apparent_magnitude - absolute_magnitude + distance / luminosity as index
 </td></tr>
 </table>
 
-## Usage
+## Reference
 
-The formatter runs the same way whether you drive it from the editor, the shell, or your own code.
-Pick the one that fits — the rules above are identical across all three.
+The detailed version of each mode above — installation, options, flags, and the API.
 
 ### In VS Code
 
